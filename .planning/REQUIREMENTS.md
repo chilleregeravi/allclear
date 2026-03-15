@@ -42,12 +42,12 @@
 - [x] **HTTP-04**: `GET /service/:name` returns service details and all connections
 - [x] **HTTP-05**: `POST /scan` triggers repo scan via API
 - [x] **HTTP-06**: `GET /versions` returns map version history
-- [ ] **WEBUI-01**: Interactive D3 Canvas graph renders services as nodes and connections as edges
-- [ ] **WEBUI-02**: Clicking a node highlights all its connections (upstream and downstream)
-- [ ] **WEBUI-03**: Impact path highlighting shows transitive blast radius for a selected service
-- [ ] **WEBUI-04**: Protocol filter toggles visibility by connection type (REST, gRPC, events, internal)
-- [ ] **WEBUI-05**: Search box filters services by name
-- [ ] **WEBUI-06**: Web UI is a single `index.html` with ESM CDN imports — zero build step
+- [x] **WEBUI-01**: Interactive D3 Canvas graph renders services as nodes and connections as edges
+- [x] **WEBUI-02**: Clicking a node highlights all its connections (upstream and downstream)
+- [x] **WEBUI-03**: Impact path highlighting shows transitive blast radius for a selected service
+- [x] **WEBUI-04**: Protocol filter toggles visibility by connection type (REST, gRPC, events, internal)
+- [x] **WEBUI-05**: Search box filters services by name
+- [x] **WEBUI-06**: Web UI is a single `index.html` with ESM CDN imports — zero build step
 
 ### Agent Scanning
 
@@ -150,12 +150,12 @@
 | HTTP-04 | Phase 17 | Complete |
 | HTTP-05 | Phase 17 | Complete |
 | HTTP-06 | Phase 17 | Complete |
-| WEBUI-01 | Phase 17 | Pending |
-| WEBUI-02 | Phase 17 | Pending |
-| WEBUI-03 | Phase 17 | Pending |
-| WEBUI-04 | Phase 17 | Pending |
-| WEBUI-05 | Phase 17 | Pending |
-| WEBUI-06 | Phase 17 | Pending |
+| WEBUI-01 | Phase 17 | Complete |
+| WEBUI-02 | Phase 17 | Complete |
+| WEBUI-03 | Phase 17 | Complete |
+| WEBUI-04 | Phase 17 | Complete |
+| WEBUI-05 | Phase 17 | Complete |
+| WEBUI-06 | Phase 17 | Complete |
 | SCAN-01 | Phase 18 | Pending |
 | SCAN-02 | Phase 18 | Pending |
 | SCAN-03 | Phase 18 | Pending |

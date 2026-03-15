@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Service Dependency Intelligence
 status: planning
-stopped_at: Completed 14-01-PLAN.md — storage foundation with SQLite, migrations, FTS5
-last_updated: "2026-03-15T17:13:24.938Z"
+stopped_at: Completed 17-02-PLAN.md — Canvas web UI with force-directed graph, interactions, blast radius
+last_updated: "2026-03-15T17:18:18.381Z"
 last_activity: 2026-03-15 — Roadmap created, 8 phases defined (14-21)
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 19
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 15-worker-lifecycle P01 | 84s | 3 tasks | 3 files |
 | Phase 17-http-server-web-ui P01 | 10 | 2 tasks | 4 files |
 | Phase 14-storage-foundation P01 | 7min | 2 tasks | 4 files |
+| Phase 17-http-server-web-ui P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 17-http-server-web-ui]: null queryEngine returns 503 on data routes — expected transient state before DB ready, not an error
 - [Phase 14-01]: Top-level await used in db.js to preload ES module migrations before any openDb() call
 - [Phase 14-01]: FTS5 content tables with trigger-based sync (ai/ad/au per table) chosen for incremental index updates
+- [Phase 17-http-server-web-ui]: Canvas not SVG for graph UI — SVG degrades at 30+ nodes, Canvas scales to 100+
+- [Phase 17-http-server-web-ui]: Web Worker for D3 force simulation — keeps main thread free for smooth 60fps interaction
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:13:24.935Z
-Stopped at: Completed 14-01-PLAN.md — storage foundation with SQLite, migrations, FTS5
+Last session: 2026-03-15T17:18:18.378Z
+Stopped at: Completed 17-02-PLAN.md — Canvas web UI with force-directed graph, interactions, blast radius
 Resume file: None

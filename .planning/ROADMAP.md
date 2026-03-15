@@ -33,7 +33,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 14: Storage Foundation** — SQLite schema, WAL mode, FTS5 indexes, query engine with transitive CTE traversal
 - [ ] **Phase 15: Worker Lifecycle** — Node.js daemon, PID file management, readiness probe, worker shell client
 - [ ] **Phase 16: MCP Server** — stdio MCP server with impact tools, .mcp.json registration, stderr-only logging
-- [ ] **Phase 17: HTTP Server & Web UI** — Fastify REST API, D3 Canvas force-directed graph, single-file UI
+- [x] **Phase 17: HTTP Server & Web UI** — Fastify REST API, D3 Canvas force-directed graph, single-file UI (completed 2026-03-15)
 - [ ] **Phase 18: Agent Scanning** — Claude agent orchestration, structured findings extraction, incremental scan
 - [ ] **Phase 19: Repo Discovery & User Confirmation** — repo discovery flow, confirmation UX grouped by confidence, config persistence
 - [ ] **Phase 20: Command Layer** — /allclear:map orchestration, /allclear:cross-impact redesign with fallback
@@ -175,7 +175,7 @@ Plans:
 | 14. Storage Foundation | 1/2 | In Progress|  | - |
 | 15. Worker Lifecycle | 1/2 | In Progress|  | - |
 | 16. MCP Server | 1/3 | In Progress|  | - |
-| 17. HTTP Server & Web UI | 1/2 | In Progress|  | - |
+| 17. HTTP Server & Web UI | 2/2 | Complete   | 2026-03-15 | - |
 | 18. Agent Scanning | v2.0 | 0/2 | Not started | - |
 | 19. Repo Discovery & User Confirmation | v2.0 | 0/2 | Not started | - |
 | 20. Command Layer | v2.0 | 0/2 | Planned | - |
