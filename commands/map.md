@@ -1,6 +1,6 @@
 ---
 description: Build or refresh the service dependency map by scanning linked repos. Use when the user runs /allclear:map to build the impact map for the first time or re-scan after changes. Also handles --view to open the graph UI and --full to force a complete re-scan.
-allowed-tools: Bash, Read, Write, AskUserQuestion
+allowed-tools: Bash, Read, Write, AskUserQuestion, Agent
 argument-hint: "[--view] [--full]"
 ---
 
@@ -155,38 +155,53 @@ Print the determined mode: "Scan mode: full" or "Scan mode: incremental (scannin
 
 ---
 
-## Step 5: Trigger Scan
+## Step 5: Scan Repos with Agents
 
-Build the JSON payload and call the scan endpoint:
-```bash
-SCAN_PAYLOAD=$(node -e "
-  const repos = process.argv.slice(1).filter(Boolean);
-  const full = process.argv[1] === '--full';
-  // extract actual repo list
-  const repoList = JSON.parse(process.argv[2]);
-  const isFull = process.argv[3] === 'true';
-  console.log(JSON.stringify({ repos: repoList, full: isFull }));
-" -- '[CONFIRMED_REPOS_JSON]' FULL_MODE_BOOL)
+For each confirmed repo, spawn a Claude agent to analyze the codebase and extract service dependencies. Agents are spawned **sequentially in the foreground** (not background — they need full context).
 
-FINDINGS=$(worker_call POST /scan "${SCAN_PAYLOAD}")
+**For each repo path in the confirmed list:**
+
+1. Read the agent prompt template:
+   ```bash
+   PROMPT=$(cat ${CLAUDE_PLUGIN_ROOT}/worker/agent-prompt.md)
+   ```
+
+2. Replace the template tokens:
+   - `{{REPO_PATH}}` → the absolute path to the repo
+   - `{{SERVICE_HINT}}` → empty string (or service name from previous scan if re-scanning)
+
+3. Spawn a Claude agent using the Agent tool:
+   ```
+   Agent(
+     prompt="<filled agent prompt with repo path>",
+     subagent_type="Explore",
+     description="Scan <repo-name> for service dependencies"
+   )
+   ```
+
+4. Parse the agent's response. The agent returns a fenced JSON code block. Extract the JSON from between the ``` markers.
+
+5. Validate the findings using the schema. Check that:
+   - `services` array exists and has at least one entry
+   - Each connection has `source`, `target`, `protocol`, `confidence`, and `evidence`
+   - Each finding has a `confidence` field (high or low)
+
+6. If validation fails for a repo, log the error and continue to the next repo. Do not abort the entire scan.
+
+7. Collect all findings across all repos. Group by confidence level:
+   - `high` — all findings where `confidence === "high"`
+   - `low` — all findings where `confidence === "low"`
+
+Print progress as each repo completes:
+```
+Scanning repo 1/N: api... done (3 services, 5 connections)
+Scanning repo 2/N: auth... done (1 service, 2 connections)
 ```
 
-Construct the payload inline:
-```bash
-FINDINGS=$(worker_call POST /scan "{\"repos\": [CONFIRMED_REPOS_JSON], \"full\": FULL_MODE_BOOL}")
+After all repos are scanned, print a summary:
 ```
-
-Print: "Scanning N repos... (this may take a few minutes)"
-
-Parse the JSON response. The findings object has this shape:
-```json
-{
-  "high": [...],
-  "low": [...]
-}
+Scan complete: N services, M connections found across K repos.
 ```
-
-If the scan call returns a non-zero exit code or an error JSON, print the error and exit.
 
 ---
 
@@ -233,35 +248,62 @@ Merge all confirmed findings (high + answered low-confidence) into a single `con
 
 ## Step 7: Snapshot Existing Map (If Re-scan)
 
-Check if there is an existing map version:
+Check if there is existing map data:
 ```bash
 VERSIONS=$(worker_call GET /versions)
 ```
 
-Parse the JSON. If the versions array is non-empty (existing map data exists):
+Parse the JSON response. If the versions array is non-empty (existing map data exists), this is a re-scan.
 
 Use `AskUserQuestion` to ask: "Keep a history snapshot before overwriting the current map? (yes / no)"
 
-If yes:
+If yes, create a snapshot by calling the worker's snapshot capability:
 ```bash
-worker_call POST /scan/snapshot '{}'
+node -e "
+  import { openDb, createSnapshot } from '${CLAUDE_PLUGIN_ROOT}/worker/db.js';
+  openDb();
+  const path = createSnapshot('before-rescan');
+  console.log('Snapshot saved:', path);
+"
 ```
 Print: "Snapshot saved."
 
-Note whether this was a first-time build (versions list was empty before Step 7) — you will need this in Step 9.
+Note whether this was a first-time build (versions list was empty) — needed in Step 9.
 
 ---
 
 ## Step 8: Persist Confirmed Findings
 
-Call the confirm endpoint with the merged confirmed findings:
+Write the confirmed findings to SQLite. The command does this directly since the worker's query engine handles persistence:
+
 ```bash
-worker_call POST /scan/confirm "${CONFIRMED_FINDINGS_JSON}"
+node -e "
+  import { openDb, writeScan } from '${CLAUDE_PLUGIN_ROOT}/worker/db.js';
+  import { QueryEngine } from '${CLAUDE_PLUGIN_ROOT}/worker/query-engine.js';
+
+  const db = openDb();
+  const qe = new QueryEngine(db);
+  const findings = JSON.parse(process.argv[1]);
+
+  // Upsert repos and get IDs
+  for (const repoFindings of findings) {
+    const repoId = qe.upsertRepo({
+      path: repoFindings.repo_path,
+      name: repoFindings.repo_name,
+      type: repoFindings.repo_type || 'single'
+    });
+
+    writeScan(repoFindings, qe, repoId);
+
+    // Update repo_state with current commit
+    qe.setRepoState(repoId, repoFindings.last_commit);
+  }
+
+  console.log('Dependency map saved.');
+" '${CONFIRMED_FINDINGS_JSON}'
 ```
 
-Print: "Dependency map saved."
-
-If this call fails, print the error and exit without proceeding.
+If this fails, print the error and exit without proceeding.
 
 ---
 
