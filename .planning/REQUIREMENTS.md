@@ -115,8 +115,8 @@
 - [x] **TEST-02**: Bats test suite covers auto-lint hook for each language
 - [ ] **TEST-03**: Bats test suite covers sensitive file guard hook (hard blocks and soft warnings)
 - [ ] **TEST-04**: Bats test suite covers session start hook
-- [ ] **TEST-05**: Bats test suite covers project type detection library
-- [ ] **TEST-06**: Bats test suite covers sibling repo discovery library
+- [x] **TEST-05**: Bats test suite covers project type detection library
+- [x] **TEST-06**: Bats test suite covers sibling repo discovery library
 - [x] **TEST-07**: Bats tests verify non-blocking guarantee (PostToolUse hooks always exit 0)
 - [ ] **TEST-08**: Bats tests verify correct exit codes for PreToolUse blocking (exit 2)
 
@@ -224,8 +224,8 @@
 | TEST-02 | Phase 13 | Complete |
 | TEST-03 | Phase 13 | Pending |
 | TEST-04 | Phase 13 | Pending |
-| TEST-05 | Phase 13 | Pending |
-| TEST-06 | Phase 13 | Pending |
+| TEST-05 | Phase 13 | Complete |
+| TEST-06 | Phase 13 | Complete |
 | TEST-07 | Phase 13 | Complete |
 | TEST-08 | Phase 13 | Pending |
 
