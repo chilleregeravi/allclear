@@ -12,9 +12,17 @@ Scan **all files** in `{{REPO_PATH}}` — every file, regardless of extension or
 
 Identify:
 
-1. **Services** — logical service boundaries defined in this repo (HTTP servers, gRPC servers, event producers/consumers, internal modules exported as SDKs)
-2. **Connections** — calls this service makes to other services, and calls it receives from consumers
-3. **Schemas** — request/response/event payload data structures with their fields
+1. **Services** — deployable units with network boundaries (HTTP servers, gRPC servers, event producers/consumers, daemons, workers)
+2. **Libraries/SDKs** — shared code packages imported by services (not deployable on their own, but create coupling)
+3. **Connections** — calls that cross service boundaries. Classify each as:
+   - `external` — calls to another service's API over the network (REST, gRPC, events)
+   - `sdk` — imports a shared library/SDK that abstracts calls to another service
+   - `internal` — calls between modules within the same service (only report if they cross a significant boundary like a package/module boundary)
+4. **Schemas** — request/response/event payload data structures with their fields
+5. **Boundary analysis** — for each service, identify:
+   - What it **exposes** (endpoints, topics, SDK interfaces)
+   - What it **consumes** (other services' APIs, shared libraries, external systems)
+   - Where the **boundary** is (the entry point file/function that external callers hit)
 
 ---
 
@@ -57,6 +65,7 @@ Example evidence strings:
 ## What IS a Service
 
 A service is a **deployable unit** that runs as a process and communicates over a network, message bus, or system interface. Examples:
+
 - An HTTP/REST API server (Express, FastAPI, Gin, Actix, Spring Boot)
 - A gRPC server
 - A message queue consumer/producer (Kafka, RabbitMQ, SQS)
@@ -69,6 +78,7 @@ A service is a **deployable unit** that runs as a process and communicates over 
 - A database migration runner that modifies shared state
 
 **NOT services:**
+
 - Shared libraries (`lib/`, `utils/`, `helpers/`, `common/`)
 - CLI tools and scripts (`scripts/`, `bin/`)
 - Test files and fixtures (`tests/`, `__tests__/`, `spec/`)
@@ -116,16 +126,22 @@ Your JSON object must match this exact structure:
       "name": "string — service identifier",
       "root_path": "string — relative path to service root within repo",
       "language": "string — primary language (typescript, python, go, rust, java, etc.)",
+      "type": "service | library | sdk — 'service' for deployable units, 'library'/'sdk' for shared code",
+      "boundary_entry": "string | null — file that external callers hit (e.g. 'src/main.py', 'src/routes/index.ts')",
+      "exposes": [
+        "string — list of endpoint paths, topics, or SDK functions this service makes available"
+      ],
       "confidence": "high | low"
     }
   ],
   "connections": [
     {
-      "source": "string — name of the calling service",
-      "target": "string — name of the called service",
+      "source": "string — name of the calling service or library",
+      "target": "string — name of the called service or library",
       "protocol": "rest | grpc | kafka | rabbitmq | internal | sdk",
-      "method": "string — HTTP method (GET/POST/etc), 'produce', 'consume', or 'call'",
-      "path": "string — endpoint path or topic name. Use template paths (e.g. /users/{id}), NOT interpolated instances",
+      "crossing": "external | sdk | internal — 'external' for network calls, 'sdk' for library imports, 'internal' for same-service module calls",
+      "method": "string — HTTP method (GET/POST/etc), 'produce', 'consume', 'import', or 'call'",
+      "path": "string — endpoint path, topic name, or imported module. Use template paths (e.g. /users/{id}), NOT interpolated instances",
       "source_file": "string | null — file:function in caller that makes the call",
       "target_file": "string | null — file:function in callee that handles the call (null if unknown)",
       "confidence": "high | low",
