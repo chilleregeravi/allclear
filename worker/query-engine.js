@@ -165,6 +165,14 @@ export class QueryEngine {
       VALUES (?, ?, ?)
     `);
 
+    this._stmtGetRepoState = db.prepare(`
+      SELECT last_scanned_commit, last_scanned_at FROM repo_state WHERE repo_id = ?
+    `);
+
+    this._stmtGetRepoByPath = db.prepare(`
+      SELECT id, path, name FROM repos WHERE path = ?
+    `);
+
     this._stmtInsertMapVersion = db.prepare(`
       INSERT INTO map_versions (label, snapshot_path) VALUES (?, ?)
     `);
@@ -355,6 +363,33 @@ export class QueryEngine {
    */
   updateRepoState(repoId, lastScannedCommit) {
     this._stmtUpdateRepoState.run(repoId, lastScannedCommit, new Date().toISOString());
+  }
+
+  /**
+   * Returns the repo_state entry for a given repo id, or null if not found.
+   * @param {number} repoId
+   * @returns {{ last_scanned_commit: string|null, last_scanned_at: string|null } | null}
+   */
+  getRepoState(repoId) {
+    return this._stmtGetRepoState.get(repoId) ?? null;
+  }
+
+  /**
+   * Alias for updateRepoState — named setRepoState for scan-manager compatibility.
+   * @param {number} repoId
+   * @param {string} commit
+   */
+  setRepoState(repoId, commit) {
+    this.updateRepoState(repoId, commit);
+  }
+
+  /**
+   * Looks up a repo by its absolute path.
+   * @param {string} repoPath
+   * @returns {{ id: number, path: string, name: string } | null}
+   */
+  getRepoByPath(repoPath) {
+    return this._stmtGetRepoByPath.get(repoPath) ?? null;
   }
 
   /**
