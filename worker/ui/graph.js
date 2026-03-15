@@ -1,0 +1,515 @@
+/**
+ * graph.js — D3 Canvas force-directed graph renderer with full interactions.
+ *
+ * Architecture:
+ * - D3 force simulation runs in force-worker.js (Web Worker) — never blocks main thread
+ * - All rendering uses Canvas 2D context — never SVG
+ * - Hit detection uses Math.hypot for point-in-circle (Canvas has no DOM elements)
+ * - Pan/zoom via transform state applied with ctx.setTransform()
+ */
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+let graphData = { nodes: [], edges: [] };
+let positions = {};            // nodeId -> { x, y }
+let selectedNodeId = null;     // clicked node (highlight direct neighbors)
+let blastNodeId = null;        // shift-clicked node (transitive blast radius)
+let blastSet = new Set();      // IDs returned by /impact for blastNodeId
+let blastCache = {};           // nodeName -> Set of affected IDs (cache /impact calls)
+let activeProtocols = new Set(['rest', 'grpc', 'events', 'internal']);
+let searchFilter = '';
+let forceWorker = null;
+let isDragging = false;
+let dragNodeId = null;
+let dragStarted = false;       // distinguish click from drag
+let transform = { x: 0, y: 0, scale: 1 };
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const NODE_RADIUS = 18;
+const LABEL_MAX_CHARS = 12;
+
+const COLORS = {
+  node: {
+    default: '#4299e1',
+    selected: '#f6ad55',
+    blast: '#fc8181',
+    dimmed: '#2d3748',
+  },
+  edge: {
+    default: '#4a5568',
+    selected: '#f6ad55',
+    blast: '#fc8181',
+    dimmed: '#1a202c',
+  },
+  label: {
+    default: '#e2e8f0',
+    dimmed: '#4a5568',
+  },
+};
+
+// Protocol edge colors for unselected state
+const PROTOCOL_COLORS = {
+  rest: '#4299e1',
+  grpc: '#68d391',
+  events: '#9f7aea',
+  internal: '#4a5568',
+};
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max) + '…' : str;
+}
+
+/**
+ * Convert canvas pixel coordinates to world coordinates (accounting for transform).
+ */
+function toWorld(px, py) {
+  return {
+    x: (px - transform.x) / transform.scale,
+    y: (py - transform.y) / transform.scale,
+  };
+}
+
+/**
+ * Find node at canvas pixel (px, py). Returns node or null.
+ */
+function hitTest(px, py) {
+  const { x: wx, y: wy } = toWorld(px, py);
+  for (const node of graphData.nodes) {
+    const pos = positions[node.id];
+    if (!pos) continue;
+    if (Math.hypot(wx - pos.x, wy - pos.y) < NODE_RADIUS) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get IDs of direct neighbors of a node (by edge).
+ */
+function getNeighborIds(nodeId) {
+  const ids = new Set();
+  for (const e of graphData.edges) {
+    if (e.source_service_id === nodeId) ids.add(e.target_service_id);
+    if (e.target_service_id === nodeId) ids.add(e.source_service_id);
+  }
+  return ids;
+}
+
+/**
+ * Fetch /impact for a node name (with cache).
+ */
+async function fetchImpact(nodeName, nodeId) {
+  if (blastCache[nodeName] !== undefined) {
+    return blastCache[nodeName];
+  }
+  try {
+    const resp = await fetch(`/impact?change=${encodeURIComponent(nodeName)}`);
+    if (!resp.ok) {
+      blastCache[nodeName] = new Set();
+      return blastCache[nodeName];
+    }
+    const data = await resp.json();
+    const affected = new Set((data.affected || []).map(a => a.id));
+    affected.add(nodeId); // include the source node itself
+    blastCache[nodeName] = affected;
+    return affected;
+  } catch {
+    blastCache[nodeName] = new Set();
+    return blastCache[nodeName];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+
+function render() {
+  const canvas = document.getElementById('graph-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0f1117';
+  ctx.fillRect(0, 0, W, H);
+
+  if (graphData.nodes.length === 0) return;
+
+  // Compute visible set based on search filter
+  const visibleIds = new Set(
+    graphData.nodes
+      .filter(n => n.name.toLowerCase().includes(searchFilter))
+      .map(n => n.id)
+  );
+
+  // Compute neighbor set for selected node
+  const neighborIds = selectedNodeId ? getNeighborIds(selectedNodeId) : new Set();
+
+  const hasSelection = selectedNodeId !== null;
+  const hasBlast = blastNodeId !== null && blastSet.size > 0;
+
+  // Apply pan/zoom transform
+  ctx.save();
+  ctx.translate(transform.x, transform.y);
+  ctx.scale(transform.scale, transform.scale);
+
+  // -----------------------------------------------------------------------
+  // Draw edges
+  // -----------------------------------------------------------------------
+  for (const edge of graphData.edges) {
+    const src = edge.source_service_id;
+    const tgt = edge.target_service_id;
+
+    // Protocol filter
+    if (!activeProtocols.has(edge.protocol)) continue;
+
+    // Search filter — skip edges where neither endpoint is visible
+    if (!visibleIds.has(src) && !visibleIds.has(tgt)) continue;
+
+    const srcPos = positions[src];
+    const tgtPos = positions[tgt];
+    if (!srcPos || !tgtPos) continue;
+
+    // Determine edge color
+    let color;
+    const isSelectedEdge = hasSelection &&
+      (src === selectedNodeId || tgt === selectedNodeId) &&
+      (neighborIds.has(src) || neighborIds.has(tgt) || src === selectedNodeId || tgt === selectedNodeId);
+    const isBlastEdge = hasBlast &&
+      (blastSet.has(src) && blastSet.has(tgt));
+
+    if (isSelectedEdge) {
+      color = COLORS.edge.selected;
+    } else if (isBlastEdge) {
+      color = COLORS.edge.blast;
+    } else if (hasSelection || hasBlast) {
+      color = COLORS.edge.dimmed;
+    } else {
+      // Default: color by protocol
+      color = PROTOCOL_COLORS[edge.protocol] || COLORS.edge.default;
+    }
+
+    // Determine line width
+    const lineWidth = (isSelectedEdge || isBlastEdge) ? 2 : 1;
+
+    ctx.beginPath();
+    ctx.moveTo(srcPos.x, srcPos.y);
+    ctx.lineTo(tgtPos.x, tgtPos.y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth / transform.scale;
+    ctx.globalAlpha = (hasSelection || hasBlast) && !isSelectedEdge && !isBlastEdge ? 0.2 : 0.85;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // -----------------------------------------------------------------------
+  // Draw nodes
+  // -----------------------------------------------------------------------
+  for (const node of graphData.nodes) {
+    const pos = positions[node.id];
+    if (!pos) continue;
+
+    const isVisible = visibleIds.has(node.id);
+    const isSelected = node.id === selectedNodeId;
+    const isNeighbor = neighborIds.has(node.id);
+    const isBlastNode = hasBlast && blastSet.has(node.id);
+
+    // Node circle color
+    let nodeColor;
+    if (isSelected) {
+      nodeColor = COLORS.node.selected;
+    } else if (isBlastNode) {
+      nodeColor = COLORS.node.blast;
+    } else if (hasSelection && (isNeighbor)) {
+      nodeColor = COLORS.node.selected; // neighbors get same highlight
+    } else if ((hasSelection || hasBlast) && isVisible) {
+      nodeColor = COLORS.node.dimmed;
+    } else if (!isVisible) {
+      nodeColor = COLORS.node.dimmed;
+    } else {
+      nodeColor = COLORS.node.default;
+    }
+
+    const alpha = !isVisible ? 0.15 :
+      (hasSelection || hasBlast) && !isSelected && !isNeighbor && !isBlastNode ? 0.3 : 1;
+
+    ctx.globalAlpha = alpha;
+
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, NODE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = nodeColor;
+    ctx.fill();
+
+    // Draw ring for selected/blast
+    if (isSelected || isBlastNode) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2 / transform.scale;
+      ctx.stroke();
+    }
+
+    // Draw label below circle
+    const label = truncate(node.name, LABEL_MAX_CHARS);
+    const labelColor = !isVisible || ((hasSelection || hasBlast) && !isSelected && !isNeighbor && !isBlastNode)
+      ? COLORS.label.dimmed
+      : COLORS.label.default;
+    ctx.fillStyle = labelColor;
+    ctx.font = `${Math.round(11 / transform.scale)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, pos.x, pos.y + NODE_RADIUS + 3);
+
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// Worker message handler
+// ---------------------------------------------------------------------------
+
+function handleWorkerMessage({ data }) {
+  if (data.type === 'tick') {
+    data.nodes.forEach(({ id, x, y }) => {
+      positions[id] = { x, y };
+    });
+    render();
+  }
+  // 'end' message — simulation finished, nothing to do (positions already set)
+}
+
+// ---------------------------------------------------------------------------
+// Interactions
+// ---------------------------------------------------------------------------
+
+function setupInteractions(canvas) {
+  const tooltip = document.getElementById('tooltip');
+  let mouseDownX = 0;
+  let mouseDownY = 0;
+
+  // Mousemove — hover tooltip + drag
+  canvas.addEventListener('mousemove', e => {
+    const px = e.offsetX;
+    const py = e.offsetY;
+
+    if (isDragging && dragNodeId !== null) {
+      const { x: wx, y: wy } = toWorld(px, py);
+      forceWorker.postMessage({ type: 'drag', nodeId: dragNodeId, x: wx, y: wy });
+      dragStarted = true;
+      render();
+      return;
+    }
+
+    const node = hitTest(px, py);
+    if (node) {
+      canvas.style.cursor = 'pointer';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (px + 12) + 'px';
+      tooltip.style.top = (py - 8) + 'px';
+      tooltip.textContent = node.name + (node.language ? ` (${node.language})` : '');
+    } else {
+      canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+      tooltip.style.display = 'none';
+    }
+  });
+
+  // Mousedown — start drag or pan
+  canvas.addEventListener('mousedown', e => {
+    mouseDownX = e.offsetX;
+    mouseDownY = e.offsetY;
+    dragStarted = false;
+
+    const node = hitTest(e.offsetX, e.offsetY);
+    if (node) {
+      isDragging = true;
+      dragNodeId = node.id;
+    }
+  });
+
+  // Mouseup — release drag
+  canvas.addEventListener('mouseup', e => {
+    if (isDragging && dragNodeId !== null && dragStarted) {
+      // Fix node position after drag
+      const { x: wx, y: wy } = toWorld(e.offsetX, e.offsetY);
+      if (forceWorker) {
+        forceWorker.postMessage({ type: 'drag', nodeId: dragNodeId, x: wx, y: wy });
+      }
+    }
+    isDragging = false;
+    dragNodeId = null;
+  });
+
+  // Click — select node or clear selection
+  canvas.addEventListener('click', e => {
+    if (dragStarted) {
+      dragStarted = false;
+      return; // was a drag, not a click
+    }
+
+    const node = hitTest(e.offsetX, e.offsetY);
+
+    if (node) {
+      if (e.shiftKey) {
+        // Shift+click: blast radius
+        if (blastNodeId === node.id) {
+          // Toggle off
+          blastNodeId = null;
+          blastSet = new Set();
+        } else {
+          blastNodeId = node.id;
+          selectedNodeId = null;
+          const nodeName = node.name;
+          const nodeId = node.id;
+          fetchImpact(nodeName, nodeId).then(ids => {
+            blastSet = ids;
+            render();
+          });
+        }
+      } else {
+        // Regular click: toggle selection
+        if (selectedNodeId === node.id) {
+          selectedNodeId = null;
+        } else {
+          selectedNodeId = node.id;
+          blastNodeId = null;
+          blastSet = new Set();
+        }
+      }
+    } else {
+      // Click on empty canvas: clear selection
+      selectedNodeId = null;
+      blastNodeId = null;
+      blastSet = new Set();
+    }
+
+    render();
+  });
+
+  // Wheel — zoom centered on cursor
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = Math.min(5, Math.max(0.2, transform.scale * delta));
+    const ratio = newScale / transform.scale;
+
+    // Adjust translate so zoom centers on cursor
+    transform.x = e.offsetX - ratio * (e.offsetX - transform.x);
+    transform.y = e.offsetY - ratio * (e.offsetY - transform.y);
+    transform.scale = newScale;
+
+    render();
+  }, { passive: false });
+
+  // Mouse leave — hide tooltip
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+    if (isDragging) {
+      isDragging = false;
+      dragNodeId = null;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Controls (search + protocol filters)
+// ---------------------------------------------------------------------------
+
+function setupControls() {
+  // Search
+  document.getElementById('search').addEventListener('input', e => {
+    searchFilter = e.target.value.toLowerCase();
+    render();
+  });
+
+  // Protocol filters
+  document.querySelectorAll('[data-protocol]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) activeProtocols.add(cb.dataset.protocol);
+      else activeProtocols.delete(cb.dataset.protocol);
+      render();
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Initialization
+// ---------------------------------------------------------------------------
+
+async function init() {
+  const canvas = document.getElementById('graph-canvas');
+  const container = document.getElementById('canvas-container');
+
+  // Resize canvas to fill container
+  function resize() {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    render();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Load graph data
+  let resp;
+  try {
+    resp = await fetch('/graph');
+  } catch (err) {
+    document.getElementById('node-info').textContent = 'Cannot reach server.';
+    return;
+  }
+
+  if (!resp.ok) {
+    document.getElementById('node-info').textContent = 'No map data yet. Run /allclear:map first.';
+    return;
+  }
+
+  graphData = await resp.json();
+  document.getElementById('node-info').textContent =
+    `${graphData.nodes.length} services, ${graphData.edges.length} connections`;
+
+  // Initialize positions to random before simulation settles
+  graphData.nodes.forEach(n => {
+    positions[n.id] = {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+    };
+  });
+
+  // Start Web Worker force simulation
+  forceWorker = new Worker('./force-worker.js', { type: 'module' });
+  forceWorker.onmessage = handleWorkerMessage;
+  forceWorker.postMessage({
+    type: 'init',
+    nodes: graphData.nodes.map(n => ({ id: n.id, ...positions[n.id] })),
+    links: graphData.edges.map(e => ({
+      source: e.source_service_id,
+      target: e.target_service_id,
+    })),
+    width: canvas.width,
+    height: canvas.height,
+  });
+
+  setupInteractions(canvas);
+  setupControls();
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+init().catch(err => {
+  document.getElementById('node-info').textContent = `Error: ${err.message}`;
+  console.error(err);
+});
