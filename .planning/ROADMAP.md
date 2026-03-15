@@ -153,7 +153,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. `/allclear pulse` reports health endpoint status (alive, ready, components) for each service and compares running image version to latest git tag
   2. `/allclear pulse --env staging` (or dev/prod) targets the specified environment
   3. `/allclear pulse` with no kubectl available outputs a single clear skip message and exits cleanly with no error
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 11-01-PLAN.md — Pulse skill helper script and SKILL.md orchestration prompt
 
 ### Phase 12: Deploy Skill
 **Goal**: Developers with kubectl access can verify that deployed cluster state matches the expected kustomize/helm configuration with one command; without kubectl they get a clean skip message
@@ -194,6 +196,6 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | 8. Config Layer | 0/TBD | Not started | - |
 | 9. Impact Skill | 0/TBD | Not started | - |
 | 10. Drift Skill | 0/TBD | Not started | - |
-| 11. Pulse Skill | 0/TBD | Not started | - |
+| 11. Pulse Skill | 0/1 | Planning complete | - |
 | 12. Deploy Skill | 0/TBD | Not started | - |
 | 13. Tests | 0/TBD | Not started | - |
