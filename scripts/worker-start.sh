@@ -65,14 +65,11 @@ echo "$PORT" > "$PORT_FILE"
 # Ensure logs directory exists
 mkdir -p "${DATA_DIR}/logs"
 
-# Capture project root from CWD at spawn time so the worker uses the correct DB hash
-PROJECT_ROOT="${ALLCLEAR_PROJECT_ROOT:-$PWD}"
-
-# Spawn worker as background daemon
+# Spawn worker as background daemon — worker is project-agnostic,
+# resolves DB per-request via ?project= query parameter
 nohup node "${PLUGIN_ROOT}/worker/index.js" \
   --port "$PORT" \
   --data-dir "$DATA_DIR" \
-  --project-root "$PROJECT_ROOT" \
   >>"${DATA_DIR}/logs/worker.log" 2>&1 &
 WORKER_PID=$!
 echo "$WORKER_PID" > "$PID_FILE"

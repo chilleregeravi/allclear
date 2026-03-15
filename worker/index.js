@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { openDb } from './db.js';
-import { QueryEngine } from './query-engine.js';
 import { createHttpServer } from './http-server.js';
+import { getQueryEngine } from './db-pool.js';
 
 // ---------------------------------------------------------------------------
 // 1. Parse CLI args
@@ -11,12 +10,10 @@ import { createHttpServer } from './http-server.js';
 const args = process.argv.slice(2);
 let port = 37888;
 let dataDir = process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), '.allclear');
-let projectRoot = process.env.ALLCLEAR_PROJECT_ROOT || process.cwd();
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--port') port = parseInt(args[i + 1], 10);
   if (args[i] === '--data-dir') dataDir = args[i + 1];
-  if (args[i] === '--project-root') projectRoot = args[i + 1];
 }
 
 // ---------------------------------------------------------------------------
@@ -64,27 +61,16 @@ function log(level, msg, extra = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Initialize DB and query engine
+// 6. Create HTTP server — DB resolved per-request, not at startup
 // ---------------------------------------------------------------------------
-let queryEngine = null;
-try {
-  const db = openDb(projectRoot);
-  queryEngine = new QueryEngine(db);
-  log('INFO', 'database initialized', { projectRoot });
-} catch (err) {
-  log('WARN', 'database initialization failed — routes will return 503', { error: err.message });
-  // Worker still starts — /api/readiness works, data routes return 503
-}
-
-// ---------------------------------------------------------------------------
-// 7. Create HTTP server with all routes (readiness, graph, impact, scan, etc.)
-// ---------------------------------------------------------------------------
-const app = await createHttpServer(queryEngine, { port });
+// Pass null as queryEngine — the HTTP server resolves it per-request
+// using the ?project= query param and getQueryEngine()
+const app = await createHttpServer(null, { port, resolveQueryEngine: getQueryEngine });
 fs.writeFileSync(PORT_FILE, String(port));
-log('INFO', 'worker started', { port, db: queryEngine ? 'connected' : 'unavailable' });
+log('INFO', 'worker started', { port });
 
 // ---------------------------------------------------------------------------
-// 8. Graceful shutdown
+// 7. Graceful shutdown
 // ---------------------------------------------------------------------------
 function shutdown(signal) {
   log('INFO', `received ${signal}, shutting down`);

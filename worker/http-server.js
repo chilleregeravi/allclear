@@ -3,19 +3,36 @@ import fastifyStatic from '@fastify/static';
 import fastifyCors from '@fastify/cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { listProjects } from './db-pool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Create and start a Fastify HTTP server exposing the query engine over REST.
  *
- * @param {object|null} queryEngine - Query engine instance (may be null if DB not ready)
+ * The worker is project-agnostic. Each request includes a `?project=` query
+ * parameter (absolute path to project root). The server resolves the correct
+ * per-project DB via options.resolveQueryEngine(projectRoot).
+ *
+ * @param {object|null} queryEngine - Static query engine (for tests). Null in production.
  * @param {object} options - Server options
  * @param {number} [options.port=37888] - Port to bind (use 0 for inject-only testing)
+ * @param {Function} [options.resolveQueryEngine] - (projectRoot) => QueryEngine|null
  * @returns {Promise<FastifyInstance>}
  */
 async function createHttpServer(queryEngine, options = {}) {
   const fastify = Fastify({ logger: false });
+  const resolve = options.resolveQueryEngine || (() => queryEngine);
+
+  /**
+   * Resolve query engine from request.
+   * Checks ?project= query param, falls back to static queryEngine (tests).
+   */
+  function getQE(request) {
+    const project = request.query?.project;
+    if (project) return resolve(project);
+    return queryEngine; // fallback for tests or when no project specified
+  }
 
   // Register CORS for localhost dev
   await fastify.register(fastifyCors, {
@@ -30,30 +47,40 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   // -----------------------------------------------------------------------
-  // Routes registered in EXACT ORDER — readiness MUST be first
+  // Routes — readiness MUST be first
   // -----------------------------------------------------------------------
 
-  // 1. GET /api/readiness — always 200, never touches queryEngine
+  // 1. GET /api/readiness — always 200
   fastify.get('/api/readiness', async (_request, reply) => {
     return reply.send({ status: 'ok' });
   });
 
-  // 2. GET /graph — returns full service dependency graph
-  fastify.get('/graph', async (_request, reply) => {
-    if (!queryEngine) {
-      return reply.code(503).send({ error: 'No map data yet' });
-    }
+  // 2. GET /projects — list all projects with DBs
+  fastify.get('/projects', async (_request, reply) => {
     try {
-      const result = queryEngine.getGraph();
-      return reply.send(result);
+      return reply.send(listProjects());
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }
   });
 
-  // 3. GET /impact — returns services impacted by a given endpoint
+  // 3. GET /graph?project=/path — full service dependency graph
+  fastify.get('/graph', async (request, reply) => {
+    const qe = getQE(request);
+    if (!qe) {
+      return reply.code(503).send({ error: 'No map data yet. Pass ?project=/path/to/repo or run /allclear:map first.' });
+    }
+    try {
+      return reply.send(qe.getGraph());
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  // 4. GET /impact?project=/path&change=endpoint — impacted services
   fastify.get('/impact', async (request, reply) => {
-    if (!queryEngine) {
+    const qe = getQE(request);
+    if (!qe) {
       return reply.code(503).send({ error: 'No map data yet' });
     }
     const change = request.query.change;
@@ -61,20 +88,20 @@ async function createHttpServer(queryEngine, options = {}) {
       return reply.code(400).send({ error: 'change param required' });
     }
     try {
-      const result = queryEngine.getImpact(change);
-      return reply.send(result);
+      return reply.send(qe.getImpact(change));
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }
   });
 
-  // 4. GET /service/:name — returns service details with upstream/downstream
+  // 5. GET /service/:name?project=/path — service details
   fastify.get('/service/:name', async (request, reply) => {
-    if (!queryEngine) {
+    const qe = getQE(request);
+    if (!qe) {
       return reply.code(503).send({ error: 'No map data yet' });
     }
     try {
-      const result = queryEngine.getService(request.params.name);
+      const result = qe.getService(request.params.name);
       if (result === null || result === undefined) {
         return reply.code(404).send({ error: 'Service not found' });
       }
@@ -84,45 +111,47 @@ async function createHttpServer(queryEngine, options = {}) {
     }
   });
 
-  // 5. POST /scan — triggers a background scan (actual logic in Phase 18)
+  // 6. POST /scan — persist scan findings for a project
   fastify.post('/scan', async (request, reply) => {
-    if (!queryEngine) {
+    const { repo_path, repo_name, repo_type, findings, commit, project } = request.body || {};
+    const projectRoot = project || request.query?.project;
+    const qe = projectRoot ? resolve(projectRoot) : queryEngine;
+
+    if (!qe) {
       return reply.code(503).send({ error: 'No map data yet — run /allclear:map first' });
     }
+    if (!repo_path || !findings) {
+      return reply.code(400).send({ error: 'Missing repo_path or findings in request body' });
+    }
     try {
-      const { repo_path, repo_name, repo_type, findings, commit } = request.body || {};
-      if (!repo_path || !findings) {
-        return reply.code(400).send({ error: 'Missing repo_path or findings in request body' });
-      }
-      const repoId = queryEngine.upsertRepo({
+      const repoId = qe.upsertRepo({
         path: repo_path,
         name: repo_name || path.basename(repo_path),
         type: repo_type || 'single',
       });
-      queryEngine.persistFindings(repoId, findings, commit || null);
+      qe.persistFindings(repoId, findings, commit || null);
       return reply.code(200).send({ status: 'persisted', repo_id: repoId });
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }
   });
 
-  // 6. GET /versions — returns map version history
-  fastify.get('/versions', async (_request, reply) => {
-    if (!queryEngine) {
+  // 7. GET /versions?project=/path — map version history
+  fastify.get('/versions', async (request, reply) => {
+    const qe = getQE(request);
+    if (!qe) {
       return reply.code(503).send({ error: 'No map data yet' });
     }
     try {
-      const result = queryEngine.getVersions();
-      return reply.send(result);
+      return reply.send(qe.getVersions());
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }
   });
 
-  // Start listening on 127.0.0.1 only (never 0.0.0.0)
+  // Start listening on 127.0.0.1 only
   const port = options.port !== undefined ? options.port : 37888;
 
-  // When port is 0 we are in inject-only test mode — skip listen
   if (port !== 0) {
     await fastify.listen({ port, host: '127.0.0.1' });
   } else {

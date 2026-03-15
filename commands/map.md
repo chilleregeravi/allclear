@@ -43,9 +43,10 @@ If `--view` is present:
 4. If map data exists: open the browser and exit.
    ```bash
    PORT=$(cat ~/.allclear/worker.port)
-   open http://localhost:${PORT}
+   PROJECT_ROOT=$(pwd)
+   open "http://localhost:${PORT}?project=${PROJECT_ROOT}"
    ```
-   Print: "Graph UI opened at http://localhost:PORT"
+   Print: "Graph UI opened at http://localhost:PORT?project=PROJECT_ROOT"
 
 5. If no map data: print the following and exit.
    > No map data yet. Run `/allclear:map` to build the dependency map first.
@@ -349,7 +350,8 @@ If the versions list from Step 7 was **empty** (this was the first successful ma
 Open the graph UI in the browser:
 ```bash
 PORT=$(cat ~/.allclear/worker.port)
-open http://localhost:${PORT}
+PROJECT_ROOT=$(pwd)
+open "http://localhost:${PORT}?project=${PROJECT_ROOT}"
 ```
 
-Print: "Graph UI opened at http://localhost:PORT"
+Print: "Graph UI opened at http://localhost:PORT?project=PROJECT_ROOT"

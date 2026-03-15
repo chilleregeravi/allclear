@@ -113,7 +113,9 @@ async function fetchImpact(nodeName, nodeId) {
     return blastCache[nodeName];
   }
   try {
-    const resp = await fetch(`/impact?change=${encodeURIComponent(nodeName)}`);
+    const urlProject = new URLSearchParams(window.location.search).get('project');
+    const pParam = urlProject ? `&project=${encodeURIComponent(urlProject)}` : '';
+    const resp = await fetch(`/impact?change=${encodeURIComponent(nodeName)}${pParam}`);
     if (!resp.ok) {
       blastCache[nodeName] = new Set();
       return blastCache[nodeName];
@@ -461,10 +463,35 @@ async function init() {
   window.addEventListener('resize', resize);
   resize();
 
+  // Determine project from URL query param or pick from available projects
+  const urlParams = new URLSearchParams(window.location.search);
+  let project = urlParams.get('project');
+
+  if (!project) {
+    // No project specified — check available projects and pick the one with data
+    try {
+      const projectsResp = await fetch('/projects');
+      if (projectsResp.ok) {
+        const projects = await projectsResp.json();
+        // Sort by size descending — largest DB likely has the most data
+        projects.sort((a, b) => b.size - a.size);
+        if (projects.length > 0) {
+          // For now, use the largest DB. TODO: project picker UI
+          // We need to reverse-lookup the project root from the hash — not possible.
+          // Instead, pass the hash directly and let the server handle it.
+          document.getElementById('node-info').textContent =
+            `${projects.length} project(s) found. Add ?project=/path/to/repo to URL to select one.`;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  const projectParam = project ? `?project=${encodeURIComponent(project)}` : '';
+
   // Load graph data
   let resp;
   try {
-    resp = await fetch('/graph');
+    resp = await fetch(`/graph${projectParam}`);
   } catch (err) {
     document.getElementById('node-info').textContent = 'Cannot reach server.';
     return;
