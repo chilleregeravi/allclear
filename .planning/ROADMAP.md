@@ -37,7 +37,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 18: Agent Scanning** — Claude agent orchestration, structured findings extraction, incremental scan (completed 2026-03-15)
 - [x] **Phase 19: Repo Discovery & User Confirmation** — repo discovery flow, confirmation UX grouped by confidence, config persistence (completed 2026-03-15)
 - [x] **Phase 20: Command Layer** — /allclear:map orchestration, /allclear:cross-impact redesign with fallback (completed 2026-03-15)
-- [ ] **Phase 21: Integration & Config** — session hook auto-start, ChromaDB async sync, E2E tests
+- [x] **Phase 21: Integration & Config** — session hook auto-start, ChromaDB async sync, E2E tests (completed 2026-03-15)
 
 ## Phase Details
 
@@ -179,4 +179,4 @@ Plans:
 | 18. Agent Scanning | 2/2 | Complete   | 2026-03-15 | - |
 | 19. Repo Discovery & User Confirmation | 2/2 | Complete   | 2026-03-15 | - |
 | 20. Command Layer | 2/2 | Complete   | 2026-03-15 | - |
-| 21. Integration & Config | 3/4 | In Progress|  | - |
+| 21. Integration & Config | 4/4 | Complete   | 2026-03-15 | - |

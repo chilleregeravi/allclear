@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Service Dependency Intelligence
 status: planning
-stopped_at: Completed 21-02-PLAN.md — ChromaDB sync module and 3-tier search fallback
-last_updated: "2026-03-15T19:37:23.127Z"
+stopped_at: Completed 21-04-PLAN.md — integration test suite for scan-to-query flow
+last_updated: "2026-03-15T19:42:04.693Z"
 last_activity: 2026-03-15 — Roadmap created, 8 phases defined (14-21)
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 21-integration-config P03 | 2min | 2 tasks | 3 files |
 | Phase 21-integration-config P01 | 2min | 2 tasks | 3 files |
 | Phase 21-integration-config P02 | 261s | 2 tasks | 5 files |
+| Phase 21-integration-config P04 | 142s | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 21-02]: chromaSearch throws when unavailable so query-engine can trigger FTS5 fallback without explicit availability check at call site
 - [Phase 21-02]: initChromaSync accepts optional mockClient for hermetic tests without running ChromaDB; _resetForTest() enables per-test isolation
 - [Phase 21-02]: writeScan() in db.js is the canonical SQLite persist gate; syncFindings fire-and-forget appended after synchronous SQLite writes complete
+- [Phase 21-04]: Integration tests use inline schema DDL in each Node.js subprocess to avoid db.js singleton interference — same isolation pattern as worker/db.test.js
+- [Phase 21-04]: QueryEngine.createMapVersion used for snapshot test (INTG-E2E-05) instead of db.createSnapshot — avoids getDb() singleton dependency, exercises same VACUUM INTO path
 
 ### Pending Todos
 
@@ -133,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:37:23.124Z
-Stopped at: Completed 21-02-PLAN.md — ChromaDB sync module and 3-tier search fallback
+Last session: 2026-03-15T19:42:04.689Z
+Stopped at: Completed 21-04-PLAN.md — integration test suite for scan-to-query flow
 Resume file: None
