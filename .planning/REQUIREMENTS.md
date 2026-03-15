@@ -79,12 +79,12 @@
 
 ### Cross-Repo Drift Skill
 
-- [ ] **DRFT-01**: `/allclear drift` skill checks version alignment of shared dependencies across sibling repos
+- [x] **DRFT-01**: `/allclear drift` skill checks version alignment of shared dependencies across sibling repos
 - [x] **DRFT-02**: Skill checks type definition consistency for shared models across repos
 - [x] **DRFT-03**: Skill checks OpenAPI spec consistency for shared endpoints
-- [ ] **DRFT-04**: Skill supports subcommands: versions, types, openapi
-- [ ] **DRFT-05**: Skill reports drift with specific divergences and which repos are affected
-- [ ] **DRFT-06**: Skill output uses severity levels and defaults to actionable differences only (not wall of text)
+- [x] **DRFT-04**: Skill supports subcommands: versions, types, openapi
+- [x] **DRFT-05**: Skill reports drift with specific divergences and which repos are affected
+- [x] **DRFT-06**: Skill output uses severity levels and defaults to actionable differences only (not wall of text)
 
 ### Service Health Skill
 
@@ -204,12 +204,12 @@
 | IMPT-05 | Phase 9 | Complete |
 | IMPT-06 | Phase 9 | Complete |
 | IMPT-07 | Phase 9 | Complete |
-| DRFT-01 | Phase 10 | Pending |
+| DRFT-01 | Phase 10 | Complete |
 | DRFT-02 | Phase 10 | Complete |
 | DRFT-03 | Phase 10 | Complete |
-| DRFT-04 | Phase 10 | Pending |
-| DRFT-05 | Phase 10 | Pending |
-| DRFT-06 | Phase 10 | Pending |
+| DRFT-04 | Phase 10 | Complete |
+| DRFT-05 | Phase 10 | Complete |
+| DRFT-06 | Phase 10 | Complete |
 | PULS-01 | Phase 11 | Complete |
 | PULS-02 | Phase 11 | Complete |
 | PULS-03 | Phase 11 | Complete |

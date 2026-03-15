@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Quality Gate Skill** - `/allclear` slash-command for full quality checks and subcommands
 - [x] **Phase 8: Config Layer** - allclear.config.json overrides and environment variable toggles (completed 2026-03-15)
 - [ ] **Phase 9: Impact Skill** - `/allclear impact` cross-repo reference scanning
-- [ ] **Phase 10: Drift Skill** - `/allclear drift` version and type consistency checking across repos
+- [x] **Phase 10: Drift Skill** - `/allclear drift` version and type consistency checking across repos (completed 2026-03-15)
 - [x] **Phase 11: Pulse Skill** - `/allclear pulse` live service health checking via kubectl (completed 2026-03-15)
 - [x] **Phase 12: Deploy Skill** - `/allclear deploy` expected-vs-actual cluster state verification (completed 2026-03-15)
 - [x] **Phase 13: Tests** - Bats test suite for all hooks, exit codes, and library functions (completed 2026-03-15)
@@ -165,7 +165,7 @@ Plans:
   2. `/allclear drift types` reports type definition inconsistencies for shared models across repos
   3. `/allclear drift openapi` reports OpenAPI spec inconsistencies for shared endpoints
   4. Output defaults to actionable differences only (not a wall of text) with severity levels indicating which drifts are breaking vs. informational
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 10-01-PLAN.md — SKILL.md prompt playbook, shared helpers, and version drift checker
 - [ ] 10-02-PLAN.md — Type definition and OpenAPI spec drift checkers
@@ -229,7 +229,7 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | 7. Quality Gate Skill | 0/1 | Planning complete | - |
 | 8. Config Layer | 1/1 | Complete   | 2026-03-15 |
 | 9. Impact Skill | 0/1 | Planning complete | - |
-| 10. Drift Skill | 1/2 | In Progress|  |
+| 10. Drift Skill | 2/2 | Complete   | 2026-03-15 |
 | 11. Pulse Skill | 1/1 | Complete   | 2026-03-15 |
 | 12. Deploy Skill | 1/1 | Complete   | 2026-03-15 |
 | 13. Tests | 3/3 | Complete   | 2026-03-15 |
