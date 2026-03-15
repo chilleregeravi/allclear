@@ -8,13 +8,13 @@
 ### Plugin Foundation
 
 - [x] **PLGN-01**: Plugin follows Claude Code plugin format with plugin.json manifest, skills/, hooks/, and scripts/ directories at the plugin root
-- [ ] **PLGN-02**: Plugin detects project type from manifest files (pyproject.toml → Python, Cargo.toml → Rust, package.json → Node/TS, go.mod → Go)
-- [ ] **PLGN-03**: Plugin supports mixed-language projects by detecting all applicable project types in a directory
+- [x] **PLGN-02**: Plugin detects project type from manifest files (pyproject.toml → Python, Cargo.toml → Rust, package.json → Node/TS, go.mod → Go)
+- [x] **PLGN-03**: Plugin supports mixed-language projects by detecting all applicable project types in a directory
 - [x] **PLGN-04**: Plugin uses `${CLAUDE_PLUGIN_ROOT}` for all internal path references to survive cache-copy installation
-- [ ] **PLGN-05**: Plugin provides shared bash library functions in lib/ for project detection and sibling repo discovery
+- [x] **PLGN-05**: Plugin provides shared bash library functions in lib/ for project detection and sibling repo discovery
 - [ ] **PLGN-06**: Plugin can be installed via git clone and symlink into ~/.claude/plugins/
-- [ ] **PLGN-07**: Hook scripts use jq for JSON parsing (same pattern as GSD: `printf '%s\n' "$JSON" | jq -r '.field // empty'`)
-- [ ] **PLGN-08**: All hook scripts route debug output to stderr only — stdout is reserved for structured JSON responses
+- [x] **PLGN-07**: Hook scripts use jq for JSON parsing (same pattern as GSD: `printf '%s\n' "$JSON" | jq -r '.field // empty'`)
+- [x] **PLGN-08**: All hook scripts route debug output to stderr only — stdout is reserved for structured JSON responses
 
 ### Auto-Format Hook
 
@@ -152,11 +152,11 @@
 | PLGN-01 | Phase 1 | Complete |
 | PLGN-04 | Phase 1 | Complete |
 | PLGN-06 | Phase 1 | Pending |
-| PLGN-02 | Phase 2 | Pending |
-| PLGN-03 | Phase 2 | Pending |
-| PLGN-05 | Phase 2 | Pending |
-| PLGN-07 | Phase 2 | Pending |
-| PLGN-08 | Phase 2 | Pending |
+| PLGN-02 | Phase 2 | Complete |
+| PLGN-03 | Phase 2 | Complete |
+| PLGN-05 | Phase 2 | Complete |
+| PLGN-07 | Phase 2 | Complete |
+| PLGN-08 | Phase 2 | Complete |
 | FMTH-01 | Phase 3 | Complete |
 | FMTH-02 | Phase 3 | Complete |
 | FMTH-03 | Phase 3 | Complete |

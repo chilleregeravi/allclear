@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-shared-libraries/02-01-PLAN.md
-last_updated: "2026-03-15T10:11:23.903Z"
+stopped_at: Completed 08-config-layer-01-PLAN.md
+last_updated: "2026-03-15T10:11:28.411Z"
 last_activity: 2026-03-15 — Roadmap revised to parallel structure, 7 sequential phases replaced with 13 independent phases
 progress:
   total_phases: 13
@@ -93,6 +93,8 @@ Recent decisions affecting current work:
 - [Phase 08-config-layer]: Used while-read loop instead of mapfile for bash 3.2 compatibility on macOS
 - [Phase 08-config-layer]: lib/config.sh is a leaf node (sources nothing else) to prevent circular source risks
 - [Phase 08-config-layer]: ALLCLEAR_CONFIG_SIBLINGS is NOT exported — bash arrays cannot be exported across subshells
+- [Phase 13-tests]: Tests in RED state for invocation cases — format.sh/lint.sh are placeholders; tests turn green when Phase 3/4 implement the scripts
+- [Phase 13-tests]: PATH-stub marker pattern chosen for invocation verification — stubs touch marker files, hermetic and reliable
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:11:21.654Z
-Stopped at: Completed 02-shared-libraries/02-01-PLAN.md
+Last session: 2026-03-15T10:11:26.510Z
+Stopped at: Completed 08-config-layer-01-PLAN.md
 Resume file: None

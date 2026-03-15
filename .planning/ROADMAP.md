@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Guard Hook** - Hard-block and soft-warn PreToolUse hook for sensitive and generated files
 - [ ] **Phase 6: Session Hook** - Session-start context injection with project type and available commands
 - [ ] **Phase 7: Quality Gate Skill** - `/allclear` slash-command for full quality checks and subcommands
-- [ ] **Phase 8: Config Layer** - allclear.config.json overrides and environment variable toggles
+- [x] **Phase 8: Config Layer** - allclear.config.json overrides and environment variable toggles (completed 2026-03-15)
 - [ ] **Phase 9: Impact Skill** - `/allclear impact` cross-repo reference scanning
 - [ ] **Phase 10: Drift Skill** - `/allclear drift` version and type consistency checking across repos
 - [x] **Phase 11: Pulse Skill** - `/allclear pulse` live service health checking via kubectl (completed 2026-03-15)
@@ -136,7 +136,7 @@ Plans:
   2. Setting `ALLCLEAR_DISABLE_FORMAT=1`, `ALLCLEAR_DISABLE_LINT=1`, or `ALLCLEAR_DISABLE_GUARD=1` disables the corresponding hook with no code change required
   3. Setting `ALLCLEAR_LINT_THROTTLE=<seconds>` changes the clippy throttle interval from the default 30 seconds
   4. Setting `ALLCLEAR_EXTRA_BLOCKED=<pattern>` adds additional file patterns to the guard hook's hard-block list
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 08-01-PLAN.md — Config library, env var patterns, and bats test suite
 
@@ -227,7 +227,7 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | 5. Guard Hook | 0/1 | Planned | - |
 | 6. Session Hook | 0/2 | Planning complete | - |
 | 7. Quality Gate Skill | 0/1 | Planning complete | - |
-| 8. Config Layer | 0/1 | Planned | - |
+| 8. Config Layer | 1/1 | Complete   | 2026-03-15 |
 | 9. Impact Skill | 0/1 | Planning complete | - |
 | 10. Drift Skill | 0/2 | Planning complete | - |
 | 11. Pulse Skill | 1/1 | Complete   | 2026-03-15 |
