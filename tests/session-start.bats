@@ -255,3 +255,23 @@ assert 'Node/TS' in ctx, 'expected Node/TS in context: ' + ctx
   [ -f "/tmp/allclear_session_bats-dup-03.initialized" ]
   rm -f /tmp/allclear_session_bats-dup-03.initialized
 }
+
+# ---------------------------------------------------------------------------
+# Non-blocking guarantee — graceful handling of edge-case inputs
+# ---------------------------------------------------------------------------
+
+@test "exits 0 with empty stdin (graceful handling of missing event data)" {
+  # SessionStart may send empty or minimal stdin in some Claude Code versions.
+  # The hook must never block — always exit 0 even with no parseable input.
+  run bash -c "$(declare -p MOCK_PLUGIN_ROOT); \
+    printf '' | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+}
+
+@test "exits 0 with minimal JSON object (no session_id or cwd)" {
+  # Some invocations may send minimal JSON — hook must handle gracefully.
+  run bash -c "$(declare -p MOCK_PLUGIN_ROOT); \
+    printf '{\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+}

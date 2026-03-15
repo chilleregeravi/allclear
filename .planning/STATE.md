@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: planning
 stopped_at: Completed 09-impact-skill 09-01-PLAN.md
-last_updated: "2026-03-15T10:12:24.860Z"
+last_updated: "2026-03-15T10:12:29.703Z"
 last_activity: 2026-03-15 — Roadmap revised to parallel structure, 7 sequential phases replaced with 13 independent phases
 progress:
   total_phases: 13
@@ -104,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase 09-impact-skill]: awk classification inline with grep pipeline rather than per-line bash classify_match to avoid subshell fork overhead
 - [Phase 09-impact-skill]: discover_siblings alias added in lib/siblings.sh for backward compat with Phase 02 callers while list_siblings becomes canonical name
 - [Phase 09-impact-skill]: SKILL.md uses live shell injection for sibling discovery so Claude sees current sibling list at invocation time
+- [Phase 13-tests]: detect.bats uses detect_all_project_types for mixed-language assertions since detect_project_type returns single type with priority ordering
+- [Phase 13-tests]: Bats submodules confirmed committed by Phase 06 agent (bda446f) — tests run GREEN since lib/detect.sh and lib/siblings.sh already implemented by parallel phases
 
 ### Pending Todos
 
