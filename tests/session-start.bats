@@ -135,8 +135,7 @@ assert 'Python' in ctx, 'expected Python in context: ' + ctx
 import sys, json
 d = json.load(sys.stdin)
 ctx = d['hookSpecificOutput']['additionalContext']
-assert '/allclear' in ctx, 'expected /allclear in context: ' + ctx
-assert 'quality gate' in ctx, 'expected quality gate in context: ' + ctx
+assert '/allclear:quality-gate' in ctx, 'expected /allclear:quality-gate in context: ' + ctx
 "
   rm -f /tmp/allclear_session_bats-pt-02.initialized
 }
@@ -274,4 +273,129 @@ assert 'Node/TS' in ctx, 'expected Node/TS in context: ' + ctx
     printf '{\"hook_event_name\":\"SessionStart\"}' \
     | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
   [ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# INTG-01: Worker auto-start when impact-map section present
+# ---------------------------------------------------------------------------
+
+@test "INTG-01a: worker_start_background called when config has impact-map section" {
+  # Set up a temp CWD with allclear.config.json containing impact-map
+  MOCK_CWD="$(mktemp -d)"
+  cat > "$MOCK_CWD/allclear.config.json" <<'JSON'
+{"impact-map": {}}
+JSON
+
+  # Install mock worker-client.sh that writes a sentinel file
+  cat > "$MOCK_PLUGIN_ROOT/lib/worker-client.sh" <<'MOCK'
+worker_running() { return 1; }
+worker_start_background() { touch /tmp/allclear_test_worker_started_intg01a; return 0; }
+worker_status_line() { echo "AllClear worker: running (port 37888)"; }
+MOCK
+
+  # Clean up sentinel if it exists from a prior run
+  rm -f /tmp/allclear_test_worker_started_intg01a
+
+  run bash -c "$(declare -p MOCK_PROJECT_TYPE); $(declare -p MOCK_PLUGIN_ROOT); $(declare -p MOCK_CWD); \
+    printf '{\"session_id\":\"bats-intg-01a\",\"cwd\":\"'\"$MOCK_CWD\"'\",\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+  [ -f "/tmp/allclear_test_worker_started_intg01a" ]
+
+  rm -f /tmp/allclear_test_worker_started_intg01a
+  rm -f /tmp/allclear_session_bats-intg-01a.initialized
+  rm -rf "$MOCK_CWD"
+}
+
+@test "INTG-01b: worker_start_background NOT called when config has no impact-map section" {
+  MOCK_CWD="$(mktemp -d)"
+  cat > "$MOCK_CWD/allclear.config.json" <<'JSON'
+{"linked-repos": []}
+JSON
+
+  cat > "$MOCK_PLUGIN_ROOT/lib/worker-client.sh" <<'MOCK'
+worker_running() { return 1; }
+worker_start_background() { touch /tmp/allclear_test_worker_started_intg01b; return 0; }
+worker_status_line() { echo "AllClear worker: running (port 37888)"; }
+MOCK
+
+  rm -f /tmp/allclear_test_worker_started_intg01b
+
+  run bash -c "$(declare -p MOCK_PROJECT_TYPE); $(declare -p MOCK_PLUGIN_ROOT); $(declare -p MOCK_CWD); \
+    printf '{\"session_id\":\"bats-intg-01b\",\"cwd\":\"'\"$MOCK_CWD\"'\",\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+  [ ! -f "/tmp/allclear_test_worker_started_intg01b" ]
+
+  rm -f /tmp/allclear_session_bats-intg-01b.initialized
+  rm -rf "$MOCK_CWD"
+}
+
+@test "INTG-01c: hook exits 0 even if worker_start_background fails" {
+  MOCK_CWD="$(mktemp -d)"
+  cat > "$MOCK_CWD/allclear.config.json" <<'JSON'
+{"impact-map": {}}
+JSON
+
+  cat > "$MOCK_PLUGIN_ROOT/lib/worker-client.sh" <<'MOCK'
+worker_running() { return 1; }
+worker_start_background() { return 1; }
+worker_status_line() { return 0; }
+MOCK
+
+  run bash -c "$(declare -p MOCK_PROJECT_TYPE); $(declare -p MOCK_PLUGIN_ROOT); $(declare -p MOCK_CWD); \
+    printf '{\"session_id\":\"bats-intg-01c\",\"cwd\":\"'\"$MOCK_CWD\"'\",\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+
+  rm -f /tmp/allclear_session_bats-intg-01c.initialized
+  rm -rf "$MOCK_CWD"
+}
+
+@test "INTG-01d: hook exits 0 even if lib/worker-client.sh is absent" {
+  MOCK_CWD="$(mktemp -d)"
+  cat > "$MOCK_CWD/allclear.config.json" <<'JSON'
+{"impact-map": {}}
+JSON
+
+  # Remove worker-client.sh from mock plugin root
+  rm -f "$MOCK_PLUGIN_ROOT/lib/worker-client.sh"
+
+  run bash -c "$(declare -p MOCK_PROJECT_TYPE); $(declare -p MOCK_PLUGIN_ROOT); $(declare -p MOCK_CWD); \
+    printf '{\"session_id\":\"bats-intg-01d\",\"cwd\":\"'\"$MOCK_CWD\"'\",\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+
+  rm -f /tmp/allclear_session_bats-intg-01d.initialized
+  rm -rf "$MOCK_CWD"
+}
+
+@test "INTG-02: hook still outputs additionalContext JSON when impact-map present" {
+  MOCK_CWD="$(mktemp -d)"
+  cat > "$MOCK_CWD/allclear.config.json" <<'JSON'
+{"impact-map": {}}
+JSON
+
+  cat > "$MOCK_PLUGIN_ROOT/lib/worker-client.sh" <<'MOCK'
+worker_running() { return 1; }
+worker_start_background() { return 0; }
+worker_status_line() { return 0; }
+MOCK
+
+  run bash -c "$(declare -p MOCK_PROJECT_TYPE); $(declare -p MOCK_PLUGIN_ROOT); $(declare -p MOCK_CWD); \
+    printf '{\"session_id\":\"bats-intg-02\",\"cwd\":\"'\"$MOCK_CWD\"'\",\"hook_event_name\":\"SessionStart\"}' \
+    | CLAUDE_PLUGIN_ROOT=\"\$MOCK_PLUGIN_ROOT\" bash \"\$MOCK_PLUGIN_ROOT/scripts/session-start.sh\""
+  [ "$status" -eq 0 ]
+  echo "$output" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert 'hookSpecificOutput' in d, 'missing hookSpecificOutput'
+assert 'additionalContext' in d['hookSpecificOutput'], 'missing additionalContext'
+ctx = d['hookSpecificOutput']['additionalContext']
+assert 'AllClear active' in ctx, 'expected AllClear active in context: ' + ctx
+assert '/allclear:quality-gate' in ctx, 'expected commands in context: ' + ctx
+"
+
+  rm -f /tmp/allclear_session_bats-intg-02.initialized
+  rm -rf "$MOCK_CWD"
 }
