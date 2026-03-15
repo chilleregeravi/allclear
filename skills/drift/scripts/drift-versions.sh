@@ -48,15 +48,27 @@ extract_versions() {
       yq -oy '(.dependencies // {}) | to_entries[] | .key + "=" + (.value | (.version // .))' \
         "${repo_dir}/Cargo.toml" 2>/dev/null | grep -v '^null$' | grep -v '=$' || true
     else
-      # Fallback 1: simple "name = "1.2.3"" form
-      grep -E '^\s*[a-zA-Z0-9_-]+ *= *"[0-9]' "${repo_dir}/Cargo.toml" 2>/dev/null |
-        sed 's/[[:space:]]//g; s/="\([^"]*\)".*/=\1/' || true
-      # Fallback 2: inline table "name = { version = "1.2.3", ... }" form
-      grep -E '^\s*[a-zA-Z0-9_-]+ *= *\{' "${repo_dir}/Cargo.toml" 2>/dev/null | while IFS= read -r cargo_line; do
-        local pkg_name ver_val
-        pkg_name=$(echo "$cargo_line" | sed 's/[[:space:]]*=.*//' | tr -d '[:space:]')
-        ver_val=$(echo "$cargo_line" | grep -oE 'version = "[^"]+"' | sed 's/version = "//; s/"//' || true)
-        [[ -n "$pkg_name" && -n "$ver_val" ]] && echo "${pkg_name}=${ver_val}"
+      # Scope extraction to [dependencies] section only (avoid [package] metadata).
+      # Uses POSIX awk + sed to handle simple and inline-table forms.
+      awk '
+        /^\[dependencies\]/ { in_deps=1; next }
+        /^\[/ && !/^\[dependencies\]/ { in_deps=0 }
+        in_deps { print }
+      ' "${repo_dir}/Cargo.toml" 2>/dev/null | while IFS= read -r dep_line; do
+        # Skip empty lines and comments
+        [[ -z "$dep_line" || "$dep_line" =~ ^[[:space:]]*# ]] && continue
+        local dep_name dep_ver
+        dep_name=$(echo "$dep_line" | sed 's/[[:space:]]*=.*//' | tr -d '[:space:]')
+        [[ -z "$dep_name" ]] && continue
+        # Simple form: name = "version"
+        if echo "$dep_line" | grep -qE '=[[:space:]]*"[0-9]'; then
+          dep_ver=$(echo "$dep_line" | sed 's/.*= *"//; s/".*//')
+          echo "${dep_name}=${dep_ver}"
+        # Inline table form: name = { version = "X", ... }
+        elif echo "$dep_line" | grep -qE 'version[[:space:]]*=[[:space:]]*"'; then
+          dep_ver=$(echo "$dep_line" | grep -oE 'version[[:space:]]*=[[:space:]]*"[^"]+"' | sed 's/version[[:space:]]*=[[:space:]]*"//; s/"//')
+          [[ -n "$dep_ver" ]] && echo "${dep_name}=${dep_ver}"
+        fi
       done || true
     fi
   fi
@@ -142,8 +154,17 @@ if [[ -z "${SIBLINGS:-}" ]]; then
   exit 0
 fi
 
-declare -A pkg_versions  # pkg_versions["REPO_NAME:PKG"]="VERSION"
-declare -A pkg_repos     # pkg_repos["PKG"]="repo1 repo2 ..."
+# Use a tmpdir to store package data without requiring bash 4 associative arrays.
+# Layout:
+#   $TMPDIR/versions/<PKG_SAFE>  — lines of "REPO_NAME=VERSION"
+# PKG_SAFE = package name with / and . replaced by __ and _
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+pkg_safe() {
+  # Encode a package name as a safe filename: replace / . @ with __
+  echo "$1" | sed 's|[/. @]|__|g'
+}
 
 for REPO in $SIBLINGS; do
   [[ -d "$REPO" ]] || continue
@@ -151,52 +172,58 @@ for REPO in $SIBLINGS; do
   while IFS='=' read -r pkg ver; do
     [[ -z "${pkg:-}" || -z "${ver:-}" ]] && continue
     [[ "$pkg" =~ ^[[:space:]]*$ ]] && continue
-    pkg_versions["${repo_name}:${pkg}"]="$ver"
-    # Track repos for this package (avoid duplicates)
-    current_repos="${pkg_repos[$pkg]:-}"
-    if [[ "$current_repos" != *"$repo_name"* ]]; then
-      pkg_repos["$pkg"]="${current_repos}${repo_name} "
-    fi
+    safe=$(pkg_safe "$pkg")
+    pkg_dir="${WORK_DIR}/${safe}"
+    mkdir -p "$pkg_dir"
+    # Store original package name (first write wins)
+    [[ -f "${pkg_dir}/name" ]] || echo "$pkg" > "${pkg_dir}/name"
+    # Append repo=version line (one per repo)
+    echo "${repo_name}=${ver}" >> "${pkg_dir}/data"
   done < <(extract_versions "$REPO" 2>/dev/null || true)
 done
 
 found_drift=false
 
-for pkg in $(echo "${!pkg_repos[@]}" | tr ' ' '\n' | sort); do
-  repos="${pkg_repos[$pkg]:-}"
-  repo_count=$(echo "$repos" | tr ' ' '\n' | grep -c '\S' || true)
-  [[ "$repo_count" -lt 2 ]] && continue  # single-repo package — not drift
+for pkg_dir in "${WORK_DIR}"/*/; do
+  [[ -f "${pkg_dir}/data" ]] || continue
+  pkg=$(cat "${pkg_dir}/name")
 
-  versions_raw=""
+  # Count distinct repos for this package
+  repo_count=$(wc -l < "${pkg_dir}/data" | tr -d '[:space:]')
+  [[ "$repo_count" -lt 2 ]] && continue  # only in one repo — not drift
+
+  # Gather per-repo details
   repos_detail=""
+  versions_raw=""
   has_range=false
+  repos_list=""
 
-  for repo in $repos; do
-    v="${pkg_versions["${repo}:${pkg}"]:-}"
-    [[ -z "$v" ]] && continue
-    norm=$(normalize_version "$v")
+  while IFS='=' read -r repo_name ver; do
+    [[ -z "$repo_name" || -z "$ver" ]] && continue
+    norm=$(normalize_version "$ver")
     versions_raw="${versions_raw}${norm} "
-    repos_detail="${repos_detail}${repo}=${v} "
-    has_range_specifier "$v" && has_range=true || true
-  done
+    repos_detail="${repos_detail}${repo_name}=${ver} "
+    repos_list="${repos_list}${repo_name} "
+    has_range_specifier "$ver" && has_range=true || true
+  done < "${pkg_dir}/data"
 
   unique_count=$(echo "$versions_raw" | tr ' ' '\n' | sort -u | grep -c '\S' || true)
 
   if [[ "$unique_count" -gt 1 ]]; then
     found_drift=true
     if $has_range; then
-      emit_finding "WARN" "$pkg" "$repos" "Different locking strategies: ${repos_detail%% }"
+      emit_finding "WARN" "$pkg" "$repos_list" "Different locking strategies: ${repos_detail%% }"
     else
-      emit_finding "CRITICAL" "$pkg" "$repos" "Version mismatch: ${repos_detail%% }"
+      emit_finding "CRITICAL" "$pkg" "$repos_list" "Version mismatch: ${repos_detail%% }"
     fi
   elif [[ "$unique_count" -eq 1 ]]; then
-    # Stripped versions match but check if raw strings differ (range specifier mismatch)
-    raw_unique=$(echo "$repos_detail" | tr ' ' '\n' | grep -v '^$' | awk -F= '{print $NF}' | sort -u | grep -c '\S' || true)
+    # Stripped versions match — check if raw strings differ (range specifier mismatch)
+    raw_unique=$(awk -F= '{print $NF}' "${pkg_dir}/data" | sort -u | grep -c '\S' || true)
     if [[ "$raw_unique" -gt 1 ]]; then
       found_drift=true
-      emit_finding "WARN" "$pkg" "$repos" "Different range specifiers: ${repos_detail%% }"
+      emit_finding "WARN" "$pkg" "$repos_list" "Different range specifiers: ${repos_detail%% }"
     else
-      emit_finding "INFO" "$pkg" "$repos" "All at same version (${versions_raw%% *})"
+      emit_finding "INFO" "$pkg" "$repos_list" "All at same version (${versions_raw%% *})"
     fi
   fi
 done
