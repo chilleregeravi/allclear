@@ -21,6 +21,109 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
+import { chromaSearch, isChromaAvailable } from './chroma-sync.js';
+
+// ---------------------------------------------------------------------------
+// Module-level db handle for standalone search() export
+// (injected via setSearchDb for testing; production uses getDb())
+// ---------------------------------------------------------------------------
+
+/** @type {import('better-sqlite3').Database | null} */
+let _searchDb = null;
+
+/**
+ * Inject a database instance for the standalone search() function.
+ * Used by tests for isolation; production callers set this via setSearchDb(getDb()).
+ *
+ * @param {import('better-sqlite3').Database | null} db
+ */
+export function setSearchDb(db) {
+  _searchDb = db;
+}
+
+// ---------------------------------------------------------------------------
+// Standalone 3-tier search export
+// ---------------------------------------------------------------------------
+
+/**
+ * Search using a 3-tier fallback chain: ChromaDB -> FTS5 -> SQL.
+ *
+ * Each tier is independently reachable via skip options:
+ *   options.skipChroma=true  — bypass ChromaDB, go directly to FTS5
+ *   options.skipFts5=true    — bypass FTS5, go directly to SQL
+ *
+ * @param {string} query - Search query text
+ * @param {{ limit?: number, skipChroma?: boolean, skipFts5?: boolean }} [options]
+ * @returns {Promise<Array<{ id: string, name: string, type: string, score: number }>>}
+ */
+export async function search(query, options = {}) {
+  const limit = options.limit || 20;
+  const db = _searchDb;
+
+  // Tier 1: ChromaDB semantic search
+  if (!options.skipChroma && isChromaAvailable()) {
+    try {
+      const results = await chromaSearch(query, limit);
+      process.stderr.write('[search] tier=chroma results=' + results.length + '\n');
+      return results.map(r => ({
+        id: r.id,
+        name: r.document,
+        type: (r.metadata && r.metadata.type) || 'unknown',
+        score: r.score,
+      }));
+    } catch (err) {
+      process.stderr.write('[search] chroma failed, falling back to FTS5: ' + err.message + '\n');
+    }
+  }
+
+  // Tier 2: FTS5 keyword search
+  if (!options.skipFts5 && db) {
+    try {
+      const perTable = Math.ceil(limit / 3);
+      const ftsQuery = '"' + query.replace(/"/g, '""') + '"';
+      const ftsServices = db.prepare(`
+        SELECT rowid AS id, name
+        FROM services_fts
+        WHERE services_fts MATCH ?
+        LIMIT ?
+      `).all(ftsQuery, perTable);
+
+      if (ftsServices.length > 0) {
+        process.stderr.write('[search] tier=fts5 results=' + ftsServices.length + '\n');
+        return ftsServices.map(r => ({
+          id: String(r.id),
+          name: r.name,
+          type: 'service',
+          score: 1,
+        }));
+      }
+    } catch (err) {
+      process.stderr.write('[search] fts5 failed, falling back to SQL: ' + err.message + '\n');
+    }
+  }
+
+  // Tier 3: Direct SQL LIKE filter (always available)
+  if (db) {
+    const sqlResults = db.prepare(`
+      SELECT id, name, language AS type
+      FROM services
+      WHERE name LIKE ?
+      LIMIT ?
+    `).all('%' + query + '%', limit);
+    process.stderr.write('[search] tier=sql results=' + sqlResults.length + '\n');
+    return sqlResults.map(r => ({
+      id: String(r.id),
+      name: r.name,
+      type: r.type || 'service',
+      score: 0.5,
+    }));
+  }
+
+  // No db available at all — return empty
+  process.stderr.write('[search] tier=sql results=0 (no db)\n');
+  return [];
+}
+
 // ---------------------------------------------------------------------------
 // Severity sort order
 // ---------------------------------------------------------------------------

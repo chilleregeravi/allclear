@@ -18,6 +18,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { syncFindings } from './chroma-sync.js';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -163,6 +164,50 @@ function getHistoryLimit() {
     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     return cfg['impact-map']?.['history-limit'] ?? 10;
   } catch (_) { return 10; }
+}
+
+/**
+ * Persist confirmed scan findings to SQLite using the QueryEngine, then
+ * fire-and-forget ChromaDB sync.
+ *
+ * This is the ONLY allowed persist gate — SQLite writes complete first,
+ * then syncFindings() is called as fire-and-forget via .catch().
+ * A ChromaDB outage never prevents SQLite persistence.
+ *
+ * @param {{ services: Array, connections?: Array }} findings - Confirmed findings from Phase 19
+ * @param {import('./query-engine.js').QueryEngine} queryEngine - QueryEngine instance
+ * @param {number} repoId - ID of the repo row in the repos table
+ * @returns {void}
+ */
+export function writeScan(findings, queryEngine, repoId) {
+  // Write services to SQLite (synchronous — better-sqlite3)
+  for (const svc of (findings.services || [])) {
+    queryEngine.upsertService({
+      repo_id: repoId,
+      name: svc.name,
+      root_path: svc.root_path || '.',
+      language: svc.language || 'unknown',
+    });
+  }
+
+  // Write connections to SQLite (synchronous)
+  for (const conn of (findings.connections || [])) {
+    queryEngine.upsertConnection({
+      source_service_id: conn.source_service_id,
+      target_service_id: conn.target_service_id,
+      protocol: conn.protocol || 'unknown',
+      method: conn.method || null,
+      path: conn.path || null,
+      source_file: conn.source_file || null,
+      target_file: conn.target_file || null,
+    });
+  }
+
+  // Fire-and-forget ChromaDB sync — NEVER await in persist path
+  // A ChromaDB outage generates a stderr warning only — SQLite writes already committed
+  syncFindings(findings).catch(err =>
+    process.stderr.write('[chroma] sync failed: ' + err.message + '\n')
+  );
 }
 
 /**
