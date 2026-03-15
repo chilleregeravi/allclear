@@ -111,13 +111,13 @@
 
 ### Testing
 
-- [ ] **TEST-01**: Bats test suite covers auto-format hook for each language (Python, Rust, TS, Go)
-- [ ] **TEST-02**: Bats test suite covers auto-lint hook for each language
+- [x] **TEST-01**: Bats test suite covers auto-format hook for each language (Python, Rust, TS, Go)
+- [x] **TEST-02**: Bats test suite covers auto-lint hook for each language
 - [ ] **TEST-03**: Bats test suite covers sensitive file guard hook (hard blocks and soft warnings)
 - [ ] **TEST-04**: Bats test suite covers session start hook
 - [ ] **TEST-05**: Bats test suite covers project type detection library
 - [ ] **TEST-06**: Bats test suite covers sibling repo discovery library
-- [ ] **TEST-07**: Bats tests verify non-blocking guarantee (PostToolUse hooks always exit 0)
+- [x] **TEST-07**: Bats tests verify non-blocking guarantee (PostToolUse hooks always exit 0)
 - [ ] **TEST-08**: Bats tests verify correct exit codes for PreToolUse blocking (exit 2)
 
 ## v2 Requirements
@@ -220,13 +220,13 @@
 | DPLY-03 | Phase 12 | Complete |
 | DPLY-04 | Phase 12 | Complete |
 | DPLY-05 | Phase 12 | Complete |
-| TEST-01 | Phase 13 | Pending |
-| TEST-02 | Phase 13 | Pending |
+| TEST-01 | Phase 13 | Complete |
+| TEST-02 | Phase 13 | Complete |
 | TEST-03 | Phase 13 | Pending |
 | TEST-04 | Phase 13 | Pending |
 | TEST-05 | Phase 13 | Pending |
 | TEST-06 | Phase 13 | Pending |
-| TEST-07 | Phase 13 | Pending |
+| TEST-07 | Phase 13 | Complete |
 | TEST-08 | Phase 13 | Pending |
 
 **Coverage:**
