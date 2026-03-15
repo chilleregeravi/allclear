@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: planning
 stopped_at: "Completed 01-01-PLAN.md (Task 3 checkpoint:human-verify pending)"
-last_updated: "2026-03-15T10:11:08.006Z"
+last_updated: "2026-03-15T10:11:08.421Z"
 last_activity: 2026-03-15 — Roadmap revised to parallel structure, 7 sequential phases replaced with 13 independent phases
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 17
-  completed_plans: 8
+  completed_plans: 9
   percent: 29
 ---
 
@@ -55,6 +55,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 11-pulse-skill P01 | 2m | 2 tasks | 2 files |
 | Phase 01-plugin-skeleton P01 | 8 | 2 tasks | 17 files |
 | Phase 03-format-hook P01 | 2 | 2 tasks | 2 files |
+| Phase 04-lint-hook P01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
