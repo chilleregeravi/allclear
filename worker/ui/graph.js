@@ -517,10 +517,15 @@ async function showProjectPicker() {
   // Filter to projects that have data (services > 0)
   const withData = projects.filter((p) => p.serviceCount > 0);
 
-  // If only one project has data, auto-select it
-  if (withData.length === 1 && withData[0].projectRoot) {
+  // If only one project has data, auto-select it via hash
+  if (withData.length === 1) {
     picker.style.display = "none";
-    return withData[0].projectRoot;
+    // Use hash-based loading — projectRoot may not match the original openDb() CWD
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set("hash", withData[0].hash);
+    window.history.replaceState({}, "", newUrl);
+    // Return null to skip project-based loading — the init() will pick up ?hash= on re-check
+    return "__hash__" + withData[0].hash;
   }
 
   // Use projects with data if any, otherwise show all
@@ -548,17 +553,8 @@ async function showProjectPicker() {
       `;
 
       btn.addEventListener("click", () => {
-        if (p.projectRoot) {
-          picker.style.display = "none";
-          resolve(p.projectRoot);
-        } else {
-          // Fallback: use hash-based query
-          picker.style.display = "none";
-          // Set hash in URL and reload
-          const newUrl = new URL(window.location);
-          newUrl.searchParams.set("hash", p.hash);
-          window.location.href = newUrl.toString();
-        }
+        picker.style.display = "none";
+        resolve("__hash__" + p.hash);
       });
 
       list.appendChild(btn);
@@ -623,8 +619,15 @@ async function init() {
 
   if (!project && !hash) {
     // No project specified — fetch available projects and show picker
-    project = await showProjectPicker();
-    if (!project) return; // user hasn't selected yet or no projects
+    const picked = await showProjectPicker();
+    if (!picked) return; // user hasn't selected yet or no projects
+
+    // Check if picker returned a hash-based result
+    if (picked.startsWith("__hash__")) {
+      hash = picked.slice(8);
+    } else {
+      project = picked;
+    }
   }
 
   // Update URL without reload so refreshes preserve selection
@@ -633,9 +636,6 @@ async function init() {
     newUrl.searchParams.set("project", project);
     window.history.replaceState({}, "", newUrl);
   }
-
-  // Populate project selector dropdown in toolbar
-  if (project) populateProjectSelect(project);
 
   const projectParam = project
     ? `?project=${encodeURIComponent(project)}`
