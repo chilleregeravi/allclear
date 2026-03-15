@@ -161,8 +161,7 @@ describe('breaking change classification', () => {
   it('removed endpoint is classified as CRITICAL', () => {
     const { db, qe } = makeQE();
     const { sId } = seedService(qe);
-    // Remove the connection
-    db.prepare('DELETE FROM connections WHERE method=? AND path=?').run('GET', '/users');
+    // classifyImpact is a pure mapping: type='removed' always → CRITICAL
     const result = qe.classifyImpact([{ type: 'removed', serviceId: sId, method: 'GET', path: '/users' }]);
     assert.ok(result.length > 0, 'should return at least one result');
     assert.strictEqual(result[0].severity, 'CRITICAL', 'removed endpoint should be CRITICAL');
@@ -188,7 +187,6 @@ describe('breaking change classification', () => {
   it('mixed changes are sorted CRITICAL, WARN, INFO', () => {
     const { db, qe } = makeQE();
     const { sId } = seedService(qe);
-    db.prepare('DELETE FROM connections WHERE method=? AND path=?').run('GET', '/users');
     const result = qe.classifyImpact([
       { type: 'added', serviceId: sId, fieldName: 'email' },
       { type: 'changed', serviceId: sId, fieldName: 'id', oldType: 'int', newType: 'string' },
