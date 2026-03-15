@@ -172,7 +172,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-13 | v1.0 | 17/17 | Complete | 2026-03-15 |
-| 14. Storage Foundation | v2.0 | 0/2 | In progress | - |
+| 14. Storage Foundation | 1/2 | In Progress|  | - |
 | 15. Worker Lifecycle | 1/2 | In Progress|  | - |
 | 16. MCP Server | 1/3 | In Progress|  | - |
 | 17. HTTP Server & Web UI | 1/2 | In Progress|  | - |

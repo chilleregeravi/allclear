@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Service Dependency Intelligence
 status: planning
-stopped_at: Completed 17-http-server-web-ui/17-01-PLAN.md
-last_updated: "2026-03-15T17:09:48.200Z"
+stopped_at: Completed 14-01-PLAN.md — storage foundation with SQLite, migrations, FTS5
+last_updated: "2026-03-15T17:13:24.938Z"
 last_activity: 2026-03-15 — Roadmap created, 8 phases defined (14-21)
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 19
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 16-mcp-server P01 | 2 | 2 tasks | 5 files |
 | Phase 15-worker-lifecycle P01 | 84s | 3 tasks | 3 files |
 | Phase 17-http-server-web-ui P01 | 10 | 2 tasks | 4 files |
+| Phase 14-storage-foundation P01 | 7min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 17-http-server-web-ui]: Server binds to 127.0.0.1 only — never 0.0.0.0 — hard-coded for security
 - [Phase 17-http-server-web-ui]: Readiness route registered first in Fastify — guarantees probe works before DB init
 - [Phase 17-http-server-web-ui]: null queryEngine returns 503 on data routes — expected transient state before DB ready, not an error
+- [Phase 14-01]: Top-level await used in db.js to preload ES module migrations before any openDb() call
+- [Phase 14-01]: FTS5 content tables with trigger-based sync (ai/ad/au per table) chosen for incremental index updates
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:09:48.197Z
-Stopped at: Completed 17-http-server-web-ui/17-01-PLAN.md
+Last session: 2026-03-15T17:13:24.935Z
+Stopped at: Completed 14-01-PLAN.md — storage foundation with SQLite, migrations, FTS5
 Resume file: None
