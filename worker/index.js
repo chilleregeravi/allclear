@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import Fastify from 'fastify';
+import { openDb } from './db.js';
+import { QueryEngine } from './query-engine.js';
+import { createHttpServer } from './http-server.js';
 
 // ---------------------------------------------------------------------------
 // 1. Parse CLI args
@@ -16,14 +18,15 @@ for (let i = 0; i < args.length; i++) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Read settings.json for ALLCLEAR_LOG_LEVEL (graceful if absent)
+// 2. Read settings.json for ALLCLEAR_LOG_LEVEL and port override
 // ---------------------------------------------------------------------------
 let logLevel = 'INFO';
 try {
   const settings = JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8'));
   if (settings.ALLCLEAR_LOG_LEVEL) logLevel = settings.ALLCLEAR_LOG_LEVEL;
+  if (settings.ALLCLEAR_WORKER_PORT) port = parseInt(settings.ALLCLEAR_WORKER_PORT, 10);
 } catch {
-  // Settings file absent or unreadable — use default INFO
+  // Settings file absent or unreadable — use defaults
 }
 
 // ---------------------------------------------------------------------------
@@ -55,21 +58,31 @@ function log(level, msg, extra = {}) {
   });
   const logFile = path.join(dataDir, 'logs', 'worker.log');
   fs.appendFileSync(logFile, line + '\n');
-  process.stderr.write(line + '\n'); // also to stderr for debugging
+  process.stderr.write(line + '\n');
 }
 
 // ---------------------------------------------------------------------------
-// 6. Create Fastify instance — /api/readiness registered FIRST
+// 6. Initialize DB and query engine
 // ---------------------------------------------------------------------------
-const app = Fastify({ logger: false });
-
-// FIRST route — readiness probe does not depend on DB
-app.get('/api/readiness', async (_req, reply) => {
-  return reply.send({ status: 'ok', pid: process.pid, port });
-});
+let queryEngine = null;
+try {
+  const db = openDb();
+  queryEngine = new QueryEngine(db);
+  log('INFO', 'database initialized');
+} catch (err) {
+  log('WARN', 'database initialization failed — routes will return 503', { error: err.message });
+  // Worker still starts — /api/readiness works, data routes return 503
+}
 
 // ---------------------------------------------------------------------------
-// 8. Graceful shutdown (registered before listen so SIGTERM during startup works)
+// 7. Create HTTP server with all routes (readiness, graph, impact, scan, etc.)
+// ---------------------------------------------------------------------------
+const app = await createHttpServer(queryEngine, { port });
+fs.writeFileSync(PORT_FILE, String(port));
+log('INFO', 'worker started', { port, db: queryEngine ? 'connected' : 'unavailable' });
+
+// ---------------------------------------------------------------------------
+// 8. Graceful shutdown
 // ---------------------------------------------------------------------------
 function shutdown(signal) {
   log('INFO', `received ${signal}, shutting down`);
@@ -84,10 +97,3 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGHUP', () => shutdown('SIGHUP'));
-
-// ---------------------------------------------------------------------------
-// 7. Write port file and start listening
-// ---------------------------------------------------------------------------
-await app.listen({ port, host: '127.0.0.1' });
-fs.writeFileSync(PORT_FILE, String(port));
-log('INFO', 'worker started', { port });
