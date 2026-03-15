@@ -179,4 +179,4 @@ Plans:
 | 18. Agent Scanning | 2/2 | Complete   | 2026-03-15 | - |
 | 19. Repo Discovery & User Confirmation | 2/2 | Complete   | 2026-03-15 | - |
 | 20. Command Layer | 2/2 | Complete   | 2026-03-15 | - |
-| 21. Integration & Config | 2/4 | In Progress|  | - |
+| 21. Integration & Config | 3/4 | In Progress|  | - |

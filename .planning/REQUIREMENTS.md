@@ -89,8 +89,8 @@
 
 - [x] **INTG-01**: `session-start.sh` auto-starts worker when `impact-map` section exists in `allclear.config.json`
 - [x] **INTG-02**: `impact-map` section created automatically after first `/allclear:map` run
-- [ ] **INTG-03**: ChromaDB sync runs asynchronously after SQLite writes when configured
-- [ ] **INTG-04**: Search fallback chain: ChromaDB semantic → FTS5 keyword → direct SQL filter
+- [x] **INTG-03**: ChromaDB sync runs asynchronously after SQLite writes when configured
+- [x] **INTG-04**: Search fallback chain: ChromaDB semantic → FTS5 keyword → direct SQL filter
 - [x] **INTG-05**: First map build recommends configuring ChromaDB and adding MCP server
 - [x] **INTG-06**: Map versioning creates SQLite snapshot before overwriting on re-scan (if user opts in)
 
@@ -182,8 +182,8 @@
 | CMDL-06 | Phase 20 | Complete |
 | INTG-01 | Phase 21 | Complete |
 | INTG-02 | Phase 21 | Complete |
-| INTG-03 | Phase 21 | Pending |
-| INTG-04 | Phase 21 | Pending |
+| INTG-03 | Phase 21 | Complete |
+| INTG-04 | Phase 21 | Complete |
 | INTG-05 | Phase 21 | Complete |
 | INTG-06 | Phase 21 | Complete |
 

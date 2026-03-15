@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Service Dependency Intelligence
 status: planning
-stopped_at: Completed 21-01-PLAN.md — session-start hook auto-starts worker on impact-map presence
-last_updated: "2026-03-15T19:35:25.971Z"
+stopped_at: Completed 21-02-PLAN.md — ChromaDB sync module and 3-tier search fallback
+last_updated: "2026-03-15T19:37:23.127Z"
 last_activity: 2026-03-15 — Roadmap created, 8 phases defined (14-21)
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 0
 ---
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 20-command-layer P02 | 82s | 1 tasks | 1 files |
 | Phase 21-integration-config P03 | 2min | 2 tasks | 3 files |
 | Phase 21-integration-config P01 | 2min | 2 tasks | 3 files |
+| Phase 21-integration-config P02 | 261s | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 21-integration-config]: Snapshot paths stored relative (snapshots/timestamp.db) — portable across machine/user changes
 - [Phase 21-integration-config]: worker_start_background() and worker_status_line() added to lib/worker-client.sh to fill Phase 15 implementation gap
 - [Phase 21-integration-config]: session-start.sh auto-starts worker when impact-map section present in allclear.config.json — non-blocking, exits 0 always
+- [Phase 21-02]: chromaSearch throws when unavailable so query-engine can trigger FTS5 fallback without explicit availability check at call site
+- [Phase 21-02]: initChromaSync accepts optional mockClient for hermetic tests without running ChromaDB; _resetForTest() enables per-test isolation
+- [Phase 21-02]: writeScan() in db.js is the canonical SQLite persist gate; syncFindings fire-and-forget appended after synchronous SQLite writes complete
 
 ### Pending Todos
 
@@ -129,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:35:25.968Z
-Stopped at: Completed 21-01-PLAN.md — session-start hook auto-starts worker on impact-map presence
+Last session: 2026-03-15T19:37:23.124Z
+Stopped at: Completed 21-02-PLAN.md — ChromaDB sync module and 3-tier search fallback
 Resume file: None
