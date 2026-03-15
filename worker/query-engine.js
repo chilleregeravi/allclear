@@ -16,12 +16,12 @@
  *   const qe = new QueryEngine(db);
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import crypto from 'crypto';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import crypto from "crypto";
 
-import { chromaSearch, isChromaAvailable } from './chroma-sync.js';
+import { chromaSearch, isChromaAvailable } from "./chroma-sync.js";
 
 // ---------------------------------------------------------------------------
 // Module-level db handle for standalone search() export
@@ -64,15 +64,19 @@ export async function search(query, options = {}) {
   if (!options.skipChroma && isChromaAvailable()) {
     try {
       const results = await chromaSearch(query, limit);
-      process.stderr.write('[search] tier=chroma results=' + results.length + '\n');
-      return results.map(r => ({
+      process.stderr.write(
+        "[search] tier=chroma results=" + results.length + "\n",
+      );
+      return results.map((r) => ({
         id: r.id,
         name: r.document,
-        type: (r.metadata && r.metadata.type) || 'unknown',
+        type: (r.metadata && r.metadata.type) || "unknown",
         score: r.score,
       }));
     } catch (err) {
-      process.stderr.write('[search] chroma failed, falling back to FTS5: ' + err.message + '\n');
+      process.stderr.write(
+        "[search] chroma failed, falling back to FTS5: " + err.message + "\n",
+      );
     }
   }
 
@@ -81,46 +85,60 @@ export async function search(query, options = {}) {
     try {
       const perTable = Math.ceil(limit / 3);
       const ftsQuery = '"' + query.replace(/"/g, '""') + '"';
-      const ftsServices = db.prepare(`
+      const ftsServices = db
+        .prepare(
+          `
         SELECT rowid AS id, name
         FROM services_fts
         WHERE services_fts MATCH ?
         LIMIT ?
-      `).all(ftsQuery, perTable);
+      `,
+        )
+        .all(ftsQuery, perTable);
 
       if (ftsServices.length > 0) {
-        process.stderr.write('[search] tier=fts5 results=' + ftsServices.length + '\n');
-        return ftsServices.map(r => ({
+        process.stderr.write(
+          "[search] tier=fts5 results=" + ftsServices.length + "\n",
+        );
+        return ftsServices.map((r) => ({
           id: String(r.id),
           name: r.name,
-          type: 'service',
+          type: "service",
           score: 1,
         }));
       }
     } catch (err) {
-      process.stderr.write('[search] fts5 failed, falling back to SQL: ' + err.message + '\n');
+      process.stderr.write(
+        "[search] fts5 failed, falling back to SQL: " + err.message + "\n",
+      );
     }
   }
 
   // Tier 3: Direct SQL LIKE filter (always available)
   if (db) {
-    const sqlResults = db.prepare(`
+    const sqlResults = db
+      .prepare(
+        `
       SELECT id, name, language AS type
       FROM services
       WHERE name LIKE ?
       LIMIT ?
-    `).all('%' + query + '%', limit);
-    process.stderr.write('[search] tier=sql results=' + sqlResults.length + '\n');
-    return sqlResults.map(r => ({
+    `,
+      )
+      .all("%" + query + "%", limit);
+    process.stderr.write(
+      "[search] tier=sql results=" + sqlResults.length + "\n",
+    );
+    return sqlResults.map((r) => ({
       id: String(r.id),
       name: r.name,
-      type: r.type || 'service',
+      type: r.type || "service",
       score: 0.5,
     }));
   }
 
   // No db available at all — return empty
-  process.stderr.write('[search] tier=sql results=0 (no db)\n');
+  process.stderr.write("[search] tier=sql results=0 (no db)\n");
   return [];
 }
 
@@ -292,8 +310,12 @@ export class QueryEngine {
    * @param {{ direction?: 'downstream'|'upstream', maxDepth?: number }} [options]
    * @returns {Array<{ id: number, name: string, depth: number }>}
    */
-  transitiveImpact(sourceServiceId, { direction = 'downstream', maxDepth = 10 } = {}) {
-    const stmt = direction === 'upstream' ? this._stmtUpstream : this._stmtDownstream;
+  transitiveImpact(
+    sourceServiceId,
+    { direction = "downstream", maxDepth = 10 } = {},
+  ) {
+    const stmt =
+      direction === "upstream" ? this._stmtUpstream : this._stmtDownstream;
     return stmt.all(sourceServiceId, maxDepth);
   }
 
@@ -304,8 +326,9 @@ export class QueryEngine {
    * @param {'downstream'|'upstream'} [direction]
    * @returns {Array<{ id: number, name: string, protocol: string, method: string, path: string }>}
    */
-  directImpact(sourceServiceId, direction = 'downstream') {
-    const stmt = direction === 'upstream' ? this._stmtDirectUp : this._stmtDirectDown;
+  directImpact(sourceServiceId, direction = "downstream") {
+    const stmt =
+      direction === "upstream" ? this._stmtDirectUp : this._stmtDirectDown;
     return stmt.all(sourceServiceId);
   }
 
@@ -331,22 +354,22 @@ export class QueryEngine {
     const results = [];
 
     for (const change of changes) {
-      if (change.type === 'removed') {
+      if (change.type === "removed") {
         // Caller asserts this endpoint was removed — classify as CRITICAL
         results.push({
-          severity: 'CRITICAL',
+          severity: "CRITICAL",
           description: `Endpoint ${change.method} ${change.path} removed from service ${change.serviceId}`,
           affectedServices: [change.serviceId],
         });
-      } else if (change.type === 'changed') {
+      } else if (change.type === "changed") {
         results.push({
-          severity: 'WARN',
+          severity: "WARN",
           description: `Field '${change.fieldName}' type changed from '${change.oldType}' to '${change.newType}' in service ${change.serviceId}`,
           affectedServices: [change.serviceId],
         });
-      } else if (change.type === 'added') {
+      } else if (change.type === "added") {
         results.push({
-          severity: 'INFO',
+          severity: "INFO",
           description: `Field '${change.fieldName}' added to service ${change.serviceId}`,
           affectedServices: [change.serviceId],
         });
@@ -354,7 +377,10 @@ export class QueryEngine {
     }
 
     // Sort CRITICAL → WARN → INFO
-    results.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99));
+    results.sort(
+      (a, b) =>
+        (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99),
+    );
 
     return results;
   }
@@ -378,9 +404,15 @@ export class QueryEngine {
       // special FTS5 characters (e.g. "svc-a" would otherwise parse as svc NOT a).
       // Escape any existing double quotes in the query string.
       const ftsQuery = '"' + query.replace(/"/g, '""') + '"';
-      const services = this._stmtFtsServices.all(ftsQuery, perTable).map(r => ({ kind: 'service', ...r }));
-      const connections = this._stmtFtsConnections.all(ftsQuery, perTable).map(r => ({ kind: 'connection', ...r }));
-      const fields = this._stmtFtsFields.all(ftsQuery, perTable).map(r => ({ kind: 'field', ...r }));
+      const services = this._stmtFtsServices
+        .all(ftsQuery, perTable)
+        .map((r) => ({ kind: "service", ...r }));
+      const connections = this._stmtFtsConnections
+        .all(ftsQuery, perTable)
+        .map((r) => ({ kind: "connection", ...r }));
+      const fields = this._stmtFtsFields
+        .all(ftsQuery, perTable)
+        .map((r) => ({ kind: "field", ...r }));
 
       return [...services, ...connections, ...fields].slice(0, limit);
     } catch {
@@ -465,7 +497,11 @@ export class QueryEngine {
    * @param {string} lastScannedCommit
    */
   updateRepoState(repoId, lastScannedCommit) {
-    this._stmtUpdateRepoState.run(repoId, lastScannedCommit, new Date().toISOString());
+    this._stmtUpdateRepoState.run(
+      repoId,
+      lastScannedCommit,
+      new Date().toISOString(),
+    );
   }
 
   /**
@@ -501,28 +537,73 @@ export class QueryEngine {
    * @returns {{ services: Array, connections: Array, repos: Array }}
    */
   getGraph() {
-    const services = this._db.prepare(`
+    const services = this._db
+      .prepare(
+        `
       SELECT s.id, s.name, s.root_path, s.language, s.repo_id, r.name as repo_name, r.path as repo_path
       FROM services s
       JOIN repos r ON r.id = s.repo_id
-    `).all();
+    `,
+      )
+      .all();
 
-    const connections = this._db.prepare(`
+    const connections = this._db
+      .prepare(
+        `
       SELECT c.id, c.protocol, c.method, c.path, c.source_file, c.target_file,
              s_src.name as source, s_tgt.name as target
       FROM connections c
       JOIN services s_src ON c.source_service_id = s_src.id
       JOIN services s_tgt ON c.target_service_id = s_tgt.id
-    `).all();
+    `,
+      )
+      .all();
 
-    const repos = this._db.prepare(`
+    const repos = this._db
+      .prepare(
+        `
       SELECT r.id, r.name, r.path, r.type,
              rs.last_scanned_commit, rs.last_scanned_at
       FROM repos r
       LEFT JOIN repo_state rs ON rs.repo_id = r.id
-    `).all();
+    `,
+      )
+      .all();
 
-    return { services, connections, repos };
+    const mismatches = this.detectMismatches();
+
+    return { services, connections, repos, mismatches };
+  }
+
+  /**
+   * Detect mismatches between what services expose and what consumers call.
+   * A mismatch occurs when:
+   * - A connection's target_file is null (endpoint handler not found in target)
+   * - A connection's path doesn't match any exposed endpoint in the target service
+   * @returns {Array<{connection_id: number, source: string, target: string, type: string, detail: string}>}
+   */
+  detectMismatches() {
+    // Find connections where target_file is null — endpoint not verified in target repo
+    const unverified = this._db
+      .prepare(
+        `
+      SELECT c.id, c.method, c.path, c.protocol,
+             s_src.name as source, s_tgt.name as target
+      FROM connections c
+      JOIN services s_src ON c.source_service_id = s_src.id
+      JOIN services s_tgt ON c.target_service_id = s_tgt.id
+      WHERE c.target_file IS NULL AND c.protocol != 'internal'
+    `,
+      )
+      .all();
+
+    return unverified.map((c) => ({
+      connection_id: c.id,
+      source: c.source,
+      target: c.target,
+      type: "unverified_endpoint",
+      detail: `${c.method || c.protocol} ${c.path || "?"} — endpoint handler not found in ${c.target}`,
+    }));
   }
 
   /**
@@ -530,7 +611,11 @@ export class QueryEngine {
    * @returns {Array<{id: number, created_at: string, label: string, snapshot_path: string}>}
    */
   getVersions() {
-    return this._db.prepare('SELECT id, created_at, label, snapshot_path FROM map_versions ORDER BY created_at DESC').all();
+    return this._db
+      .prepare(
+        "SELECT id, created_at, label, snapshot_path FROM map_versions ORDER BY created_at DESC",
+      )
+      .all();
   }
 
   /**
@@ -545,26 +630,28 @@ export class QueryEngine {
     const serviceIdMap = new Map(); // name → id
 
     // 1. Upsert services
-    for (const svc of (findings.services || [])) {
+    for (const svc of findings.services || []) {
       const id = this.upsertService({
         repo_id: repoId,
         name: svc.name,
-        root_path: svc.root_path || '.',
-        language: svc.language || 'unknown',
+        root_path: svc.root_path || ".",
+        language: svc.language || "unknown",
       });
       serviceIdMap.set(svc.name, id);
     }
 
     // 2. Upsert connections (resolve source/target names to IDs)
-    for (const conn of (findings.connections || [])) {
-      const sourceId = serviceIdMap.get(conn.source) || this._resolveServiceId(conn.source);
-      const targetId = serviceIdMap.get(conn.target) || this._resolveServiceId(conn.target);
+    for (const conn of findings.connections || []) {
+      const sourceId =
+        serviceIdMap.get(conn.source) || this._resolveServiceId(conn.source);
+      const targetId =
+        serviceIdMap.get(conn.target) || this._resolveServiceId(conn.target);
       if (!sourceId || !targetId) continue; // skip if service not found
 
       const connId = this.upsertConnection({
         source_service_id: sourceId,
         target_service_id: targetId,
-        protocol: conn.protocol || 'unknown',
+        protocol: conn.protocol || "unknown",
         method: conn.method || null,
         path: conn.path || null,
         source_file: conn.source_file || null,
@@ -573,7 +660,7 @@ export class QueryEngine {
 
       // 3. Upsert schemas for this connection
       // Find schemas that belong to this connection path
-      for (const schema of (findings.schemas || [])) {
+      for (const schema of findings.schemas || []) {
         const schemaId = this.upsertSchema({
           connection_id: connId,
           role: schema.role,
@@ -582,11 +669,11 @@ export class QueryEngine {
         });
 
         // 4. Upsert fields for this schema
-        for (const field of (schema.fields || [])) {
+        for (const field of schema.fields || []) {
           this.upsertField({
             schema_id: schemaId,
             name: field.name,
-            type: field.type || 'unknown',
+            type: field.type || "unknown",
             required: field.required ? 1 : 0,
           });
         }
@@ -605,7 +692,9 @@ export class QueryEngine {
    * @returns {number|null}
    */
   _resolveServiceId(name) {
-    const row = this._db.prepare('SELECT id FROM services WHERE name = ?').get(name);
+    const row = this._db
+      .prepare("SELECT id FROM services WHERE name = ?")
+      .get(name);
     return row ? row.id : null;
   }
 
@@ -617,10 +706,10 @@ export class QueryEngine {
    */
   createMapVersion(label) {
     const dataDir = this._db.name ? path.dirname(this._db.name) : os.tmpdir();
-    const snapshotsDir = path.join(dataDir, 'snapshots');
+    const snapshotsDir = path.join(dataDir, "snapshots");
     fs.mkdirSync(snapshotsDir, { recursive: true });
 
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const snapshotPath = path.join(snapshotsDir, `${ts}.db`);
 
     this._db.exec(`VACUUM INTO '${snapshotPath.replace(/'/g, "''")}'`);

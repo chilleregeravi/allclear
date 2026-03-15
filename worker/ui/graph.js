@@ -290,6 +290,23 @@ function render() {
         : 0.85;
     ctx.stroke();
     ctx.globalAlpha = 1;
+
+    // Draw cross (✗) on mismatched edges at midpoint
+    if (edge.mismatch) {
+      const mx = (srcPos.x + tgtPos.x) / 2;
+      const my = (srcPos.y + tgtPos.y) / 2;
+      const crossSize = 6 / transform.scale;
+      ctx.strokeStyle = "#fc8181";
+      ctx.lineWidth = 2 / transform.scale;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(mx - crossSize, my - crossSize);
+      ctx.lineTo(mx + crossSize, my + crossSize);
+      ctx.moveTo(mx + crossSize, my - crossSize);
+      ctx.lineTo(mx - crossSize, my + crossSize);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -579,10 +596,14 @@ function showDetailPanel(node) {
       <div class="detail-label">Calls (${outgoing.length})</div>`;
     for (const e of outgoing) {
       const target = nameById[e.target_service_id] || "?";
-      html += `<div class="connection-item">
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span></div>
+      const mismatchFlag = e.mismatch
+        ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified in target">✗</span>'
+        : "";
+      html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
+        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
         <div class="conn-direction">→ <span class="conn-target">${target}</span></div>
         ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
+        ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
       </div>`;
     }
     html += `</div>`;
@@ -593,10 +614,14 @@ function showDetailPanel(node) {
       <div class="detail-label">Called by (${incoming.length})</div>`;
     for (const e of incoming) {
       const source = nameById[e.source_service_id] || "?";
-      html += `<div class="connection-item">
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span></div>
+      const mismatchFlag = e.mismatch
+        ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified">✗</span>'
+        : "";
+      html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
+        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
         <div class="conn-direction">← <span class="conn-target">${source}</span></div>
         ${e.target_file ? `<div class="conn-file">${e.target_file}</div>` : ""}
+        ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
       </div>`;
     }
     html += `</div>`;
@@ -825,13 +850,22 @@ async function init() {
       repo_name: s.repo_name,
     };
   });
+  // Build mismatch lookup by connection_id
+  const mismatchSet = new Set(
+    (raw.mismatches || []).map((m) => m.connection_id),
+  );
+
   graphData.edges = (raw.connections || raw.edges || []).map((c) => ({
+    id: c.id,
     source_service_id: c.source_service_id ?? serviceNameToId[c.source],
     target_service_id: c.target_service_id ?? serviceNameToId[c.target],
     protocol: c.protocol || "internal",
     method: c.method,
     path: c.path,
+    mismatch: c.id ? mismatchSet.has(c.id) : false,
   }));
+
+  graphData.mismatches = raw.mismatches || [];
 
   document.getElementById("node-info").textContent =
     `${graphData.nodes.length} services, ${graphData.edges.length} connections`;
