@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Service Dependency Intelligence
 status: planning
 stopped_at: Completed 21-04-PLAN.md — integration test suite for scan-to-query flow
-last_updated: "2026-03-15T19:42:04.693Z"
+last_updated: "2026-03-15T22:26:12.806Z"
 last_activity: 2026-03-15 — Roadmap created, 8 phases defined (14-21)
 progress:
   total_phases: 8

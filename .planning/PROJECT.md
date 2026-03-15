@@ -26,21 +26,18 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Plugin commands use `(plugin:allclear)` namespacing via commands/ directory — v1.0
 - ✓ Quality gate skill for auto-invocation by agents — v1.0
 
+- ✓ Service dependency map via `/allclear:map` with two-phase agent scanning — v2.0
+- ✓ Redesigned `/allclear:cross-impact` with graph-based transitive impact analysis — v2.0
+- ✓ Node.js worker daemon with auto-restart on version mismatch — v2.0
+- ✓ MCP server with 5 impact tools for agent-autonomous checking — v2.0
+- ✓ Interactive D3 Canvas graph UI with node coloring, mismatch indicators, detail panel — v2.0
+- ✓ SQLite storage with WAL, FTS5, per-project isolation, migration system — v2.0
+- ✓ Optional ChromaDB vector sync with 3-tier search fallback — v2.0
+- ✓ Exposed endpoint cross-referencing for API mismatch detection — v2.0
+
 ### Active
 
-## Current Milestone: v2.0 Service Dependency Intelligence
-
-**Goal:** Redesign cross-impact from symbol grep into a full service dependency graph — agent-based scanning, SQLite + ChromaDB storage, MCP server, and interactive graph UI.
-
-**Target features:**
-- `/allclear:map` command for building service dependency graphs
-- Redesigned `/allclear:cross-impact` with API-level impact analysis
-- AllClear worker process (Node.js, localhost) with HTTP API
-- MCP server exposing impact tools to all Claude Code agents
-- SQLite primary storage with optional ChromaDB vector sync
-- Interactive D3 web UI for graph visualization
-- Map versioning with snapshot history
-- Mono-repo and multi-repo support
+(Defined per milestone — see current milestone below)
 
 ### Out of Scope
 
