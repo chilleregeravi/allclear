@@ -12,7 +12,7 @@
 - [x] **PLGN-03**: Plugin supports mixed-language projects by detecting all applicable project types in a directory
 - [x] **PLGN-04**: Plugin uses `${CLAUDE_PLUGIN_ROOT}` for all internal path references to survive cache-copy installation
 - [x] **PLGN-05**: Plugin provides shared bash library functions in lib/ for project detection and sibling repo discovery
-- [ ] **PLGN-06**: Plugin can be installed via git clone and symlink into ~/.claude/plugins/
+- [x] **PLGN-06**: Plugin can be installed via git clone and symlink into ~/.claude/plugins/
 - [x] **PLGN-07**: Hook scripts use jq for JSON parsing (same pattern as GSD: `printf '%s\n' "$JSON" | jq -r '.field // empty'`)
 - [x] **PLGN-08**: All hook scripts route debug output to stderr only — stdout is reserved for structured JSON responses
 
@@ -151,7 +151,7 @@
 |-------------|-------|--------|
 | PLGN-01 | Phase 1 | Complete |
 | PLGN-04 | Phase 1 | Complete |
-| PLGN-06 | Phase 1 | Pending |
+| PLGN-06 | Phase 1 | Complete |
 | PLGN-02 | Phase 2 | Complete |
 | PLGN-03 | Phase 2 | Complete |
 | PLGN-05 | Phase 2 | Complete |
