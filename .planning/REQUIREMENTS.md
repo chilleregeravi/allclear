@@ -91,8 +91,8 @@
 - [ ] **INTG-02**: `impact-map` section created automatically after first `/allclear:map` run
 - [ ] **INTG-03**: ChromaDB sync runs asynchronously after SQLite writes when configured
 - [ ] **INTG-04**: Search fallback chain: ChromaDB semantic → FTS5 keyword → direct SQL filter
-- [ ] **INTG-05**: First map build recommends configuring ChromaDB and adding MCP server
-- [ ] **INTG-06**: Map versioning creates SQLite snapshot before overwriting on re-scan (if user opts in)
+- [x] **INTG-05**: First map build recommends configuring ChromaDB and adding MCP server
+- [x] **INTG-06**: Map versioning creates SQLite snapshot before overwriting on re-scan (if user opts in)
 
 ## v3.0 Requirements
 
@@ -184,8 +184,8 @@
 | INTG-02 | Phase 21 | Pending |
 | INTG-03 | Phase 21 | Pending |
 | INTG-04 | Phase 21 | Pending |
-| INTG-05 | Phase 21 | Pending |
-| INTG-06 | Phase 21 | Pending |
+| INTG-05 | Phase 21 | Complete |
+| INTG-06 | Phase 21 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 62 total (STOR: 5, WRKR: 7, MCPS: 8, HTTP: 6, WEBUI: 6, SCAN: 8, UCON: 4, DISC: 6, CMDL: 6, INTG: 6)
