@@ -61,11 +61,11 @@
 
 ### Quality Gate Skill
 
-- [ ] **GATE-01**: `/allclear` skill runs all quality checks (lint, format, test, typecheck) appropriate to detected project type
-- [ ] **GATE-02**: Skill supports subcommands: lint, format, test, typecheck, quick (lint+format only), fix (auto-fix lint+format)
-- [ ] **GATE-03**: Skill prefers Makefile targets (make lint, make format, etc.) over direct tool invocation when Makefile exists
-- [ ] **GATE-04**: Skill reports results with pass/fail status, timing, and command used for each check
-- [ ] **GATE-05**: Skill offers auto-fix for lint/format failures only (never auto-fix test or typecheck)
+- [x] **GATE-01**: `/allclear` skill runs all quality checks (lint, format, test, typecheck) appropriate to detected project type
+- [x] **GATE-02**: Skill supports subcommands: lint, format, test, typecheck, quick (lint+format only), fix (auto-fix lint+format)
+- [x] **GATE-03**: Skill prefers Makefile targets (make lint, make format, etc.) over direct tool invocation when Makefile exists
+- [x] **GATE-04**: Skill reports results with pass/fail status, timing, and command used for each check
+- [x] **GATE-05**: Skill offers auto-fix for lint/format failures only (never auto-fix test or typecheck)
 
 ### Cross-Repo Impact Skill
 
@@ -188,11 +188,11 @@
 | SSTH-03 | Phase 6 | Complete |
 | SSTH-04 | Phase 6 | Complete |
 | SSTH-05 | Phase 6 | Complete |
-| GATE-01 | Phase 7 | Pending |
-| GATE-02 | Phase 7 | Pending |
-| GATE-03 | Phase 7 | Pending |
-| GATE-04 | Phase 7 | Pending |
-| GATE-05 | Phase 7 | Pending |
+| GATE-01 | Phase 7 | Complete |
+| GATE-02 | Phase 7 | Complete |
+| GATE-03 | Phase 7 | Complete |
+| GATE-04 | Phase 7 | Complete |
+| GATE-05 | Phase 7 | Complete |
 | CONF-01 | Phase 8 | Complete |
 | CONF-02 | Phase 8 | Complete |
 | CONF-03 | Phase 8 | Complete |
