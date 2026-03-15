@@ -12,63 +12,66 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Universal quality gate command (`/allclear:quality-gate`) with auto-detection of project type — v1.0
+- ✓ Cross-repo impact scanning (`/allclear:cross-impact`) — v1.0
+- ✓ Cross-repo consistency checking (`/allclear:drift`) — v1.0
+- ✓ Live service health checking (`/allclear:pulse`) — v1.0
+- ✓ Deploy state verification (`/allclear:deploy-verify`) — v1.0
+- ✓ Auto-format hook on edit (PostToolUse) — v1.0
+- ✓ Auto-lint hook on edit (PostToolUse) — v1.0
+- ✓ Sensitive file guard hook (PreToolUse) — v1.0
+- ✓ Session start context hook (SessionStart) — v1.0
+- ✓ Git clone + symlink installation path — v1.0
+- ✓ Bats test suite (150 tests) — v1.0
+- ✓ Plugin commands use `(plugin:allclear)` namespacing via commands/ directory — v1.0
+- ✓ Quality gate skill for auto-invocation by agents — v1.0
 
 ### Active
 
-- [ ] Universal quality gate skill (`/allclear`) with auto-detection of project type
-- [ ] Cross-repo impact scanning (`/allclear impact`)
-- [ ] Cross-repo consistency checking (`/allclear drift`)
-- [ ] Live service health checking (`/allclear pulse`)
-- [ ] Deploy state verification (`/allclear deploy`)
-- [ ] Auto-format hook on edit (PostToolUse)
-- [ ] Auto-lint hook on edit (PostToolUse)
-- [ ] Sensitive file guard hook (PreToolUse)
-- [ ] Session start context hook (SessionStart)
-- [ ] `npx @allclear/cli init` installer
-- [ ] Plugin registry publication
-- [ ] Git clone + symlink installation path
-- [ ] Bats test suite for hook scripts
+(Defined per milestone — see current milestone below)
 
 ### Out of Scope
 
-- Linear issue enrichment (`/allclear scope`) — other plugins cover this; no external service dependencies
+- Linear issue enrichment — other plugins cover this; no external service dependencies
 - GitHub Issues integration — same reasoning
 - Any issue tracker integration — keep AllClear focused on code and infrastructure
 - RamaEdge-specific logic — plugin must remain generic and framework-agnostic
+- Auto-fix for test/typecheck failures — unsafe, may silently alter code semantics
 
 ## Context
 
-Born from the Edgeworks ecosystem (8+ repos spanning Python, Rust, TypeScript) where cross-repo quality coordination was manual and error-prone. The v3.0 Governor/Supervisor removal exposed the cost of not having cross-repo impact scanning — cleanup work cascaded across management-api, edgeworks-ui, edgeworks-deploy, and edgeworks-sdk.
+Shipped v1.0 with 4,323 LOC (shell scripts, bats tests, commands, configs). 13 phases, 17 plans, 79 requirements, 150 bats tests passing. Plugin installed via marketplace and operational.
 
-Existing Claude Code plugin infrastructure is well-established: official plugins (code-review, code-simplifier, github, rust-analyzer-lsp) and custom plugins (claude-mem) demonstrate the pattern. The plugin-dev toolkit provides skill-development, hook-development, and agent-development skills for creating new plugins.
+Architecture: commands/ for user-invoked features (namespaced as `plugin:allclear`), skills/ for auto-invoked contextual knowledge (quality-gate only), hooks/ for automated formatting/linting/guarding, lib/ for shared bash libraries, scripts/ for hook implementations.
 
-GSD workflow is the primary orchestration layer — AllClear complements it by providing quality gates that run during and after GSD execution phases, without duplicating planning, execution, or state management.
+Post-v1.0 structural changes: migrated from skills/ to commands/ for proper namespacing, renamed siblings to linked-repos terminology.
+
+Design document for v2.0 cross-impact redesign at `.planning/designs/cross-impact-v2.md` — service dependency intelligence with agent-based scanning, SQLite + ChromaDB, MCP server, localhost graph UI.
 
 ## Constraints
 
-- **Plugin format**: Must follow Claude Code plugin conventions (SKILL.md files, hooks.json, package.json)
-- **Framework-agnostic**: Detect project type from files (pyproject.toml, Cargo.toml, package.json, go.mod), never assume a specific framework
-- **No external service deps**: Every skill must work with only local files, git, and optionally kubectl — no Linear, no external APIs
+- **Plugin format**: Must follow Claude Code plugin conventions (commands/, skills/, hooks.json)
+- **Framework-agnostic**: Detect project type from files, never assume a specific framework
+- **No external service deps**: Every command must work with only local files, git, and optionally kubectl
 - **License**: Apache 2.0
-- **Distribution**: Three channels — git clone + symlink, Claude plugin registry, `npx @allclear/cli init`
 - **Testing**: Bats-core for hook shell scripts
 - **Detect, don't configure**: Infer everything from project files; zero-config by default with optional overrides via allclear.config.json
 - **Non-blocking hooks**: Format/lint hooks must not block edits on failure — warn and continue
-- **Cross-repo discovery**: Auto-detect sibling repos from parent directory, override with config file if present
+- **Cross-repo discovery**: Auto-detect linked repos from parent directory, override with config file
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Dedicated repo (not part of claude-code) | Clean separation between private orchestration and open-source plugin | — Pending |
-| Drop /allclear scope | Other plugins handle issue enrichment; keeps AllClear zero external deps | — Pending |
-| Plugin + CLI structure | Standard plugin for Claude Code + bin/ entry for npx @allclear/cli init | — Pending |
-| @allclear/cli npm package name | Scoped package, clean namespace | — Pending |
-| Apache 2.0 license | Permissive with patent protection, standard for dev tools | — Pending |
-| Auto-detect + config override for sibling repos | Parent dir scan works for flat layouts, config.json for custom setups | — Pending |
-| Include pulse/deploy in v1 | Ship with graceful skip if no kubectl — marks them as optional/advanced | — Pending |
-| Full plugin scope for v1 | 5 skills + 4 hooks — ambitious but specs are comprehensive | — Pending |
+| Dedicated repo (not part of claude-code) | Clean separation between private orchestration and open-source plugin | ✓ Good |
+| Drop /allclear scope | Other plugins handle issue enrichment; keeps AllClear zero external deps | ✓ Good |
+| Apache 2.0 license | Permissive with patent protection, standard for dev tools | ✓ Good |
+| Auto-detect + config override for linked repos | Parent dir scan works for flat layouts, config.json for custom setups | ✓ Good |
+| Include pulse/deploy in v1 | Ship with graceful skip if no kubectl | ✓ Good |
+| Full plugin scope for v1 | 5 commands + 4 hooks — ambitious but delivered | ✓ Good |
+| commands/ over skills/ for user features | Skills don't get plugin namespacing; commands get `(plugin:allclear)` automatically | ✓ Good |
+| siblings → linked-repos rename | Repos may not be siblings but connected; linked-repos is more accurate | ✓ Good |
+| Cross-impact v2 as separate milestone | Service dependency intelligence is a major new capability, not a patch | — Pending |
 
 ---
-*Last updated: 2026-03-15 after initialization*
+*Last updated: 2026-03-15 after v1.0 milestone*
