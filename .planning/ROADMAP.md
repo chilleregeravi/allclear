@@ -107,7 +107,10 @@ Plans:
   3. Each finding includes a confidence level (high or low); a service whose name appears ambiguously in source returns low confidence, while a service with explicit declaration returns high confidence
   4. Running a second scan on a repo that has not changed since the last scanned commit results in zero findings (no unchanged files are re-scanned); the `repo_state` table reflects the last scanned commit
   5. Running with `--full` flag rescans all files regardless of git state; first-time scan automatically performs a full scan even without the flag
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 18-01-PLAN.md — Agent prompt template and findings schema/validator (SCAN-02, SCAN-03, SCAN-04, SCAN-08)
+- [ ] 18-02-PLAN.md — Scan manager core: agent dispatch, incremental scan, repo_state tracking (SCAN-01, SCAN-05, SCAN-06, SCAN-07)
 
 ### Phase 19: Repo Discovery & User Confirmation
 **Goal**: Users are shown all their linked repos (including newly discovered ones) and must confirm every agent finding before any data is written to SQLite
@@ -161,7 +164,7 @@ Plans:
 | 15. Worker Lifecycle | v2.0 | 0/? | Not started | - |
 | 16. MCP Server | v2.0 | 0/? | Not started | - |
 | 17. HTTP Server & Web UI | v2.0 | 0/? | Not started | - |
-| 18. Agent Scanning | v2.0 | 0/? | Not started | - |
+| 18. Agent Scanning | v2.0 | 0/2 | Not started | - |
 | 19. Repo Discovery & User Confirmation | v2.0 | 0/2 | Not started | - |
 | 20. Command Layer | v2.0 | 0/2 | Planned | - |
 | 21. Integration & Config | v2.0 | 0/? | Not started | - |
