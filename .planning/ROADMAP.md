@@ -40,7 +40,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `claude plugin validate` passes against the plugin directory with no errors
   3. Installing via `git clone` and symlinking into `~/.claude/plugins/` makes the skills directory visible to Claude
   4. All internal path references use `${CLAUDE_PLUGIN_ROOT}` so the plugin works from any installation location
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 2: Shared Libraries
 **Goal**: Shell library functions for project type detection and sibling repo discovery are available for all hooks and skills to source
@@ -52,7 +54,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `lib/siblings.sh` discovers sibling repos by scanning the parent directory for `.git/` directories and outputs their paths
   4. All JSON parsing in hook scripts uses `printf '%s\n' "$JSON" | jq -r '.field // empty'` — no bare `jq` calls
   5. No hook or library script emits anything to stdout except structured JSON responses — debug output goes to stderr only
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 3: Format Hook
 **Goal**: Every Claude file edit automatically triggers formatting for the appropriate language without ever blocking the edit or cluttering the conversation on success
@@ -64,7 +68,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. With no formatter installed for the file's language, the hook silently skips with no error or nag message
   4. Files inside `node_modules/`, `.venv/`, `target/`, or other generated directories are never formatted
   5. A formatter crash or non-zero exit never blocks the edit — the hook exits 0 in all cases
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 4: Lint Hook
 **Goal**: Every Claude file edit automatically triggers linting for the appropriate language and surfaces any issues to the conversation without blocking the edit
@@ -75,7 +81,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Lint warnings and errors appear in the conversation so Claude can see and address them
   3. The hook exits 0 regardless of lint result — lint output is informational, never blocking
   4. With no linter installed for the file's language, the hook silently skips
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 5: Guard Hook
 **Goal**: Claude cannot accidentally overwrite sensitive, lock, or generated files — hard blocks stop writes before they occur, and soft warns flag risky edits with explanations
@@ -88,7 +96,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. An attempt to write a SQL migration file or generated code file (`*.pb.go`, `*_generated.*`, `*.gen.*`) produces a visible warning but allows the write to proceed
   5. An attempt to write `CHANGELOG.md` produces a visible warning about auto-generation but allows the write to proceed
   6. All block messages follow the format "AllClear: blocked write to X — Y" where Y explains the protection reason
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 6: Session Hook
 **Goal**: Every Claude session begins with the project's type and available AllClear commands already visible — injected exactly once regardless of which hook event fires
@@ -100,7 +110,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. If both SessionStart and UserPromptSubmit fire in the same session, context is injected only once
   4. The hook performs no tool execution — it reads manifest files only
   5. Setting `ALLCLEAR_DISABLE_SESSION_START=1` suppresses the hook entirely
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 7: Quality Gate Skill
 **Goal**: Running `/allclear` executes all appropriate quality checks for the detected project type and reports pass/fail with timing; subcommands run targeted subsets; auto-fix applies to safe targets only
@@ -111,7 +123,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `/allclear lint`, `/allclear format`, `/allclear test`, `/allclear typecheck`, `/allclear quick`, and `/allclear fix` each run the appropriate subset of checks
   3. When a `Makefile` exists with matching targets (`make lint`, `make format`, etc.), the skill invokes those instead of direct tool calls
   4. `/allclear fix` applies auto-fixes to lint and format failures; it never auto-fixes test or typecheck failures
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 8: Config Layer
 **Goal**: An `allclear.config.json` file and environment variables give users full control over hook behavior and sibling repo paths without touching plugin code
@@ -122,7 +136,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Setting `ALLCLEAR_DISABLE_FORMAT=1`, `ALLCLEAR_DISABLE_LINT=1`, or `ALLCLEAR_DISABLE_GUARD=1` disables the corresponding hook with no code change required
   3. Setting `ALLCLEAR_LINT_THROTTLE=<seconds>` changes the clippy throttle interval from the default 30 seconds
   4. Setting `ALLCLEAR_EXTRA_BLOCKED=<pattern>` adds additional file patterns to the guard hook's hard-block list
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 9: Impact Skill
 **Goal**: Developers can scan all sibling repos for any reference to a symbol or changed file with one command, with results grouped by repo and classified by match type
@@ -132,7 +148,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. `/allclear impact <symbol>` returns all matches across sibling repos grouped by repo, with file locations and match type (code, config, docs, test) shown for each match
   2. `/allclear impact --changed` auto-detects changed symbols from `git diff HEAD~1` and scans all sibling repos without manual input
   3. Sibling repos are discovered automatically from the parent directory; `allclear.config.json` can override the list; `--exclude <repo>` skips specific repos from the scan
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 10: Drift Skill
 **Goal**: Developers can detect version and type inconsistencies across sibling repos with one command, with actionable differences shown by default and severity levels for triage
@@ -143,7 +161,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `/allclear drift types` reports type definition inconsistencies for shared models across repos
   3. `/allclear drift openapi` reports OpenAPI spec inconsistencies for shared endpoints
   4. Output defaults to actionable differences only (not a wall of text) with severity levels indicating which drifts are breaking vs. informational
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 11: Pulse Skill
 **Goal**: Developers with kubectl access can check live service health and compare running image versions to the latest git tag with one command; developers without kubectl get a clean skip message
@@ -165,7 +185,9 @@ Plans:
   1. `/allclear deploy` compares expected state (kustomize/helm overlays) to actual cluster state and reports image tag and configmap mismatches
   2. `/allclear deploy --diff` shows the specific differences between expected and actual state
   3. `/allclear deploy` with no kubectl available outputs a single clear skip message and exits cleanly
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
 
 ### Phase 13: Tests
 **Goal**: Every hook's exit-code contract and library function is verified by an automated bats test suite that runs to completion in a clean environment
@@ -177,7 +199,11 @@ Plans:
   3. Lint hook tests verify lint output appears in the conversation and the hook always exits 0
   4. Guard hook tests verify that writes to `.env`, lock files, and generated directories produce exit 2 with correct `permissionDecision: "deny"` JSON, and that migration/generated-code writes produce warnings with exit 0
   5. Library tests verify correct project type detection for each manifest type and mixed-language repos, and correct sibling repo discovery from a parent directory
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 13-01-PLAN.md — Bats test infrastructure setup + library tests (detect.bats, siblings.bats)
+- [ ] 13-02-PLAN.md — Format and lint hook tests (format.bats, lint.bats)
+- [ ] 13-03-PLAN.md — Guard and session hook tests (file-guard.bats, session-start.bats)
 
 ## Progress
 
@@ -187,7 +213,7 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Plugin Skeleton | 0/TBD | Not started | - |
-| 2. Shared Libraries | 0/TBD | Not started | - |
+| 2. Shared Libraries | 0/1 | Planned | - |
 | 3. Format Hook | 0/TBD | Not started | - |
 | 4. Lint Hook | 0/TBD | Not started | - |
 | 5. Guard Hook | 0/TBD | Not started | - |
@@ -198,4 +224,4 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | 10. Drift Skill | 0/TBD | Not started | - |
 | 11. Pulse Skill | 0/1 | Planning complete | - |
 | 12. Deploy Skill | 0/TBD | Not started | - |
-| 13. Tests | 0/TBD | Not started | - |
+| 13. Tests | 0/3 | Planning complete | - |
