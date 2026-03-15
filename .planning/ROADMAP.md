@@ -51,7 +51,10 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. FTS5 search on service name, endpoint path, or field name returns matching results; a keyword not present in those columns returns no results
   4. Running migrations on an existing database with prior schema version upgrades the schema without data loss
   5. Direct SQL queries to the query engine correctly classify a removed endpoint as CRITICAL, a changed field type as WARN, and an added field as INFO
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — SQLite database module: WAL mode, schema, FTS5 indexes, migration system
+- [ ] 14-02-PLAN.md — Query engine: transitive recursive CTE traversal, cycle detection, breaking change classification
 
 ### Phase 15: Worker Lifecycle
 **Goal**: The AllClear worker can be reliably started as a background daemon, detected as running or stale, and stopped cleanly, with shell utilities that all subsequent commands reuse
@@ -145,7 +148,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-13 | v1.0 | 17/17 | Complete | 2026-03-15 |
-| 14. Storage Foundation | v2.0 | 0/? | Not started | - |
+| 14. Storage Foundation | v2.0 | 0/2 | In progress | - |
 | 15. Worker Lifecycle | v2.0 | 0/? | Not started | - |
 | 16. MCP Server | v2.0 | 0/? | Not started | - |
 | 17. HTTP Server & Web UI | v2.0 | 0/? | Not started | - |
