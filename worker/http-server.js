@@ -85,8 +85,25 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   // 5. POST /scan — triggers a background scan (actual logic in Phase 18)
-  fastify.post('/scan', async (_request, reply) => {
-    return reply.code(202).send({ status: 'started', message: 'Scan triggered' });
+  fastify.post('/scan', async (request, reply) => {
+    if (!queryEngine) {
+      return reply.code(503).send({ error: 'No map data yet — run /allclear:map first' });
+    }
+    try {
+      const { repo_path, repo_name, repo_type, findings, commit } = request.body || {};
+      if (!repo_path || !findings) {
+        return reply.code(400).send({ error: 'Missing repo_path or findings in request body' });
+      }
+      const repoId = queryEngine.upsertRepo({
+        path: repo_path,
+        name: repo_name || path.basename(repo_path),
+        type: repo_type || 'single',
+      });
+      queryEngine.persistFindings(repoId, findings, commit || null);
+      return reply.code(200).send({ status: 'persisted', repo_id: repoId });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
   });
 
   // 6. GET /versions — returns map version history

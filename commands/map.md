@@ -257,13 +257,13 @@ Parse the JSON response. If the versions array is non-empty (existing map data e
 
 Use `AskUserQuestion` to ask: "Keep a history snapshot before overwriting the current map? (yes / no)"
 
-If yes, create a snapshot by calling the worker's snapshot capability:
+If yes, create a snapshot. The worker doesn't have a snapshot HTTP endpoint, so call the db module directly:
 ```bash
-node -e "
+node --input-type=module -e "
   import { openDb, createSnapshot } from '${CLAUDE_PLUGIN_ROOT}/worker/db.js';
   openDb();
-  const path = createSnapshot('before-rescan');
-  console.log('Snapshot saved:', path);
+  const snapshotPath = createSnapshot('before-rescan');
+  process.stdout.write('Snapshot saved: ' + snapshotPath + '\n');
 "
 ```
 Print: "Snapshot saved."
@@ -274,36 +274,35 @@ Note whether this was a first-time build (versions list was empty) — needed in
 
 ## Step 8: Persist Confirmed Findings
 
-Write the confirmed findings to SQLite. The command does this directly since the worker's query engine handles persistence:
+For each repo's confirmed findings, POST to the worker's `/scan` endpoint:
 
 ```bash
-node -e "
-  import { openDb, writeScan } from '${CLAUDE_PLUGIN_ROOT}/worker/db.js';
-  import { QueryEngine } from '${CLAUDE_PLUGIN_ROOT}/worker/query-engine.js';
+for each REPO in confirmed repos:
+  # Get the current git HEAD for this repo
+  COMMIT=$(git -C "${REPO_PATH}" rev-parse HEAD 2>/dev/null || echo "")
 
-  const db = openDb();
-  const qe = new QueryEngine(db);
-  const findings = JSON.parse(process.argv[1]);
+  # Build the persist payload
+  PAYLOAD='{
+    "repo_path": "<absolute repo path>",
+    "repo_name": "<repo basename>",
+    "repo_type": "single",
+    "commit": "<HEAD commit hash>",
+    "findings": <confirmed findings JSON for this repo>
+  }'
 
-  // Upsert repos and get IDs
-  for (const repoFindings of findings) {
-    const repoId = qe.upsertRepo({
-      path: repoFindings.repo_path,
-      name: repoFindings.repo_name,
-      type: repoFindings.repo_type || 'single'
-    });
-
-    writeScan(repoFindings, qe, repoId);
-
-    // Update repo_state with current commit
-    qe.setRepoState(repoId, repoFindings.last_commit);
-  }
-
-  console.log('Dependency map saved.');
-" '${CONFIRMED_FINDINGS_JSON}'
+  RESULT=$(worker_call POST /scan "${PAYLOAD}")
+done
 ```
 
-If this fails, print the error and exit without proceeding.
+The worker's `POST /scan` endpoint:
+- Upserts the repo row
+- Persists all services, connections, schemas, and fields
+- Updates `repo_state` with the scanned commit hash
+- Returns `{ "status": "persisted", "repo_id": N }`
+
+Print: "Dependency map saved. N services, M connections across K repos."
+
+If any persist call fails, print the error for that repo but continue with remaining repos.
 
 ---
 

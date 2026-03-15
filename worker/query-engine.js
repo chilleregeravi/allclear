@@ -496,7 +496,90 @@ export class QueryEngine {
   }
 
   /**
-   * Creates a DB snapshot via VACUUM INTO and records it in map_versions.
+   * Returns all map version entries, ordered by creation date descending.
+   * @returns {Array<{id: number, created_at: string, label: string, snapshot_path: string}>}
+   */
+  getVersions() {
+    return this._db.prepare('SELECT id, created_at, label, snapshot_path FROM map_versions ORDER BY created_at DESC').all();
+  }
+
+  /**
+   * Persists a complete scan result for one repo — services, connections, schemas, fields.
+   * Resolves service names to IDs and wires connections to the correct service IDs.
+   *
+   * @param {number} repoId - The repo row ID
+   * @param {object} findings - Agent scan findings (services, connections, schemas arrays)
+   * @param {string} [commit] - Git commit hash to record in repo_state
+   */
+  persistFindings(repoId, findings, commit) {
+    const serviceIdMap = new Map(); // name → id
+
+    // 1. Upsert services
+    for (const svc of (findings.services || [])) {
+      const id = this.upsertService({
+        repo_id: repoId,
+        name: svc.name,
+        root_path: svc.root_path || '.',
+        language: svc.language || 'unknown',
+      });
+      serviceIdMap.set(svc.name, id);
+    }
+
+    // 2. Upsert connections (resolve source/target names to IDs)
+    for (const conn of (findings.connections || [])) {
+      const sourceId = serviceIdMap.get(conn.source) || this._resolveServiceId(conn.source);
+      const targetId = serviceIdMap.get(conn.target) || this._resolveServiceId(conn.target);
+      if (!sourceId || !targetId) continue; // skip if service not found
+
+      const connId = this.upsertConnection({
+        source_service_id: sourceId,
+        target_service_id: targetId,
+        protocol: conn.protocol || 'unknown',
+        method: conn.method || null,
+        path: conn.path || null,
+        source_file: conn.source_file || null,
+        target_file: conn.target_file || null,
+      });
+
+      // 3. Upsert schemas for this connection
+      // Find schemas that belong to this connection path
+      for (const schema of (findings.schemas || [])) {
+        const schemaId = this.upsertSchema({
+          connection_id: connId,
+          role: schema.role,
+          name: schema.name,
+          file: schema.file || null,
+        });
+
+        // 4. Upsert fields for this schema
+        for (const field of (schema.fields || [])) {
+          this.upsertField({
+            schema_id: schemaId,
+            name: field.name,
+            type: field.type || 'unknown',
+            required: field.required ? 1 : 0,
+          });
+        }
+      }
+    }
+
+    // 5. Update repo_state
+    if (commit) {
+      this.setRepoState(repoId, commit);
+    }
+  }
+
+  /**
+   * Resolve a service name to its ID (for cross-repo connections).
+   * @param {string} name
+   * @returns {number|null}
+   */
+  _resolveServiceId(name) {
+    const row = this._db.prepare('SELECT id FROM services WHERE name = ?').get(name);
+    return row ? row.id : null;
+  }
+
+  /**
    * The snapshot directory is created automatically.
    *
    * @param {string} label - Human-readable label for this version.
