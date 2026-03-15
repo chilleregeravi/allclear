@@ -129,7 +129,7 @@ Your JSON object must match this exact structure:
       "type": "service | library | sdk — 'service' for deployable units, 'library'/'sdk' for shared code",
       "boundary_entry": "string | null — file that external callers hit (e.g. 'src/main.py', 'src/routes/index.ts')",
       "exposes": [
-        "string — list of endpoint paths, topics, or SDK functions this service makes available"
+        "string — each entry formatted as 'METHOD /path' for REST (e.g. 'GET /users', 'POST /auth/token'), 'topic-name' for events, or 'functionName' for SDK exports. MUST list every endpoint this service handles."
       ],
       "confidence": "high | low"
     }
@@ -173,6 +173,7 @@ Your JSON object must match this exact structure:
 - `path` in connections: report **template paths** like `/users/{id}` not interpolated values like `/users/123`
 - `target_file` is optional — set to `null` if the target handler file is not visible in this repo
 - `fields[].required` must be a boolean (`true` or `false`), not a string
+- `exposes` is **critical** — it's used to detect API mismatches. List every endpoint/topic this service handles. Format: `"METHOD /path"` for REST, `"topic-name"` for events
 
 ---
 
@@ -187,6 +188,15 @@ Your JSON object must match this exact structure:
       "name": "user-api",
       "root_path": "src/",
       "language": "typescript",
+      "type": "service",
+      "boundary_entry": "src/index.ts",
+      "exposes": [
+        "GET /users",
+        "GET /users/{id}",
+        "POST /users",
+        "PUT /users/{id}",
+        "DELETE /users/{id}"
+      ],
       "confidence": "high"
     }
   ],
