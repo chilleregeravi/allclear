@@ -83,7 +83,7 @@ Plans:
   4. With no linter installed for the file's language, the hook silently skips
 **Plans:** 1 plan
 Plans:
-- [ ] 02-01-PLAN.md — Create lib/detect.sh and lib/siblings.sh shared libraries
+- [ ] 04-01-PLAN.md — Hook manifest and lint script with per-language linter invocation and clippy throttle
 
 ### Phase 5: Guard Hook
 **Goal**: Claude cannot accidentally overwrite sensitive, lock, or generated files — hard blocks stop writes before they occur, and soft warns flag risky edits with explanations
@@ -222,7 +222,7 @@ All phases are independent and can execute in parallel. No ordering constraints.
 | 1. Plugin Skeleton | 0/TBD | Not started | - |
 | 2. Shared Libraries | 0/1 | Planned | - |
 | 3. Format Hook | 0/TBD | Not started | - |
-| 4. Lint Hook | 0/TBD | Not started | - |
+| 4. Lint Hook | 0/1 | Planned | - |
 | 5. Guard Hook | 0/1 | Planned | - |
 | 6. Session Hook | 0/TBD | Not started | - |
 | 7. Quality Gate Skill | 0/TBD | Not started | - |
