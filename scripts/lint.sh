@@ -14,6 +14,19 @@ INPUT=$(cat)
 FILE=$(printf '%s\n' "$INPUT" | jq -r '.tool_input.file_path // empty')
 TOOL=$(printf '%s\n' "$INPUT" | jq -r '.tool_name // empty')
 
+# ── MCP server stdout-pollution guard ──────────────────────────────────────────
+# console.log in worker/mcp-server.js silently corrupts the MCP JSON-RPC session.
+# This check runs on every lint invocation so CI catches the violation immediately.
+MCP_SERVER_FILE="worker/mcp-server.js"
+if [[ -f "$MCP_SERVER_FILE" ]]; then
+  if grep -n "console\.log" "$MCP_SERVER_FILE" &>/dev/null; then
+    printf 'ERROR: console.log found in %s — MCP stdout pollution risk. Use console.error() instead.\n' "$MCP_SERVER_FILE" >&2
+    exit 1
+  else
+    printf 'OK: no console.log in %s\n' "$MCP_SERVER_FILE" >&2
+  fi
+fi
+
 # 4. Nothing to do if file_path is absent or the file doesn't exist
 [[ -z "$FILE" || ! -f "$FILE" ]] && exit 0
 
@@ -88,7 +101,7 @@ case "$LANG" in
     ;;
 
   # ── TypeScript / JavaScript: eslint with local resolution ─────────────────
-  typescript)
+  typescript|javascript)
     ESLINT=""
     # 1. Local node_modules/.bin/eslint (most common for project installs)
     if [[ -f "node_modules/.bin/eslint" ]]; then
