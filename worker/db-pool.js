@@ -118,7 +118,8 @@ export function listProjects() {
         serviceCount,
         repoCount,
       };
-    });
+    })
+    .filter((p) => p.serviceCount > 0);
 }
 
 /**
