@@ -44,7 +44,7 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
-(Defined per milestone — see current milestone below)
+See current milestone: v2.2 Scan Data Integrity
 
 ### Out of Scope
 
@@ -90,6 +90,17 @@ Known tech debt: scan data duplication on re-scan (workaround in place), no log 
 | Named handlers for teardown | Module-scope named functions enable removeEventListener for project switching | ✓ Good |
 | Shared logger factory with component tags | Enables log filtering without coupling modules to each other | ✓ Good |
 | Graph dedup via MAX(id) GROUP BY name | Workaround for scan duplication — proper fix needs schema changes (SCAN-01..04) | ⚠️ Revisit |
+
+## Current Milestone: v2.2 Scan Data Integrity
+
+**Goal:** Fix data duplication from re-scanning and cross-repo conflicts. Add scan versioning and cross-project MCP queries.
+
+**Target features:**
+- Upsert services by (repo_id, name) — re-scan replaces, not appends
+- Cross-repo service identity merging — same service = one graph node
+- Scan versioning — each scan creates a version; graph shows latest; history browsable
+- Agent prompt enforces consistent service naming
+- MCP server queries work from any repo, not just the one with allclear.config.json
 
 ---
 *Last updated: 2026-03-16 after v2.1 milestone*
