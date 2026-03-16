@@ -113,7 +113,10 @@ Plans:
   1. A dropdown in the UI header is always visible and lists all projects known to the worker
   2. Selecting a different project in the dropdown loads that project's graph in place — no page reload, no browser navigation
   3. After switching, the previously selected project's graph, workers, and event listeners are fully torn down — clicks and forces from the old project do not fire
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 26-01-PLAN.md — Refactor interactions.js to named handlers + teardownInteractions(); extract loadProject() from graph.js; add currentProject to state.js
+- [ ] 26-02-PLAN.md — Implement project-switcher.js module + human verify end-to-end
 
 ## Progress
 
