@@ -652,38 +652,74 @@ function showDetailPanel(node) {
     </div>`;
   }
 
-  if (outgoing.length > 0) {
-    html += `<div class="detail-section">
-      <div class="detail-label">Calls (${outgoing.length})</div>`;
-    for (const e of outgoing) {
-      const target = nameById[e.target_service_id] || "?";
-      const mismatchFlag = e.mismatch
-        ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified in target">✗</span>'
-        : "";
-      html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
-        <div class="conn-direction">→ <span class="conn-target">${target}</span></div>
-        ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
-        ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
-      </div>`;
-    }
-    html += `</div>`;
-  }
+  const isLib = nodeType === "library" || nodeType === "sdk";
 
-  if (incoming.length > 0) {
-    html += `<div class="detail-section">
-      <div class="detail-label">Called by (${incoming.length})</div>`;
-    for (const e of incoming) {
-      const source = nameById[e.source_service_id] || "?";
-      const mismatchFlag = e.mismatch
-        ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified">✗</span>'
-        : "";
-      html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
-        <div class="conn-direction">← <span class="conn-target">${source}</span></div>
-        ${e.target_file ? `<div class="conn-file">${e.target_file}</div>` : ""}
-        ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
-      </div>`;
+  if (isLib) {
+    // Library/SDK: show what it provides and who uses it
+    if (outgoing.length > 0) {
+      html += `<div class="detail-section">
+        <div class="detail-label">Provides (${outgoing.length})</div>`;
+      for (const e of outgoing) {
+        const target = nameById[e.target_service_id] || "?";
+        html += `<div class="connection-item">
+          <div><span class="conn-method">${e.method || "fn"}</span> <span class="conn-path">${e.path || ""}</span></div>
+          <div class="conn-direction">→ used by <span class="conn-target">${target}</span></div>
+          ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    if (incoming.length > 0) {
+      html += `<div class="detail-section">
+        <div class="detail-label">Used by (${incoming.length} services)</div>`;
+      const users = new Set();
+      for (const e of incoming) {
+        const source = nameById[e.source_service_id] || "?";
+        if (!users.has(source)) {
+          users.add(source);
+          html += `<div class="connection-item">
+            <div><span class="conn-target">${source}</span></div>
+            ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
+          </div>`;
+        }
+      }
+      html += `</div>`;
+    }
+  } else {
+    // Service: show calls and called-by
+    if (outgoing.length > 0) {
+      html += `<div class="detail-section">
+        <div class="detail-label">Calls (${outgoing.length})</div>`;
+      for (const e of outgoing) {
+        const target = nameById[e.target_service_id] || "?";
+        const mismatchFlag = e.mismatch
+          ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified in target">✗</span>'
+          : "";
+        html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
+          <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
+          <div class="conn-direction">→ <span class="conn-target">${target}</span></div>
+          ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
+          ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    if (incoming.length > 0) {
+      html += `<div class="detail-section">
+        <div class="detail-label">Called by (${incoming.length})</div>`;
+      for (const e of incoming) {
+        const source = nameById[e.source_service_id] || "?";
+        const mismatchFlag = e.mismatch
+          ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified">✗</span>'
+          : "";
+        html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
+          <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
+          <div class="conn-direction">← <span class="conn-target">${source}</span></div>
+          ${e.target_file ? `<div class="conn-file">${e.target_file}</div>` : ""}
+          ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
+        </div>`;
     }
     html += `</div>`;
   }
