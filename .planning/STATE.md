@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Scan Data Integrity
-status: planning
-stopped_at: Defining requirements
+status: ready_to_plan
+stopped_at: Roadmap created — Phase 27 ready to plan
 last_updated: "2026-03-16"
-last_activity: 2026-03-16 — Milestone v2.2 started
+last_activity: 2026-03-16 — v2.2 roadmap created (3 phases, 5 requirements mapped)
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,38 +21,46 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** v2.2 Scan Data Integrity
+**Current focus:** v2.2 Phase 27 — Schema Foundation + Upsert Repair
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-16 — Milestone v2.2 started
+Phase: 27 of 29 (Schema Foundation + Upsert Repair)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-16 — v2.2 roadmap created
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 47 (across v1.0–v2.1)
+- v2.2 plans completed: 0
 
 ## Accumulated Context
 
 ### Decisions
 
 - [v2.0]: Service is the unit, not repo — works for mono-repo and multi-repo
-- [v2.0]: Incremental scans by default, full re-scan on demand
-- [v2.0]: User confirms all findings before persisting (hard gate)
 - [v2.0]: SQLite primary, ChromaDB optional
-- [v2.1]: Graph dedup via MAX(id) GROUP BY name — workaround, not fix
-- [v2.1]: Scan data duplication tracked as SCAN-01..04
+- [v2.1]: Graph dedup via MAX(id) GROUP BY name — workaround, scheduled for removal in Phase 27
+- [v2.2]: SCAN-01 + SCAN-02 must ship atomically — migration 004 + ON CONFLICT DO UPDATE together, or cascade-delete wipes child rows
+- [v2.2]: SCAN-04 (agent naming) grouped with Phase 27 — cheapest identity fix, no schema dependency
 
 ### Pending Todos
 
-None — all scan duplication bugs are now v2.2 scope.
+None.
 
 ### Blockers/Concerns
 
-- Schema changes for upsert may require a new migration (004)
-- Cross-repo identity merging needs a clear strategy for conflicting metadata (language, type)
-- MCP server currently resolves project from CWD — needs project discovery without config file
+- Phase 27: Migration 004 must be tested against a database with existing duplicate (repo_id, name) rows — clean fixture is insufficient
+- Phase 27: Audit actual service names in existing project DBs before finalizing generic name block-list
+- Phase 29: Decide allowed-roots policy for `projectRoot` validation (e.g., must be under HOME, must appear in ~/.allclear/projects/)
+- Phase 29: Confirm pool.js lines 178-202 inline migration workaround is safe to remove after migrations 004+005 land
 
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Defining requirements for v2.2
+Stopped at: Roadmap written — ready to plan Phase 27
 Resume file: None

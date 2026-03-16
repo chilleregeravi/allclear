@@ -48,17 +48,17 @@ Requirements for scan data integrity and cross-repo MCP queries.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCAN-01 | — | Pending |
-| SCAN-02 | — | Pending |
-| SCAN-03 | — | Pending |
-| SCAN-04 | — | Pending |
-| SCAN-05 | — | Pending |
+| SCAN-01 | Phase 27 | Pending |
+| SCAN-02 | Phase 27 | Pending |
+| SCAN-03 | Phase 28 | Pending |
+| SCAN-04 | Phase 27 | Pending |
+| SCAN-05 | Phase 29 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 5 total
-- Mapped to phases: 0
-- Unmapped: 5 ⚠️
+- Mapped to phases: 5
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 — traceability populated after roadmap creation*
