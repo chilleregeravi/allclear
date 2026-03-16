@@ -22,6 +22,10 @@ export const state = {
   panStartTransformY: 0,
   dragStarted: false,
   transform: { x: 0, y: 0, scale: 1 },
+  logPanelOpen: false,
+  logComponentFilter: "all",   // "all" | "worker" | "http" | "mcp" | "scan"
+  logSearchFilter: "",
+  logLastSince: null,          // ISO timestamp string — last poll watermark
 };
 
 export const NODE_RADIUS = 18;
