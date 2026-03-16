@@ -76,9 +76,17 @@ export async function initChromaSync(settings = {}, mockClient = null) {
       const host = settings.ALLCLEAR_CHROMA_HOST || "localhost";
       const port = parseInt(settings.ALLCLEAR_CHROMA_PORT || "8000", 10);
       const ssl = settings.ALLCLEAR_CHROMA_SSL === "true";
-      const protocol = ssl ? "https" : "http";
+      const apiKey = settings.ALLCLEAR_CHROMA_API_KEY || "";
+      const tenant = settings.ALLCLEAR_CHROMA_TENANT || "default_tenant";
+      const database = settings.ALLCLEAR_CHROMA_DATABASE || "default_database";
+
+      const clientOpts = { host, port, ssl, tenant, database };
+      if (apiKey) {
+        clientOpts.headers = { Authorization: `Bearer ${apiKey}` };
+      }
+
       // ChromaClient constructor never throws (chromadb v3) — errors surface on heartbeat()
-      client = new ChromaClient({ path: `${protocol}://${host}:${port}` });
+      client = new ChromaClient(clientOpts);
     }
 
     // Probe connectivity — this is where connection errors surface

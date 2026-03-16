@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { createHttpServer } from "./server/http.js";
 import { getQueryEngine } from "./db/pool.js";
+import { initChromaSync } from "./server/chroma.js";
 
 // ---------------------------------------------------------------------------
 // 1. Parse CLI args
@@ -21,13 +22,14 @@ for (let i = 0; i < args.length; i++) {
 // 2. Read settings.json for ALLCLEAR_LOG_LEVEL and port override
 // ---------------------------------------------------------------------------
 let logLevel = "INFO";
+let allSettings = {};
 try {
-  const settings = JSON.parse(
+  allSettings = JSON.parse(
     fs.readFileSync(path.join(dataDir, "settings.json"), "utf8"),
   );
-  if (settings.ALLCLEAR_LOG_LEVEL) logLevel = settings.ALLCLEAR_LOG_LEVEL;
-  if (settings.ALLCLEAR_WORKER_PORT)
-    port = parseInt(settings.ALLCLEAR_WORKER_PORT, 10);
+  if (allSettings.ALLCLEAR_LOG_LEVEL) logLevel = allSettings.ALLCLEAR_LOG_LEVEL;
+  if (allSettings.ALLCLEAR_WORKER_PORT)
+    port = parseInt(allSettings.ALLCLEAR_WORKER_PORT, 10);
 } catch {
   // Settings file absent or unreadable — use defaults
 }
@@ -65,7 +67,19 @@ function log(level, msg, extra = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Create HTTP server — DB resolved per-request, not at startup
+// 6. Initialize ChromaDB (optional — non-blocking)
+// ---------------------------------------------------------------------------
+if (allSettings.ALLCLEAR_CHROMA_MODE) {
+  initChromaSync(allSettings).then((ok) => {
+    log(
+      "INFO",
+      ok ? "ChromaDB connected" : "ChromaDB unavailable — using FTS5 fallback",
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 7. Create HTTP server — DB resolved per-request, not at startup
 // ---------------------------------------------------------------------------
 // Pass null as queryEngine — the HTTP server resolves it per-request
 // using the ?project= query param and getQueryEngine()
