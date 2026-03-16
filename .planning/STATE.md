@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 22-01-PLAN.md (HiDPI canvas fix)
-last_updated: "2026-03-16T12:47:00.775Z"
+stopped_at: "Completed 22-03-PLAN.md (fit-to-screen button) — awaiting checkpoint:human-verify"
+last_updated: "2026-03-16T12:50:37.820Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 11
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 23-logging-instrumentation]: createLogger factory in worker/lib/logger.js — plain object, component-tagged JSON logging, port field omitted when undefined/null
 - [Phase 22-canvas-zoom]: CSS pixel space is the single coordinate truth — DPR is render-time only; no mouse event or transform values multiplied by DPR
 - [Phase 22-canvas-zoom]: watchDPR uses matchMedia re-registration (not persistent listener) for multi-monitor DPR change detection
+- [Phase 22-canvas-zoom]: fitToScreen() placed inside init() closure to access container variable — bounding box formula: min(scaleX,scaleY) clamped 0.15-5, 60px padding, center translate
 
 ### Pending Todos
 
@@ -61,6 +62,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:47:00.772Z
-Stopped at: Completed 22-01-PLAN.md (HiDPI canvas fix)
+Last session: 2026-03-16T12:50:37.818Z
+Stopped at: Completed 22-03-PLAN.md (fit-to-screen button) — awaiting checkpoint:human-verify
 Resume file: None

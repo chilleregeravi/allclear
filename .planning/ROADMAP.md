@@ -37,7 +37,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 
 **Milestone Goal:** Make the graph UI production-quality with crisp HiDPI rendering, usable zoom/pan controls, structured logging across all components, an embedded log terminal for real-time worker observability, and persistent project switching without page reload.
 
-- [ ] **Phase 22: Canvas & Zoom** - Crisp HiDPI rendering, tuned zoom/pan controls, and fit-to-screen
+- [x] **Phase 22: Canvas & Zoom** - Crisp HiDPI rendering, tuned zoom/pan controls, and fit-to-screen (completed 2026-03-16)
 - [ ] **Phase 23: Logging Instrumentation** - Structured logger with component tags across all worker modules
 - [ ] **Phase 24: Log Terminal API** - Server-side log streaming endpoint with filtering and query params
 - [ ] **Phase 25: Log Terminal UI** - Collapsible log panel with live-tail, component filter, and search
@@ -124,7 +124,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1-13 | v1.0 | 17/17 | Complete | 2026-03-15 |
 | 14-21 | v2.0 | 19/19 | Complete | 2026-03-15 |
-| 22. Canvas & Zoom | 2/3 | In Progress|  | - |
+| 22. Canvas & Zoom | 3/3 | Complete   | 2026-03-16 | - |
 | 23. Logging Instrumentation | 1/3 | In Progress|  | - |
 | 24. Log Terminal API | v2.1 | 0/1 | Not started | - |
 | 25. Log Terminal UI | v2.1 | 0/TBD | Not started | - |
