@@ -40,7 +40,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 22: Canvas & Zoom** - Crisp HiDPI rendering, tuned zoom/pan controls, and fit-to-screen (completed 2026-03-16)
 - [x] **Phase 23: Logging Instrumentation** - Structured logger with component tags across all worker modules (completed 2026-03-16)
 - [x] **Phase 24: Log Terminal API** - Server-side log streaming endpoint with filtering and query params (completed 2026-03-16)
-- [ ] **Phase 25: Log Terminal UI** - Collapsible log panel with live-tail, component filter, and search
+- [x] **Phase 25: Log Terminal UI** - Collapsible log panel with live-tail, component filter, and search (completed 2026-03-16)
 - [ ] **Phase 26: Project Switcher** - Persistent dropdown to switch projects in-place without page reload
 
 ## Phase Details
@@ -127,5 +127,5 @@ Plans:
 | 22. Canvas & Zoom | 3/3 | Complete   | 2026-03-16 | - |
 | 23. Logging Instrumentation | 3/3 | Complete   | 2026-03-16 | - |
 | 24. Log Terminal API | 1/1 | Complete   | 2026-03-16 | - |
-| 25. Log Terminal UI | 1/2 | In Progress|  | - |
+| 25. Log Terminal UI | 2/2 | Complete   | 2026-03-16 | - |
 | 26. Project Switcher | 1/2 | In Progress|  | - |

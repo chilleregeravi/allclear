@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 25-01-PLAN.md (log terminal HTML, state fields, log-terminal.js module)
-last_updated: "2026-03-16T13:15:02.773Z"
+stopped_at: Completed 25-02-PLAN.md (wire initLogTerminal into graph.js)
+last_updated: "2026-03-16T13:20:52.594Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 26-project-switcher]: Named handlers at module scope (not inside setupInteractions) so removeEventListener can match the exact function reference
 - [Phase 26-project-switcher]: loadProject(hash, canvas, fitToScreen) signature — init() passes its own closure refs; loadProject() owns data + simulation + interaction wiring
 - [Phase 25-log-terminal-ui]: initLogTerminal() closure keeps poll interval handle local — not in state — start on open, clear on close
+- [Phase 25-log-terminal-ui]: initLogTerminal() called in init() after loadProject() — panel is a page-level singleton, activated once when UI is interactive
 
 ### Pending Todos
 
@@ -77,6 +78,6 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:15:02.769Z
-Stopped at: Completed 25-01-PLAN.md (log terminal HTML, state fields, log-terminal.js module)
+Last session: 2026-03-16T13:20:52.591Z
+Stopped at: Completed 25-02-PLAN.md (wire initLogTerminal into graph.js)
 Resume file: None
