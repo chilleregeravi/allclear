@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createHttpServer } from "./http.js";
 
 const mockQE = {
@@ -13,10 +16,180 @@ const mockQE = {
 };
 
 // Helper: create server with port 0 (no real TCP socket, inject only)
-async function makeServer(qe = mockQE) {
-  const server = await createHttpServer(qe, { port: 0 });
+async function makeServer(qe = mockQE, opts = {}) {
+  const server = await createHttpServer(qe, { port: 0, ...opts });
   return server;
 }
+
+// Helper: create a temp dataDir with a logs/worker.log containing given lines
+function makeTempDataDir(lines = []) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "allclear-test-"));
+  fs.mkdirSync(path.join(tmpDir, "logs"), { recursive: true });
+  if (lines.length > 0) {
+    fs.writeFileSync(
+      path.join(tmpDir, "logs", "worker.log"),
+      lines.map((l) => JSON.stringify(l)).join("\n") + "\n",
+      "utf8",
+    );
+  }
+  return tmpDir;
+}
+
+// ---------------------------------------------------------------------------
+// /api/logs tests
+// ---------------------------------------------------------------------------
+
+test("GET /api/logs with no log file returns 200 with empty lines array", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "allclear-test-"));
+  // logs dir does not exist — no log file
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.ok(Array.isArray(body.lines), "lines should be array");
+  assert.equal(body.lines.length, 0);
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs with 3 log lines returns all 3 as parsed JSON objects", async () => {
+  const lines = [
+    { ts: "2026-01-01T00:00:01.000Z", level: "INFO", msg: "a", component: "worker" },
+    { ts: "2026-01-01T00:00:02.000Z", level: "INFO", msg: "b", component: "scan" },
+    { ts: "2026-01-01T00:00:03.000Z", level: "INFO", msg: "c", component: "http" },
+  ];
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 3);
+  assert.equal(body.lines[0].msg, "a");
+  assert.equal(body.lines[1].msg, "b");
+  assert.equal(body.lines[2].msg, "c");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs?component=scan returns only scan lines", async () => {
+  const lines = [
+    { ts: "2026-01-01T00:00:01.000Z", level: "INFO", msg: "worker-msg", component: "worker" },
+    { ts: "2026-01-01T00:00:02.000Z", level: "INFO", msg: "scan-msg", component: "scan" },
+    { ts: "2026-01-01T00:00:03.000Z", level: "INFO", msg: "http-msg", component: "http" },
+  ];
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs?component=scan" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 1);
+  assert.equal(body.lines[0].component, "scan");
+  assert.equal(body.lines[0].msg, "scan-msg");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs?component=http returns only http lines", async () => {
+  const lines = [
+    { ts: "2026-01-01T00:00:01.000Z", level: "INFO", msg: "worker-msg", component: "worker" },
+    { ts: "2026-01-01T00:00:02.000Z", level: "INFO", msg: "http-msg-1", component: "http" },
+    { ts: "2026-01-01T00:00:03.000Z", level: "INFO", msg: "http-msg-2", component: "http" },
+  ];
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs?component=http" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 2);
+  assert.ok(body.lines.every((l) => l.component === "http"));
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs?since=2026-01-02T00:00:00.000Z returns only lines after that timestamp", async () => {
+  const lines = [
+    { ts: "2026-01-01T12:00:00.000Z", level: "INFO", msg: "before", component: "worker" },
+    { ts: "2026-01-02T06:00:00.000Z", level: "INFO", msg: "after1", component: "worker" },
+    { ts: "2026-01-03T00:00:00.000Z", level: "INFO", msg: "after2", component: "worker" },
+  ];
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({
+    method: "GET",
+    url: "/api/logs?since=2026-01-02T00:00:00.000Z",
+  });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 2);
+  assert.equal(body.lines[0].msg, "after1");
+  assert.equal(body.lines[1].msg, "after2");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs with 600 log lines returns exactly 500 (last 500)", async () => {
+  const lines = [];
+  for (let i = 0; i < 600; i++) {
+    lines.push({
+      ts: `2026-01-01T00:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}.000Z`,
+      level: "INFO",
+      msg: `line-${i}`,
+      component: "worker",
+    });
+  }
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 500);
+  // Should be the LAST 500 (lines 100-599)
+  assert.equal(body.lines[0].msg, "line-100");
+  assert.equal(body.lines[499].msg, "line-599");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs with ?component= and ?since= combined applies both filters", async () => {
+  const lines = [
+    { ts: "2026-01-01T00:00:01.000Z", level: "INFO", msg: "scan-old", component: "scan" },
+    { ts: "2026-01-02T00:00:01.000Z", level: "INFO", msg: "scan-new", component: "scan" },
+    { ts: "2026-01-02T00:00:02.000Z", level: "INFO", msg: "worker-new", component: "worker" },
+  ];
+  const tmpDir = makeTempDataDir(lines);
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({
+    method: "GET",
+    url: "/api/logs?component=scan&since=2026-01-01T12:00:00.000Z",
+  });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 1);
+  assert.equal(body.lines[0].msg, "scan-new");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("GET /api/logs with a corrupt/non-JSON line skips that line gracefully (no 500)", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "allclear-test-"));
+  fs.mkdirSync(path.join(tmpDir, "logs"), { recursive: true });
+  // Mix valid JSON lines with a corrupt line
+  const content = [
+    JSON.stringify({ ts: "2026-01-01T00:00:01.000Z", level: "INFO", msg: "valid-1", component: "worker" }),
+    "this is not json {{{",
+    JSON.stringify({ ts: "2026-01-01T00:00:03.000Z", level: "INFO", msg: "valid-2", component: "worker" }),
+  ].join("\n") + "\n";
+  fs.writeFileSync(path.join(tmpDir, "logs", "worker.log"), content, "utf8");
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.lines.length, 2, "corrupt line should be skipped");
+  assert.equal(body.lines[0].msg, "valid-1");
+  assert.equal(body.lines[1].msg, "valid-2");
+  await server.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
 
 test("GET /api/readiness returns 200 with {status: ok} when queryEngine is provided", async () => {
   const server = await makeServer();
