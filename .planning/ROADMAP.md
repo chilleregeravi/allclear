@@ -55,7 +55,12 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
   3. Mouse wheel zoom feels smooth and controllable — not jumping multiple zoom levels per tick
   4. Two-finger scroll on a trackpad pans the graph; pinch zooms the graph (not both zoom)
   5. Clicking the fit-to-screen button resets the view to show all nodes centered in the canvas
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — HiDPI canvas rendering (renderer.js + graph.js resize)
+- [ ] 22-02-PLAN.md — Zoom/pan tuning: smooth delta + trackpad ctrlKey split
+- [ ] 22-03-PLAN.md — Fit-to-screen button in toolbar
 
 ### Phase 23: Logging Instrumentation
 **Goal**: All worker components emit structured JSON logs with a consistent component tag, enabling downstream filtering by scan, MCP, HTTP, and worker subsystems
@@ -95,7 +100,10 @@ Plans:
   3. A component dropdown filters the visible log lines to a single subsystem (scan, MCP, worker, HTTP)
   4. Typing in a search box further filters visible lines to those containing the search string
   5. The panel scrolls automatically to the newest line, but stops auto-scrolling when the user scrolls up and resumes when they scroll back to the bottom
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 25-01-PLAN.md — Add log panel HTML/CSS to index.html, extend state.js, create log-terminal.js module (polling, ring buffer, filter, search, auto-scroll)
+- [ ] 25-02-PLAN.md — Wire initLogTerminal into graph.js and verify end-to-end browser behavior
 
 ### Phase 26: Project Switcher
 **Goal**: Users can switch between tracked projects in the graph UI without a full page reload
