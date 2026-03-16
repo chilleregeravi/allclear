@@ -12,6 +12,7 @@ export const state = {
   activeProtocols: new Set(["rest", "grpc", "events", "internal", "sdk"]),
   searchFilter: "",
   forceWorker: null,
+  currentProject: null,   // hash of currently loaded project
   isDragging: false,
   dragNodeId: null,
   isPanning: false,

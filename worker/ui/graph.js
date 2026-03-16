@@ -10,86 +10,24 @@ import { render } from "./modules/renderer.js";
 import { setupInteractions, setupControls } from "./modules/interactions.js";
 import { hideDetailPanel } from "./modules/detail-panel.js";
 import { showProjectPicker } from "./modules/project-picker.js";
+// Stub — will be implemented in Plan 02
+import { initProjectSwitcher } from "./modules/project-switcher.js";
 
-async function init() {
-  const canvas = document.getElementById("graph-canvas");
-  const container = document.getElementById("canvas-container");
+// Guard: detail-close listener is wired once across multiple loadProject calls
+let _detailCloseWired = false;
 
-  function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = container.clientWidth;
-    const cssH = container.clientHeight;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    canvas.style.width = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    render();
-  }
-  window.addEventListener("resize", resize);
-  function watchDPR() {
-    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-    mq.addEventListener('change', () => { resize(); watchDPR(); }, { once: true });
-  }
-  watchDPR();
-  resize();
-
-  function fitToScreen() {
-    const positions = Object.values(state.positions);
-    if (positions.length === 0) return;
-
-    // Compute bounding box of all node positions (CSS pixel space)
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const { x, y } of positions) {
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-    }
-
-    const PADDING = 60; // px — breathing room around the graph
-    const cssW = container.clientWidth;
-    const cssH = container.clientHeight;
-    const graphW = maxX - minX || 1;
-    const graphH = maxY - minY || 1;
-
-    const scaleX = (cssW - PADDING * 2) / graphW;
-    const scaleY = (cssH - PADDING * 2) / graphH;
-    const scale = Math.min(Math.min(scaleX, scaleY), 5);
-    const clampedScale = Math.max(0.15, scale);
-
-    // Center the bounding box in the canvas
-    state.transform.scale = clampedScale;
-    state.transform.x = cssW / 2 - (minX + graphW / 2) * clampedScale;
-    state.transform.y = cssH / 2 - (minY + graphH / 2) * clampedScale;
-
-    render();
-  }
-
-  // Resolve project from URL or show picker
-  const urlParams = new URLSearchParams(window.location.search);
-  let project = urlParams.get("project");
-  let hash = urlParams.get("hash");
-
-  if (!project && !hash) {
-    const picked = await showProjectPicker();
-    if (!picked) return;
-
-    if (picked.startsWith("__hash__")) {
-      hash = picked.slice(8);
-    } else {
-      project = picked;
-    }
-  }
-
-  if (project && !urlParams.get("project")) {
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set("project", project);
-    window.history.replaceState({}, "", newUrl);
-  }
-
-  const projectParam = project
-    ? `?project=${encodeURIComponent(project)}`
-    : `?hash=${encodeURIComponent(hash)}`;
+/**
+ * Load (or reload) the graph for a given project hash.
+ * Fetches /graph, maps API response to UI shape, starts force simulation,
+ * and wires interaction handlers.
+ *
+ * @param {string} hash - The project hash to load.
+ * @param {HTMLCanvasElement} canvas - The graph canvas element.
+ * @param {Function} fitToScreen - Callback to fit the loaded graph to screen.
+ */
+export async function loadProject(hash, canvas, fitToScreen) {
+  const projectParam = `?hash=${encodeURIComponent(hash)}`;
+  state.currentProject = hash;
 
   // Load graph data
   let resp;
@@ -180,11 +118,100 @@ async function init() {
   setupControls();
   document.getElementById("fit-btn").addEventListener("click", fitToScreen);
 
-  document.getElementById("detail-close").addEventListener("click", () => {
-    hideDetailPanel();
-    state.selectedNodeId = null;
+  // Wire detail-close only once — addEventListener is idempotent for named
+  // functions, but we use a flag to be explicit and avoid redundant calls.
+  if (!_detailCloseWired) {
+    document.getElementById("detail-close").addEventListener("click", () => {
+      hideDetailPanel();
+      state.selectedNodeId = null;
+      render();
+    });
+    _detailCloseWired = true;
+  }
+}
+
+async function init() {
+  const canvas = document.getElementById("graph-canvas");
+  const container = document.getElementById("canvas-container");
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = container.clientWidth;
+    const cssH = container.clientHeight;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
     render();
-  });
+  }
+  window.addEventListener("resize", resize);
+  function watchDPR() {
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    mq.addEventListener('change', () => { resize(); watchDPR(); }, { once: true });
+  }
+  watchDPR();
+  resize();
+
+  function fitToScreen() {
+    const positions = Object.values(state.positions);
+    if (positions.length === 0) return;
+
+    // Compute bounding box of all node positions (CSS pixel space)
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const { x, y } of positions) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+
+    const PADDING = 60; // px — breathing room around the graph
+    const cssW = container.clientWidth;
+    const cssH = container.clientHeight;
+    const graphW = maxX - minX || 1;
+    const graphH = maxY - minY || 1;
+
+    const scaleX = (cssW - PADDING * 2) / graphW;
+    const scaleY = (cssH - PADDING * 2) / graphH;
+    const scale = Math.min(Math.min(scaleX, scaleY), 5);
+    const clampedScale = Math.max(0.15, scale);
+
+    // Center the bounding box in the canvas
+    state.transform.scale = clampedScale;
+    state.transform.x = cssW / 2 - (minX + graphW / 2) * clampedScale;
+    state.transform.y = cssH / 2 - (minY + graphH / 2) * clampedScale;
+
+    render();
+  }
+
+  // Resolve project from URL or show picker
+  const urlParams = new URLSearchParams(window.location.search);
+  let project = urlParams.get("project");
+  let hash = urlParams.get("hash");
+
+  if (!project && !hash) {
+    const picked = await showProjectPicker();
+    if (!picked) return;
+
+    if (picked.startsWith("__hash__")) {
+      hash = picked.slice(8);
+    } else {
+      project = picked;
+    }
+  }
+
+  if (project && !urlParams.get("project")) {
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set("project", project);
+    window.history.replaceState({}, "", newUrl);
+  }
+
+  // Resolve to a hash — if a ?project= name was given, use project as hash
+  // (the server resolves either form). loadProject() always sends ?hash=.
+  const resolvedHash = hash || project;
+
+  await loadProject(resolvedHash, canvas, fitToScreen);
+  initProjectSwitcher(resolvedHash);
 }
 
 init().catch((err) => {
