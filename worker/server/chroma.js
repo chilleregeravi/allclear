@@ -33,6 +33,9 @@ let _chromaAvailable = false;
 /** @type {any | null} ChromaDB collection handle */
 let _collection = null;
 
+/** @type {object | null} Injected logger instance */
+let _logger = null;
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -61,7 +64,8 @@ export function isChromaAvailable() {
  * @param {object} [mockClient] - Optional mock ChromaClient (for testing)
  * @returns {Promise<boolean>} true if ChromaDB is reachable and initialized
  */
-export async function initChromaSync(settings = {}, mockClient = null) {
+export async function initChromaSync(settings = {}, mockClient = null, logger = null) {
+  _logger = logger;
   // Guard: no ChromaDB configured → skip immediately, no connection attempt
   if (!settings.ALLCLEAR_CHROMA_MODE) {
     _chromaAvailable = false;
@@ -97,7 +101,11 @@ export async function initChromaSync(settings = {}, mockClient = null) {
     _chromaAvailable = true;
     return true;
   } catch (err) {
-    process.stderr.write("[chroma] init failed: " + err.message + "\n");
+    if (_logger) {
+      _logger.error('chroma init failed', { error: err.message });
+    } else {
+      process.stderr.write('[chroma] init failed: ' + err.message + '\n');
+    }
     _chromaAvailable = false;
     _collection = null;
     return false;
@@ -151,7 +159,11 @@ export async function syncFindings(findings) {
     }
   } catch (err) {
     // Log but never rethrow — fire-and-forget contract
-    process.stderr.write("[chroma] syncFindings error: " + err.message + "\n");
+    if (_logger) {
+      _logger.error('chroma syncFindings error', { error: err.message });
+    } else {
+      process.stderr.write('[chroma] syncFindings error: ' + err.message + '\n');
+    }
   }
 }
 
@@ -200,4 +212,5 @@ export async function chromaSearch(query, limit) {
 export function _resetForTest() {
   _chromaAvailable = false;
   _collection = null;
+  _logger = null;
 }
