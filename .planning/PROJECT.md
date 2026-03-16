@@ -42,9 +42,14 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Collapsible log terminal with real-time streaming, component filter, keyword search — v2.1
 - ✓ Persistent project switcher dropdown with full teardown and in-place reload — v2.1
 
+- ✓ Idempotent scan upsert with UNIQUE(repo_id, name) and ON CONFLICT DO UPDATE — v2.2
+- ✓ Scan version bracket (beginScan/endScan) with atomic stale-row cleanup — v2.2
+- ✓ Agent prompt service naming convention (lowercase-hyphenated from manifest) — v2.2
+- ✓ Cross-project MCP queries via repository name from any working directory — v2.2
+
 ### Active
 
-See current milestone: v2.2 Scan Data Integrity
+(Defined per milestone — see current milestone below)
 
 ### Out of Scope
 
@@ -89,18 +94,10 @@ Known tech debt: scan data duplication on re-scan (workaround in place), no log 
 | Polling over SSE for log terminal | No zombie connection risk, 2s latency imperceptible for log viewer | ✓ Good |
 | Named handlers for teardown | Module-scope named functions enable removeEventListener for project switching | ✓ Good |
 | Shared logger factory with component tags | Enables log filtering without coupling modules to each other | ✓ Good |
-| Graph dedup via MAX(id) GROUP BY name | Workaround for scan duplication — proper fix needs schema changes (SCAN-01..04) | ⚠️ Revisit |
-
-## Current Milestone: v2.2 Scan Data Integrity
-
-**Goal:** Fix data duplication from re-scanning and cross-repo conflicts. Add scan versioning and cross-project MCP queries.
-
-**Target features:**
-- Upsert services by (repo_id, name) — re-scan replaces, not appends
-- Cross-repo service identity merging — same service = one graph node
-- Scan versioning — each scan creates a version; graph shows latest; history browsable
-- Agent prompt enforces consistent service naming
-- MCP server queries work from any repo, not just the one with allclear.config.json
+| Graph dedup via MAX(id) GROUP BY name | Workaround for scan duplication — replaced by UNIQUE constraint in v2.2 | ✓ Good (resolved) |
+| ON CONFLICT DO UPDATE over INSERT OR REPLACE | INSERT OR REPLACE cascade-deletes FK child rows; ON CONFLICT preserves row ID | ✓ Good |
+| Scan version bracket (beginScan/endScan) | Atomic stale-row cleanup; failed scans leave old data intact | ✓ Good |
+| Per-call resolveDb in MCP server | Module-level DB resolution was wrong for cross-project queries | ✓ Good |
 
 ---
-*Last updated: 2026-03-16 after v2.1 milestone*
+*Last updated: 2026-03-16 after v2.2 milestone*

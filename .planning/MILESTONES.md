@@ -1,5 +1,14 @@
 # Milestones
 
+## v2.2 Scan Data Integrity (Shipped: 2026-03-16)
+
+**Phases completed:** 3 phases, 5 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v2.1 UI Polish & Observability (Shipped: 2026-03-16)
 
 **Phases completed:** 5 phases, 11 plans, 0 tasks
