@@ -7,166 +7,182 @@ import { hitTest, toWorld, fetchImpact, getNodeType } from "./utils.js";
 import { render } from "./renderer.js";
 import { showDetailPanel, hideDetailPanel } from "./detail-panel.js";
 
-export function setupInteractions(canvas) {
-  const tooltip = document.getElementById("tooltip");
+// Module-scoped refs set by setupInteractions — needed so named handlers
+// can access canvas and tooltip, and so removeEventListener can match refs.
+let _canvas = null;
+let _tooltip = null;
 
-  // Mousemove — hover tooltip + drag + pan
-  canvas.addEventListener("mousemove", (e) => {
-    const px = e.offsetX;
-    const py = e.offsetY;
+// ── Named event handlers (module scope) ───────────────────────────────────
+// Must be declared at module scope so the same function reference is used in
+// both addEventListener and removeEventListener.
 
-    if (state.isDragging && state.dragNodeId !== null) {
-      const { x: wx, y: wy } = toWorld(px, py);
+function onMouseMove(e) {
+  const px = e.offsetX;
+  const py = e.offsetY;
+
+  if (state.isDragging && state.dragNodeId !== null) {
+    const { x: wx, y: wy } = toWorld(px, py);
+    state.forceWorker.postMessage({
+      type: "drag",
+      nodeId: state.dragNodeId,
+      x: wx,
+      y: wy,
+    });
+    state.dragStarted = true;
+    render();
+    return;
+  }
+
+  if (state.isPanning) {
+    state.transform.x = state.panStartTransformX + (px - state.panStartX);
+    state.transform.y = state.panStartTransformY + (py - state.panStartY);
+    state.dragStarted = true;
+    render();
+    return;
+  }
+
+  const node = hitTest(px, py);
+  if (node) {
+    _canvas.style.cursor = "pointer";
+    _tooltip.style.display = "block";
+    _tooltip.style.left = px + 12 + "px";
+    _tooltip.style.top = py - 8 + "px";
+    const tt = getNodeType(node);
+    _tooltip.textContent =
+      node.name + ` [${tt}]` + (node.language ? ` (${node.language})` : "");
+  } else {
+    _canvas.style.cursor = state.isDragging ? "grabbing" : "grab";
+    _tooltip.style.display = "none";
+  }
+}
+
+function onMouseDown(e) {
+  state.dragStarted = false;
+  const node = hitTest(e.offsetX, e.offsetY);
+  if (node) {
+    state.isDragging = true;
+    state.dragNodeId = node.id;
+  } else {
+    state.isPanning = true;
+    state.panStartX = e.offsetX;
+    state.panStartY = e.offsetY;
+    state.panStartTransformX = state.transform.x;
+    state.panStartTransformY = state.transform.y;
+  }
+}
+
+function onMouseUp(e) {
+  if (state.isDragging && state.dragNodeId !== null && state.dragStarted) {
+    const { x: wx, y: wy } = toWorld(e.offsetX, e.offsetY);
+    if (state.forceWorker) {
       state.forceWorker.postMessage({
         type: "drag",
         nodeId: state.dragNodeId,
         x: wx,
         y: wy,
       });
-      state.dragStarted = true;
-      render();
-      return;
     }
+  }
+  state.isDragging = false;
+  state.dragNodeId = null;
+  state.isPanning = false;
+}
 
-    if (state.isPanning) {
-      state.transform.x = state.panStartTransformX + (px - state.panStartX);
-      state.transform.y = state.panStartTransformY + (py - state.panStartY);
-      state.dragStarted = true;
-      render();
-      return;
-    }
-
-    const node = hitTest(px, py);
-    if (node) {
-      canvas.style.cursor = "pointer";
-      tooltip.style.display = "block";
-      tooltip.style.left = px + 12 + "px";
-      tooltip.style.top = py - 8 + "px";
-      const tt = getNodeType(node);
-      tooltip.textContent =
-        node.name + ` [${tt}]` + (node.language ? ` (${node.language})` : "");
-    } else {
-      canvas.style.cursor = state.isDragging ? "grabbing" : "grab";
-      tooltip.style.display = "none";
-    }
-  });
-
-  // Mousedown — start drag or pan
-  canvas.addEventListener("mousedown", (e) => {
+function onClick(e) {
+  if (state.dragStarted) {
     state.dragStarted = false;
-    const node = hitTest(e.offsetX, e.offsetY);
-    if (node) {
-      state.isDragging = true;
-      state.dragNodeId = node.id;
-    } else {
-      state.isPanning = true;
-      state.panStartX = e.offsetX;
-      state.panStartY = e.offsetY;
-      state.panStartTransformX = state.transform.x;
-      state.panStartTransformY = state.transform.y;
-    }
-  });
+    return;
+  }
 
-  // Mouseup — release drag or pan
-  canvas.addEventListener("mouseup", (e) => {
-    if (state.isDragging && state.dragNodeId !== null && state.dragStarted) {
-      const { x: wx, y: wy } = toWorld(e.offsetX, e.offsetY);
-      if (state.forceWorker) {
-        state.forceWorker.postMessage({
-          type: "drag",
-          nodeId: state.dragNodeId,
-          x: wx,
-          y: wy,
+  const node = hitTest(e.offsetX, e.offsetY);
+
+  if (node) {
+    if (e.shiftKey) {
+      if (state.blastNodeId === node.id) {
+        state.blastNodeId = null;
+        state.blastSet = new Set();
+      } else {
+        state.blastNodeId = node.id;
+        state.selectedNodeId = null;
+        fetchImpact(node.name, node.id).then((ids) => {
+          state.blastSet = ids;
+          render();
         });
       }
+    } else {
+      if (state.selectedNodeId === node.id) {
+        state.selectedNodeId = null;
+        hideDetailPanel();
+      } else {
+        state.selectedNodeId = node.id;
+        state.blastNodeId = null;
+        state.blastSet = new Set();
+        showDetailPanel(node);
+      }
     }
+  } else {
+    state.selectedNodeId = null;
+    state.blastNodeId = null;
+    state.blastSet = new Set();
+    hideDetailPanel();
+  }
+
+  render();
+}
+
+function onWheel(e) {
+  e.preventDefault();
+
+  if (e.ctrlKey) {
+    // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse) — ZOOM
+    // D3-style continuous delta: normalize across deltaMode, apply sensitivity factor
+    const SENSITIVITY = 0.004; // higher = faster zoom; D3 default is 0.002
+    const rawDelta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : SENSITIVITY);
+    const factor = Math.pow(2, rawDelta); // exponential feels natural vs linear
+    const newScale = Math.min(5, Math.max(0.15, state.transform.scale * factor));
+    const ratio = newScale / state.transform.scale;
+    state.transform.x = e.offsetX - ratio * (e.offsetX - state.transform.x);
+    state.transform.y = e.offsetY - ratio * (e.offsetY - state.transform.y);
+    state.transform.scale = newScale;
+  } else {
+    // Two-finger scroll (trackpad) or plain mouse wheel — PAN
+    state.transform.x -= e.deltaX;
+    state.transform.y -= e.deltaY;
+  }
+
+  render();
+}
+
+function onMouseLeave() {
+  _tooltip.style.display = "none";
+  if (state.isDragging) {
     state.isDragging = false;
     state.dragNodeId = null;
-    state.isPanning = false;
-  });
+  }
+  state.isPanning = false;
+}
 
-  // Click — select node or clear selection
-  canvas.addEventListener("click", (e) => {
-    if (state.dragStarted) {
-      state.dragStarted = false;
-      return;
-    }
+// ── Public API ─────────────────────────────────────────────────────────────
 
-    const node = hitTest(e.offsetX, e.offsetY);
+export function setupInteractions(canvas) {
+  _canvas = canvas;
+  _tooltip = document.getElementById("tooltip");
 
-    if (node) {
-      if (e.shiftKey) {
-        if (state.blastNodeId === node.id) {
-          state.blastNodeId = null;
-          state.blastSet = new Set();
-        } else {
-          state.blastNodeId = node.id;
-          state.selectedNodeId = null;
-          fetchImpact(node.name, node.id).then((ids) => {
-            state.blastSet = ids;
-            render();
-          });
-        }
-      } else {
-        if (state.selectedNodeId === node.id) {
-          state.selectedNodeId = null;
-          hideDetailPanel();
-        } else {
-          state.selectedNodeId = node.id;
-          state.blastNodeId = null;
-          state.blastSet = new Set();
-          showDetailPanel(node);
-        }
-      }
-    } else {
-      state.selectedNodeId = null;
-      state.blastNodeId = null;
-      state.blastSet = new Set();
-      hideDetailPanel();
-    }
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("mouseup", onMouseUp);
+  canvas.addEventListener("click", onClick);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("mouseleave", onMouseLeave);
+}
 
-    render();
-  });
-
-  // trackpad pinch sends e.ctrlKey=true (browser convention, not a real Ctrl press)
-  // trackpad two-finger scroll sends e.ctrlKey=false
-  // plain mouse wheel: zoom via Ctrl+scroll, pan via plain scroll
-  canvas.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-
-      if (e.ctrlKey) {
-        // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse) — ZOOM
-        // D3-style continuous delta: normalize across deltaMode, apply sensitivity factor
-        const SENSITIVITY = 0.004; // higher = faster zoom; D3 default is 0.002
-        const rawDelta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : SENSITIVITY);
-        const factor = Math.pow(2, rawDelta); // exponential feels natural vs linear
-        const newScale = Math.min(5, Math.max(0.15, state.transform.scale * factor));
-        const ratio = newScale / state.transform.scale;
-        state.transform.x = e.offsetX - ratio * (e.offsetX - state.transform.x);
-        state.transform.y = e.offsetY - ratio * (e.offsetY - state.transform.y);
-        state.transform.scale = newScale;
-      } else {
-        // Two-finger scroll (trackpad) or plain mouse wheel — PAN
-        state.transform.x -= e.deltaX;
-        state.transform.y -= e.deltaY;
-      }
-
-      render();
-    },
-    { passive: false },
-  );
-
-  // Mouse leave
-  canvas.addEventListener("mouseleave", () => {
-    tooltip.style.display = "none";
-    if (state.isDragging) {
-      state.isDragging = false;
-      state.dragNodeId = null;
-    }
-    state.isPanning = false;
-  });
+export function teardownInteractions(canvas) {
+  canvas.removeEventListener("mousemove", onMouseMove);
+  canvas.removeEventListener("mousedown", onMouseDown);
+  canvas.removeEventListener("mouseup", onMouseUp);
+  canvas.removeEventListener("click", onClick);
+  canvas.removeEventListener("wheel", onWheel);
+  canvas.removeEventListener("mouseleave", onMouseLeave);
 }
 
 export function setupControls() {
