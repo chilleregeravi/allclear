@@ -55,14 +55,19 @@ test('type subtitle base font size bumped to 11px', () => {
   );
 });
 
-test('old 11px label font size removed', () => {
-  // After the fix, 11px base is for subtitles; labels are 13px
-  // The old pattern was `Math.round(11 / state.transform.scale)` for labels
-  // We verify the label font line uses 13, not 11
-  // Count occurrences: subtitle uses 11, label uses 13 — both patterns should exist but label must be 13
-  const labelFontPattern = /ctx\.font\s*=\s*`\$\{Math\.round\(11 \/ state\.transform\.scale\)\}px/;
+test('label font uses 13px and subtitle uses 11px (no old 9px or 11px-for-label pattern)', () => {
+  // Verify 9px base is gone entirely
   assert.ok(
-    !labelFontPattern.test(src),
-    'OLD CODE: label font still uses 11px base — should be 13px after upgrade'
+    !src.includes('Math.round(9 / state.transform.scale)'),
+    'OLD CODE: 9px subtitle font still present — should be 11px after upgrade'
+  );
+  // Verify 13px exists (label) and 11px exists (subtitle) — both must be present
+  assert.ok(
+    src.includes('Math.round(13 / state.transform.scale)'),
+    'MISSING: 13px label font not found'
+  );
+  assert.ok(
+    src.includes('Math.round(11 / state.transform.scale)'),
+    'MISSING: 11px subtitle font not found'
   );
 });

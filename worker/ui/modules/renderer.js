@@ -20,6 +20,7 @@ export function render() {
   const canvas = document.getElementById("graph-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
   const W = canvas.width;
   const H = canvas.height;
 
@@ -43,6 +44,7 @@ export function render() {
   const hasBlast = state.blastNodeId !== null && state.blastSet.size > 0;
 
   ctx.save();
+  ctx.scale(dpr, dpr);   // DPR scale — render-time only, not a logical transform
   ctx.translate(state.transform.x, state.transform.y);
   ctx.scale(state.transform.scale, state.transform.scale);
 
@@ -184,7 +186,7 @@ export function render() {
         ? COLORS.label.dimmed
         : COLORS.label.default;
     ctx.fillStyle = labelColor;
-    ctx.font = `${Math.round(11 / state.transform.scale)}px system-ui, sans-serif`;
+    ctx.font = `${Math.round(13 / state.transform.scale)}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillText(label, pos.x, pos.y + NODE_RADIUS + 3);
@@ -193,7 +195,7 @@ export function render() {
     const nodeType = getNodeType(node);
     if (nodeType !== "service") {
       ctx.fillStyle = getNodeColor(node);
-      ctx.font = `${Math.round(9 / state.transform.scale)}px system-ui, sans-serif`;
+      ctx.font = `${Math.round(11 / state.transform.scale)}px system-ui, sans-serif`;
       ctx.fillText(nodeType, pos.x, pos.y + NODE_RADIUS + 16);
     }
 
