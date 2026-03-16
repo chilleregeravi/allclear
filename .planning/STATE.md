@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 24-01-PLAN.md (GET /api/logs endpoint)
-last_updated: "2026-03-16T13:09:18.025Z"
+stopped_at: Completed 26-01-PLAN.md (interactions.js teardown refactor + loadProject extraction)
+last_updated: "2026-03-16T13:11:21.915Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -57,6 +57,8 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 23-logging-instrumentation]: chroma.js uses logger injection (not import) — decoupled from dataDir/logLevel, falls back to process.stderr.write for test compat
 - [Phase 24-log-terminal-api]: GET /api/logs uses synchronous fs.readFileSync — log tail is small bounded read (max 500 lines), no async benefit
 - [Phase 24-log-terminal-api]: options.dataDir defaults to null in createHttpServer — tests pass null implicitly, production worker always provides it
+- [Phase 26-project-switcher]: Named handlers at module scope (not inside setupInteractions) so removeEventListener can match the exact function reference
+- [Phase 26-project-switcher]: loadProject(hash, canvas, fitToScreen) signature — init() passes its own closure refs; loadProject() owns data + simulation + interaction wiring
 
 ### Pending Todos
 
@@ -74,6 +76,6 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:09:06.991Z
-Stopped at: Completed 24-01-PLAN.md (GET /api/logs endpoint)
+Last session: 2026-03-16T13:11:21.912Z
+Stopped at: Completed 26-01-PLAN.md (interactions.js teardown refactor + loadProject extraction)
 Resume file: None

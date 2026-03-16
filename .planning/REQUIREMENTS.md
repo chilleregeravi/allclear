@@ -20,7 +20,7 @@ Requirements for UI polish and observability release. Each maps to roadmap phase
 
 ### Project Switcher
 
-- [ ] **PROJ-01**: User can switch between projects via a persistent dropdown without page reload
+- [x] **PROJ-01**: User can switch between projects via a persistent dropdown without page reload
 
 ### Logging Instrumentation
 
@@ -78,7 +78,7 @@ Requirements for UI polish and observability release. Each maps to roadmap phase
 | LOG-02 | Phase 25 | Pending |
 | LOG-03 | Phase 25 | Pending |
 | LOG-04 | Phase 25 | Pending |
-| PROJ-01 | Phase 26 | Pending |
+| PROJ-01 | Phase 26 | Complete |
 
 **Coverage:**
 - v2.1 requirements: 13 total

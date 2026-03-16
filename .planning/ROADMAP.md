@@ -128,4 +128,4 @@ Plans:
 | 23. Logging Instrumentation | 3/3 | Complete   | 2026-03-16 | - |
 | 24. Log Terminal API | 1/1 | Complete   | 2026-03-16 | - |
 | 25. Log Terminal UI | v2.1 | 0/TBD | Not started | - |
-| 26. Project Switcher | v2.1 | 0/TBD | Not started | - |
+| 26. Project Switcher | 1/2 | In Progress|  | - |
