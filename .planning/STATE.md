@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 23-02-PLAN.md (wire shared logger into worker entry point and servers)
-last_updated: "2026-03-16T12:52:49.307Z"
+stopped_at: Completed 24-01-PLAN.md (GET /api/logs endpoint)
+last_updated: "2026-03-16T13:09:18.025Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -55,6 +55,8 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 23-logging-instrumentation]: worker/ui/graph.js console.error left untouched — browser-side Canvas UI, not Node.js worker process code
 - [Phase 23-logging-instrumentation]: httpLog helper in http.js merges { component: 'http' } into extra field — single logger instance shared while HTTP lines tagged distinctly
 - [Phase 23-logging-instrumentation]: chroma.js uses logger injection (not import) — decoupled from dataDir/logLevel, falls back to process.stderr.write for test compat
+- [Phase 24-log-terminal-api]: GET /api/logs uses synchronous fs.readFileSync — log tail is small bounded read (max 500 lines), no async benefit
+- [Phase 24-log-terminal-api]: options.dataDir defaults to null in createHttpServer — tests pass null implicitly, production worker always provides it
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:52:49.304Z
-Stopped at: Completed 23-02-PLAN.md (wire shared logger into worker entry point and servers)
+Last session: 2026-03-16T13:09:06.991Z
+Stopped at: Completed 24-01-PLAN.md (GET /api/logs endpoint)
 Resume file: None
