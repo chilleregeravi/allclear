@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: "Completed 22-03-PLAN.md (fit-to-screen button) — awaiting checkpoint:human-verify"
-last_updated: "2026-03-16T12:50:37.820Z"
+stopped_at: Completed 23-03-PLAN.md (console.error sweep)
+last_updated: "2026-03-16T12:51:50.749Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -50,6 +50,9 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 22-canvas-zoom]: CSS pixel space is the single coordinate truth — DPR is render-time only; no mouse event or transform values multiplied by DPR
 - [Phase 22-canvas-zoom]: watchDPR uses matchMedia re-registration (not persistent listener) for multi-monitor DPR change detection
 - [Phase 22-canvas-zoom]: fitToScreen() placed inside init() closure to access container variable — bounding box formula: min(scaleX,scaleY) clamped 0.15-5, 60px padding, center translate
+- [Phase 23-logging-instrumentation]: process.stderr.write used in db/database.js migration loader — no injection point, single error case, not console.error
+- [Phase 23-logging-instrumentation]: setScanLogger setter injection pattern for scan/manager.js — mirrors setChromaLogger pattern, consistent approach
+- [Phase 23-logging-instrumentation]: worker/ui/graph.js console.error left untouched — browser-side Canvas UI, not Node.js worker process code
 
 ### Pending Todos
 
@@ -62,6 +65,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:50:37.818Z
-Stopped at: Completed 22-03-PLAN.md (fit-to-screen button) — awaiting checkpoint:human-verify
+Last session: 2026-03-16T12:51:50.746Z
+Stopped at: Completed 23-03-PLAN.md (console.error sweep)
 Resume file: None
