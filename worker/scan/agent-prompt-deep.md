@@ -111,6 +111,62 @@ A service is a **deployable unit** that runs as a process and communicates over 
 
 ---
 
+## Service Naming Convention
+
+The `name` field in every service object **must** be derived from the project's package manifest and formatted as **lowercase-hyphenated**. This is required to prevent false identity merges when multiple repos each happen to expose a service with a common name.
+
+### 1. Derive the name from the package manifest
+
+Look for the following manifest files in the repo root or service subdirectory:
+
+| Ecosystem    | Manifest file   | Name field                                              |
+|--------------|-----------------|--------------------------------------------------------|
+| Node.js/npm  | `package.json`  | `"name"` field at the top level                        |
+| Python       | `pyproject.toml`| `[project]` → `name`; fallback: top-level package name from `setup.py` |
+| Go           | `go.mod`        | Last path segment of the `module` declaration           |
+| Rust         | `Cargo.toml`    | `[package]` → `name`                                   |
+
+If no manifest file is found, use the **repository directory basename** as the service name.
+
+### 2. Format as lowercase-hyphenated
+
+Apply these transformations in order:
+
+1. Strip any leading `@scope/` prefix (e.g., `@company/auth-service` → `auth-service`)
+2. Convert all characters to lowercase
+3. Replace underscores and spaces with hyphens
+4. Remove any remaining characters that are not alphanumeric or hyphens
+
+**Examples:**
+
+| Raw manifest name        | Normalized service name |
+|--------------------------|------------------------|
+| `AuthService`            | `auth-service`         |
+| `user_api`               | `user-api`             |
+| `@acme/payment-gateway`  | `payment-gateway`      |
+| `My Backend Service`     | `my-backend-service`   |
+
+### 3. DISALLOWED generic names
+
+The following names are **DISALLOWED** because they cause false identity merges when the same name appears in multiple repos:
+
+```
+server, worker, api, app, main, service, backend, frontend
+```
+
+If the manifest `name` field is one of these generic names, you **must** append a disambiguating suffix derived from the directory path or module path.
+
+**Examples of disambiguation:**
+- Manifest says `"api"`, service lives in `auth/` → use `auth-api`
+- Manifest says `"worker"`, module path is `github.com/acme/billing/worker` → use `billing-worker`
+- Manifest says `"app"`, service lives in `payments/` → use `payments-app`
+
+### 4. Stability requirement
+
+The service name in JSON output **must be stable across scans**. Always use the manifest name, never a runtime hostname, container tag, or environment-specific label.
+
+---
+
 ## Output Format
 
 Return **only** a fenced JSON code block. Nothing before it. Nothing after it. No explanation, no preamble, no summary.
@@ -135,7 +191,7 @@ Your JSON object must match this exact structure:
   "confidence": "high | low — overall confidence for this scan",
   "services": [
     {
-      "name": "string — service identifier",
+      "name": "string — service identifier, MUST be lowercase-hyphenated, derived from package manifest name field (package.json 'name', pyproject.toml [project] name, go.mod module last segment, Cargo.toml [package] name). See Service Naming Convention section.",
       "root_path": "string — relative path to service root within repo",
       "language": "string — primary language (typescript, python, go, rust, java, etc.)",
       "type": "service | library | sdk — 'service' for deployable units, 'library'/'sdk' for shared code",
