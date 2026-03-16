@@ -29,7 +29,7 @@ export const state = {
 };
 
 export const NODE_RADIUS = 18;
-export const LABEL_MAX_CHARS = 12;
+export const LABEL_MAX_CHARS = 24;
 
 export const COLORS = {
   node: {
