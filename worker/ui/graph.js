@@ -282,6 +282,7 @@ function render() {
 
     // SDK/library connections get dashed lines
     const isSdkEdge = edge.protocol === "sdk" || edge.protocol === "import";
+    // SDK/library connections get dashed lines
     ctx.beginPath();
     if (isSdkEdge) {
       ctx.setLineDash([4 / transform.scale, 4 / transform.scale]);
@@ -298,6 +299,32 @@ function render() {
         : 0.85;
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Draw arrowhead at target end to show data flow direction
+    const arrowSize = 8 / transform.scale;
+    const dx = tgtPos.x - srcPos.x;
+    const dy = tgtPos.y - srcPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0) {
+      const ux = dx / dist;
+      const uy = dy / dist;
+      // Position arrow at edge of target node circle
+      const ax = tgtPos.x - ux * NODE_RADIUS;
+      const ay = tgtPos.y - uy * NODE_RADIUS;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(
+        ax - ux * arrowSize + uy * arrowSize * 0.4,
+        ay - uy * arrowSize - ux * arrowSize * 0.4,
+      );
+      ctx.lineTo(
+        ax - ux * arrowSize - uy * arrowSize * 0.4,
+        ay - uy * arrowSize + ux * arrowSize * 0.4,
+      );
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
 
     // Draw cross (✗) on mismatched edges at midpoint
