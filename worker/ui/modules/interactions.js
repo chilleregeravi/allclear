@@ -128,20 +128,31 @@ export function setupInteractions(canvas) {
     render();
   });
 
-  // Wheel — zoom centered on cursor
+  // trackpad pinch sends e.ctrlKey=true (browser convention, not a real Ctrl press)
+  // trackpad two-finger scroll sends e.ctrlKey=false
+  // plain mouse wheel: zoom via Ctrl+scroll, pan via plain scroll
   canvas.addEventListener(
     "wheel",
     (e) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 1.1 : 0.9;
-      const newScale = Math.min(
-        5,
-        Math.max(0.2, state.transform.scale * delta),
-      );
-      const ratio = newScale / state.transform.scale;
-      state.transform.x = e.offsetX - ratio * (e.offsetX - state.transform.x);
-      state.transform.y = e.offsetY - ratio * (e.offsetY - state.transform.y);
-      state.transform.scale = newScale;
+
+      if (e.ctrlKey) {
+        // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse) — ZOOM
+        // D3-style continuous delta: normalize across deltaMode, apply sensitivity factor
+        const SENSITIVITY = 0.001; // lower = slower zoom; D3 default is 0.002
+        const rawDelta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : SENSITIVITY);
+        const factor = Math.pow(2, rawDelta); // exponential feels natural vs linear
+        const newScale = Math.min(5, Math.max(0.15, state.transform.scale * factor));
+        const ratio = newScale / state.transform.scale;
+        state.transform.x = e.offsetX - ratio * (e.offsetX - state.transform.x);
+        state.transform.y = e.offsetY - ratio * (e.offsetY - state.transform.y);
+        state.transform.scale = newScale;
+      } else {
+        // Two-finger scroll (trackpad) or plain mouse wheel — PAN
+        state.transform.x -= e.deltaX;
+        state.transform.y -= e.deltaY;
+      }
+
       render();
     },
     { passive: false },
