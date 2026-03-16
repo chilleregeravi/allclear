@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 25-02-PLAN.md (wire initLogTerminal into graph.js)
-last_updated: "2026-03-16T13:20:52.594Z"
+stopped_at: Completed 26-02-PLAN.md (project-switcher.js full implementation + human verify)
+last_updated: "2026-03-16T13:21:16.712Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -61,6 +61,8 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 26-project-switcher]: loadProject(hash, canvas, fitToScreen) signature — init() passes its own closure refs; loadProject() owns data + simulation + interaction wiring
 - [Phase 25-log-terminal-ui]: initLogTerminal() closure keeps poll interval handle local — not in state — start on open, clear on close
 - [Phase 25-log-terminal-ui]: initLogTerminal() called in init() after loadProject() — panel is a page-level singleton, activated once when UI is interactive
+- [Phase 26-project-switcher]: loadProject optional canvas: DOM fallback when called outside init() closure — project-switcher calls with hash only
+- [Phase 26-project-switcher]: Transform preserved across project switch — user zoom/pan level carries over to new project graph
 
 ### Pending Todos
 
@@ -78,6 +80,6 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:20:52.591Z
-Stopped at: Completed 25-02-PLAN.md (wire initLogTerminal into graph.js)
+Last session: 2026-03-16T13:21:11.632Z
+Stopped at: Completed 26-02-PLAN.md (project-switcher.js full implementation + human verify)
 Resume file: None
