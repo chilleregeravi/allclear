@@ -146,7 +146,7 @@ describe("schema", () => {
 describe("transitive traversal", () => {
   /** Seed a linear chain: A → B → C → D and return their IDs */
   function seedChain(qe) {
-    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" });
+    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" }).id;
     const [A, B, C, D] = ["svc-a", "svc-b", "svc-c", "svc-d"].map((n) =>
       qe.upsertService({
         repo_id: rId,
@@ -257,7 +257,7 @@ describe("transitive traversal", () => {
 // ---------------------------------------------------------------------------
 describe("breaking change classification", () => {
   function seedService(qe) {
-    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" });
+    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" }).id;
     const sId = qe.upsertService({
       repo_id: rId,
       name: "svc-a",
@@ -363,7 +363,7 @@ describe("breaking change classification", () => {
 describe("FTS5 search", () => {
   it("finds service by name", () => {
     const { db, qe } = makeQE();
-    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" });
+    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" }).id;
     qe.upsertService({
       repo_id: rId,
       name: "payment-service",
@@ -381,7 +381,7 @@ describe("FTS5 search", () => {
 
   it("finds connection by path", () => {
     const { db, qe } = makeQE();
-    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" });
+    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" }).id;
     const sId = qe.upsertService({
       repo_id: rId,
       name: "svc-a",

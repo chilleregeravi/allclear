@@ -459,7 +459,7 @@ export class QueryEngine {
       scanned_at: null,
       ...repoData,
     });
-    return result.lastInsertRowid;
+    return { id: result.lastInsertRowid };
   }
 
   /**

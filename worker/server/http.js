@@ -160,11 +160,12 @@ async function createHttpServer(queryEngine, options = {}) {
         .send({ error: "Missing repo_path or findings in request body" });
     }
     try {
-      const repoId = qe.upsertRepo({
+      const repo = qe.upsertRepo({
         path: repo_path,
         name: repo_name || path.basename(repo_path),
         type: repo_type || "single",
       });
+      const repoId = repo.id;
       qe.persistFindings(repoId, findings, commit || null);
       return reply.code(200).send({ status: "persisted", repo_id: repoId });
     } catch (err) {

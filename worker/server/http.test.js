@@ -290,7 +290,7 @@ test("POST /scan persists findings and returns 200", async () => {
   const persisted = [];
   const server = await makeServer({
     ...mockQE,
-    upsertRepo: () => 1,
+    upsertRepo: () => ({ id: 1 }),
     persistFindings: (repoId, findings, commit) => persisted.push({ repoId, findings, commit }),
   });
   const res = await server.inject({
