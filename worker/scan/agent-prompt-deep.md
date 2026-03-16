@@ -22,11 +22,11 @@ If discovery context is empty or `{{DISCOVERY_JSON}}` was not replaced, fall bac
 
 Scan the relevant source files in `{{REPO_PATH}}` based on the discovery context above.
 
-Identify:
+Identify (within `{{REPO_PATH}}` ONLY — do not report services from other repos):
 
-1. **Services** — deployable units with network boundaries (HTTP servers, gRPC servers, event producers/consumers, daemons, workers)
-2. **Libraries/SDKs** — shared code packages imported by services (not deployable on their own, but create coupling)
-3. **Connections** — calls that cross service boundaries. Classify each as:
+1. **Services** — deployable units **whose source code is in this repo** with network boundaries (HTTP servers, gRPC servers, event producers/consumers, daemons, workers)
+2. **Libraries/SDKs** — shared code packages **in this repo** imported by services (not deployable on their own, but create coupling)
+3. **Connections** — calls that cross service boundaries. The `source` must be a service in this repo. The `target` can be an external service not in this repo. Classify each as:
    - `external` — calls to another service's API over the network (REST, gRPC, events)
    - `sdk` — imports a shared library/SDK that abstracts calls to another service
    - `internal` — calls between modules within the same service (only report if they cross a significant boundary like a package/module boundary)
@@ -108,6 +108,8 @@ A service is a **deployable unit** that runs as a process and communicates over 
 - Do **not** report shared libraries, utility modules, or helper functions as services.
 - Do **not** report CLI scripts, build tools, or test infrastructure as services.
 - Do **not** add prose, explanation, or commentary before or after the JSON output.
+- Do **not** report services whose source code is NOT in `{{REPO_PATH}}`. If this repo calls an external service, that service should appear ONLY as a `target` in the `connections` array — never as an entry in the `services` array. The `services` array must contain ONLY services/libraries whose code lives inside `{{REPO_PATH}}`.
+- Do **not** report a service just because it is referenced in a config file, Dockerfile, docker-compose, or deployment manifest. Only report it if its **source code** is in this repo.
 
 ---
 
