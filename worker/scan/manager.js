@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseAgentOutput } from "./findings-schema.js";
+import { parseAgentOutput } from "./findings.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

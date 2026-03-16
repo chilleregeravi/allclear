@@ -21,7 +21,7 @@ import {
   chromaSearch,
   isChromaAvailable,
   _resetForTest,
-} from "./chroma-sync.js";
+} from "./chroma.js";
 
 // ---------------------------------------------------------------------------
 // Helper: reset module state between tests

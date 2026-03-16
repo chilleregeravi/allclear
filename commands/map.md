@@ -86,7 +86,7 @@ Save confirmed list to `allclear.config.json`.
    Read the discovery prompt template:
 
    ```bash
-   cat ${CLAUDE_PLUGIN_ROOT}/worker/agent-prompt-discovery.md
+   cat ${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-discovery.md
    ```
 
    Replace `{{REPO_PATH}}` with the absolute path. Spawn a quick agent:
@@ -105,7 +105,7 @@ Save confirmed list to `allclear.config.json`.
    Read the deep scan prompt template:
 
    ```bash
-   cat ${CLAUDE_PLUGIN_ROOT}/worker/agent-prompt.md
+   cat ${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-deep.md
    ```
 
    Replace `{{REPO_PATH}}` with the absolute path. Replace `{{DISCOVERY_JSON}}` with the Phase 1 JSON output. Spawn a focused agent:
@@ -169,8 +169,8 @@ Write the confirmed findings directly to SQLite using the AllClear db module:
 
 ```bash
 node --input-type=module -e "
-  import { openDb, writeScan } from '${CLAUDE_PLUGIN_ROOT}/worker/db.js';
-  import { QueryEngine } from '${CLAUDE_PLUGIN_ROOT}/worker/query-engine.js';
+  import { openDb, writeScan } from '${CLAUDE_PLUGIN_ROOT}/worker/db/database.js';
+  import { QueryEngine } from '${CLAUDE_PLUGIN_ROOT}/worker/db/query-engine.js';
   const db = openDb();
   const qe = new QueryEngine(db);
   const findings = JSON.parse(process.argv[1]);

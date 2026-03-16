@@ -18,6 +18,7 @@ AllClear scans your linked repositories with Claude agents to build an interacti
 **Libraries/SDKs** — shared code that multiple services import (shown in purple in the graph)
 
 **Connections** — classified by boundary crossing:
+
 - `external` — network calls (REST, gRPC, events)
 - `sdk` — shared library imports
 - `internal` — within-service module calls
@@ -29,11 +30,13 @@ AllClear scans your linked repositories with Claude agents to build an interacti
 Open with `/allclear:map view` or navigate to `http://localhost:37888`.
 
 **Node colors:**
+
 - Blue — backend services
 - Orange — frontend services
 - Purple — libraries/SDKs
 
 **Interactions:**
+
 - Click a node — detail panel with connections, methods, files
 - Shift+click — transitive blast radius highlighting
 - Drag on empty space — pan the viewport
@@ -42,6 +45,7 @@ Open with `/allclear:map view` or navigate to `http://localhost:37888`.
 - Search — filter by service name
 
 **Mismatch indicators:**
+
 - Red ✗ on edges where the endpoint handler wasn't found in the target service
 - Red border in detail panel for unverified connections
 
@@ -59,7 +63,7 @@ After building your first map, add the AllClear MCP server so all Claude agents 
     "allclear-impact": {
       "type": "stdio",
       "command": "node",
-      "args": ["<path-to-allclear>/worker/mcp-server.js"]
+      "args": ["<path-to-allclear>/worker/mcp/server.js"]
     }
   }
 }

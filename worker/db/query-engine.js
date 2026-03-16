@@ -21,7 +21,7 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 
-import { chromaSearch, isChromaAvailable } from "./chroma-sync.js";
+import { chromaSearch, isChromaAvailable } from "../server/chroma.js";
 
 // ---------------------------------------------------------------------------
 // Module-level db handle for standalone search() export

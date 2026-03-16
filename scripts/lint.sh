@@ -16,7 +16,7 @@ FILE=$(printf '%s\n' "$INPUT" | jq -r '.tool_input.file_path // empty')
 # ── MCP server stdout-pollution guard ──────────────────────────────────────────
 # console.log in worker/mcp-server.js silently corrupts the MCP JSON-RPC session.
 # This check runs on every lint invocation so CI catches the violation immediately.
-MCP_SERVER_FILE="worker/mcp-server.js"
+MCP_SERVER_FILE="worker/mcp/server.js"
 if [[ -f "$MCP_SERVER_FILE" ]]; then
   if grep -n "console\.log" "$MCP_SERVER_FILE" &>/dev/null; then
     printf 'ERROR: console.log found in %s — MCP stdout pollution risk. Use console.error() instead.\n' "$MCP_SERVER_FILE" >&2

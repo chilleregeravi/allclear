@@ -37,20 +37,26 @@ allclear/
     worker-client.sh
   worker/                    # Node.js service dependency intelligence
     index.js                 # worker entry point
-    db.js                    # SQLite lifecycle (WAL, migrations)
-    db-pool.js               # per-project DB pool
-    query-engine.js          # graph queries, impact classification
-    http-server.js           # Fastify REST API
-    mcp-server.js            # MCP stdio server (5 tools)
-    scan-manager.js          # agent dispatch + incremental scanning
-    agent-prompt.md          # scanning agent prompt template
-    findings-schema.js       # findings validation
-    repo-discovery.js        # repo discovery module
-    confirmation-flow.js     # user confirmation UX
-    chroma-sync.js           # optional ChromaDB sync
-    migrations/
-      001_initial_schema.js
-      002_service_type.js
+    db/
+      database.js            # SQLite lifecycle (WAL, migrations)
+      pool.js                # per-project DB pool
+      query-engine.js        # graph queries, impact classification
+      migrations/
+        001_initial_schema.js
+        002_service_type.js
+        003_exposed_endpoints.js
+    mcp/
+      server.js              # MCP stdio server (5 tools)
+    scan/
+      manager.js             # agent dispatch + incremental scanning
+      findings.js            # findings validation
+      confirmation.js        # user confirmation UX
+      discovery.js           # repo discovery module
+      agent-prompt-deep.md   # Phase 2 deep scan prompt
+      agent-prompt-discovery.md  # Phase 1 discovery prompt
+    server/
+      http.js                # Fastify REST API
+      chroma.js              # optional ChromaDB sync
     ui/
       index.html             # D3 Canvas graph (zero build step)
       graph.js               # Canvas renderer + interactions
@@ -69,6 +75,7 @@ allclear/
 ## Worker Process
 
 The worker is a Node.js background daemon that:
+
 - Serves the graph UI on localhost
 - Provides REST API for graph queries
 - Is project-agnostic (resolves DB per-request via `?project=` or `?hash=`)

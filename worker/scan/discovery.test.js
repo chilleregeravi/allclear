@@ -16,7 +16,7 @@ import {
   saveConfirmed,
   isViewOnlyMode,
   formatRepoList,
-} from "./repo-discovery.js";
+} from "./discovery.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

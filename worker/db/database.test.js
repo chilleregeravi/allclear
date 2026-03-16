@@ -4,7 +4,7 @@
  * (or use the inline heredoc form from the plan verify block)
  */
 
-import { openDb, getDb } from "./db.js";
+import { openDb, getDb } from "./database.js";
 import assert from "assert";
 import fs from "fs";
 import os from "os";

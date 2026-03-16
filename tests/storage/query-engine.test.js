@@ -15,11 +15,11 @@ import crypto from "crypto";
 import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 
-import { openDb } from "../../worker/db.js";
-import { QueryEngine } from "../../worker/query-engine.js";
+import { openDb } from "../../worker/db/database.js";
+import { QueryEngine } from "../../worker/db/query-engine.js";
 
 // Migration runner — reuse db.js's runMigrations logic by importing migration directly
-import * as migration001 from "../../worker/migrations/001_initial_schema.js";
+import * as migration001 from "../../worker/db/migrations/001_initial_schema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

@@ -18,7 +18,7 @@ import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { syncFindings } from "./chroma-sync.js";
+import { syncFindings } from "../server/chroma.js";
 import { fileURLToPath, pathToFileURL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);

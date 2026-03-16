@@ -11,7 +11,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import Database from "better-sqlite3";
-import { openDb } from "./db.js";
+import { openDb } from "./database.js";
 import { QueryEngine } from "./query-engine.js";
 
 const dataDir =

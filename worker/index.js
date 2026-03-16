@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { createHttpServer } from "./http-server.js";
-import { getQueryEngine } from "./db-pool.js";
+import { createHttpServer } from "./server/http.js";
+import { getQueryEngine } from "./db/pool.js";
 
 // ---------------------------------------------------------------------------
 // 1. Parse CLI args

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createHttpServer } from "./http-server.js";
+import { createHttpServer } from "./http.js";
 
 const mockQE = {
   getGraph: () => ({ nodes: [{ id: 1, name: "svc-a" }], edges: [] }),

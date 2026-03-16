@@ -14,7 +14,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 // Import the query functions exported from mcp-server.js
-import { queryImpact, queryChanged, queryGraph } from "./mcp-server.js";
+import { queryImpact, queryChanged, queryGraph } from "./server.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test DB setup helpers

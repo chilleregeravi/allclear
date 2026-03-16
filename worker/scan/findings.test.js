@@ -7,7 +7,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateFindings, parseAgentOutput } from "./findings-schema.js";
+import { validateFindings, parseAgentOutput } from "./findings.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

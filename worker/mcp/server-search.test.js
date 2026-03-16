@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 
 // Import query functions exported from mcp-server.js
-import { querySearch, queryScan } from "./mcp-server.js";
+import { querySearch, queryScan } from "./server.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test DB setup helpers

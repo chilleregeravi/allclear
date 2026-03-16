@@ -18,7 +18,7 @@ import {
   formatLowConfidenceQuestions,
   applyEdits,
   buildConfirmationPrompt,
-} from "./confirmation-flow.js";
+} from "./confirmation.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -22,7 +22,7 @@ import {
   buildScanContext,
   scanRepos,
   setAgentRunner,
-} from "./scan-manager.js";
+} from "./manager.js";
 
 // ---------------------------------------------------------------------------
 // Helpers to build temp git repos

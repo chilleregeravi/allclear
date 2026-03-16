@@ -24,7 +24,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "mcp-server.js contains all 5 required tool names" {
-  local file="worker/mcp-server.js"
+  local file="worker/mcp/server.js"
   [ -f "$file" ]
   grep -q "impact_query"   "$file"
   grep -q "impact_changed" "$file"
@@ -39,7 +39,7 @@ setup() {
 
 @test "mcp-server starts and responds to initialize" {
   local init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-  run bash -c "printf '%s\n' '$init' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp-server.js 2>/dev/null"
+  run bash -c "printf '%s\n' '$init' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp/server.js 2>/dev/null"
   assert_success
   assert_output --partial '"protocolVersion"'
 }
@@ -51,7 +51,7 @@ setup() {
 @test "mcp-server tools/list returns all 5 tools" {
   local init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
   local list='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-  run bash -c "printf '%s\n%s\n' '$init' '$list' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp-server.js 2>/dev/null"
+  run bash -c "printf '%s\n%s\n' '$init' '$list' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp/server.js 2>/dev/null"
   assert_success
   assert_output --partial '"impact_query"'
   assert_output --partial '"impact_search"'
@@ -64,7 +64,7 @@ setup() {
 @test "mcp-server returns empty results when DB absent" {
   local init='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
   local call='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"impact_query","arguments":{"service":"test-service","transitive":false}}}'
-  run bash -c "printf '%s\n%s\n' '$init' '$call' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp-server.js 2>/dev/null"
+  run bash -c "printf '%s\n%s\n' '$init' '$call' | ALLCLEAR_DB_PATH='.allclear/nonexistent-test.db' timeout 3 node worker/mcp/server.js 2>/dev/null"
   assert_success
   assert_output --partial 'results'
   refute_output --partial 'isError'

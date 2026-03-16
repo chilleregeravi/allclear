@@ -3,7 +3,7 @@ import fastifyStatic from "@fastify/static";
 import fastifyCors from "@fastify/cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { listProjects, getQueryEngineByHash } from "./db-pool.js";
+import { listProjects, getQueryEngineByHash } from "../db/pool.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

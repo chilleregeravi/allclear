@@ -42,7 +42,7 @@ Create or update `.mcp.json` at your project root:
     "allclear-impact": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/worker/mcp-server.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/worker/mcp/server.js"]
     }
   }
 }
@@ -51,4 +51,4 @@ Create or update `.mcp.json` at your project root:
 ## After saving, fully restart Claude Code for MCP changes to take effect.
 
 The `/allclear:map` skill reads this section and outputs it verbatim after the first successful persist.
-The check `isFirstScan()` from `worker/db.js` is called before `writeScan()` to determine whether to show this.
+The check `isFirstScan()` from `worker/db/database.js` is called before `writeScan()` to determine whether to show this.
