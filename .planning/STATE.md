@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: UI Polish & Observability
 status: planning
-stopped_at: Completed 23-03-PLAN.md (console.error sweep)
-last_updated: "2026-03-16T12:51:50.749Z"
+stopped_at: Completed 23-02-PLAN.md (wire shared logger into worker entry point and servers)
+last_updated: "2026-03-16T12:52:49.307Z"
 last_activity: 2026-03-16 — v2.1 roadmap created; phases 22-25 defined
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -53,6 +53,8 @@ Progress: [░░░░░░░░░░] 0% (v2.1)
 - [Phase 23-logging-instrumentation]: process.stderr.write used in db/database.js migration loader — no injection point, single error case, not console.error
 - [Phase 23-logging-instrumentation]: setScanLogger setter injection pattern for scan/manager.js — mirrors setChromaLogger pattern, consistent approach
 - [Phase 23-logging-instrumentation]: worker/ui/graph.js console.error left untouched — browser-side Canvas UI, not Node.js worker process code
+- [Phase 23-logging-instrumentation]: httpLog helper in http.js merges { component: 'http' } into extra field — single logger instance shared while HTTP lines tagged distinctly
+- [Phase 23-logging-instrumentation]: chroma.js uses logger injection (not import) — decoupled from dataDir/logLevel, falls back to process.stderr.write for test compat
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:51:50.746Z
-Stopped at: Completed 23-03-PLAN.md (console.error sweep)
+Last session: 2026-03-16T12:52:49.304Z
+Stopped at: Completed 23-02-PLAN.md (wire shared logger into worker entry point and servers)
 Resume file: None
