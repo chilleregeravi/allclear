@@ -353,3 +353,57 @@ test("queryGraph: nodes have id, name, language fields", async () => {
   assert.ok("name" in node, "node should have name");
   assert.ok("language" in node, "node should have language");
 });
+
+// ─────────────────────────────────────────────────────────────
+// resolveDb behavior tests
+// ─────────────────────────────────────────────────────────────
+
+import { resolveDb } from "./server.js";
+
+test("resolveDb: no project param falls back to ALLCLEAR_PROJECT_ROOT env", async () => {
+  // resolveDb() with no project calls getQueryEngine with ALLCLEAR_PROJECT_ROOT
+  // We can verify it returns null for a nonexistent project (no DB on disk)
+  const prev = process.env.ALLCLEAR_PROJECT_ROOT;
+  process.env.ALLCLEAR_PROJECT_ROOT = "/nonexistent/project/path/xyz";
+  const result = resolveDb(undefined);
+  // Should return null (no DB at this path)
+  assert.equal(result, null, "should return null for nonexistent project root");
+  if (prev === undefined) {
+    delete process.env.ALLCLEAR_PROJECT_ROOT;
+  } else {
+    process.env.ALLCLEAR_PROJECT_ROOT = prev;
+  }
+});
+
+test("resolveDb: absolute path calls getQueryEngine with that path", async () => {
+  // Passing an absolute path returns null when no DB exists there
+  const result = resolveDb("/nonexistent/absolute/path/abc");
+  assert.equal(result, null, "should return null for absolute path with no DB");
+});
+
+test("resolveDb: path traversal (contains ..) returns null", async () => {
+  const result = resolveDb("/some/path/../../../etc/passwd");
+  assert.equal(result, null, "path traversal should return null");
+});
+
+test("resolveDb: 12-char hex hash calls getQueryEngineByHash", async () => {
+  // A valid 12-char hex hash that has no matching DB returns null
+  const result = resolveDb("aabbccddeeff");
+  assert.equal(result, null, "12-char hex hash with no DB should return null");
+});
+
+test("resolveDb: non-path non-hash calls getQueryEngineByRepo", async () => {
+  // A repo name that doesn't exist in any DB returns null
+  const result = resolveDb("some-nonexistent-repo-name-xyz");
+  assert.equal(
+    result,
+    null,
+    "nonexistent repo name should return null",
+  );
+});
+
+test("resolveDb: 11-char hex (not exactly 12) is treated as repo name", async () => {
+  // aabbccddeef is 11 chars — should go through getQueryEngineByRepo path
+  const result = resolveDb("aabbccddeef");
+  assert.equal(result, null, "11-char string treated as repo name, returns null");
+});

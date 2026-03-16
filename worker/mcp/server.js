@@ -9,6 +9,7 @@ import fs from "fs";
 import { execSync } from "child_process";
 import { z } from "zod";
 import { createLogger } from '../lib/logger.js';
+import { getQueryEngine, getQueryEngineByHash, getQueryEngineByRepo } from '../db/pool.js';
 
 const dataDir =
   process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), ".allclear");
@@ -41,6 +42,9 @@ const dbPath =
 /**
  * Open the SQLite database in read-only mode.
  * Returns null if the file does not exist or if any error occurs.
+ *
+ * @deprecated Tool handlers no longer use openDb() — they use resolveDb() instead.
+ *   openDb() is kept as a named export for backward compatibility with existing tests.
  */
 export function openDb() {
   if (!fs.existsSync(dbPath)) {
@@ -54,6 +58,32 @@ export function openDb() {
     logger.error('Failed to open database', { error: err.message });
     return null;
   }
+}
+
+/**
+ * Resolve a QueryEngine for a given project identifier per-call.
+ * Accepts: absolute path, 12-char hex hash, repo name, or undefined (fallback to env/cwd).
+ *
+ * @param {string|undefined} project - Project identifier or undefined for default.
+ * @returns {import('../db/query-engine.js').QueryEngine|null}
+ */
+export function resolveDb(project) {
+  if (!project) {
+    const root = process.env.ALLCLEAR_PROJECT_ROOT || process.cwd();
+    return getQueryEngine(root);
+  }
+  // Absolute path → look up by project root
+  if (path.isAbsolute(project)) {
+    // Security: reject path traversal
+    if (project.includes('..')) return null;
+    return getQueryEngine(project);
+  }
+  // 12-char hex hash
+  if (/^[0-9a-f]{12}$/.test(project)) {
+    return getQueryEngineByHash(project);
+  }
+  // Repo name — search all project DBs
+  return getQueryEngineByRepo(project);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -513,11 +543,19 @@ server.tool(
       .describe(
         "When true, follows dependency chains transitively (up to depth 10)",
       ),
+    project: z
+      .string()
+      .optional()
+      .describe(
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+      ),
   },
   async (params) => {
-    const db = openDb();
-    const result = await queryImpact(db, params);
-    if (db) db.close();
+    const qe = resolveDb(params.project);
+    if (!qe && params.project) {
+      return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
+    }
+    const result = await queryImpact(qe?._db ?? null, params);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
@@ -537,11 +575,19 @@ server.tool(
       .describe(
         'Git commit range e.g. "HEAD~3..HEAD" — if omitted, uses working tree diff',
       ),
+    project: z
+      .string()
+      .optional()
+      .describe(
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+      ),
   },
   async (params) => {
-    const db = openDb();
-    const result = await queryChanged(db, params);
-    if (db) db.close();
+    const qe = resolveDb(params.project);
+    if (!qe && params.project) {
+      return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
+    }
+    const result = await queryChanged(qe?._db ?? null, params);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
@@ -565,11 +611,19 @@ server.tool(
       .describe(
         "Which direction to traverse: upstream = callers, downstream = callees, both = full neighbourhood",
       ),
+    project: z
+      .string()
+      .optional()
+      .describe(
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+      ),
   },
   async (params) => {
-    const db = openDb();
-    const result = await queryGraph(db, params);
-    if (db) db.close();
+    const qe = resolveDb(params.project);
+    if (!qe && params.project) {
+      return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
+    }
+    const result = await queryGraph(qe?._db ?? null, params);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
@@ -591,11 +645,19 @@ server.tool(
       .max(100)
       .default(20)
       .describe("Maximum number of results to return"),
+    project: z
+      .string()
+      .optional()
+      .describe(
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+      ),
   },
   async (params) => {
-    const db = openDb();
-    const result = await querySearch(db, params);
-    if (db) db.close();
+    const qe = resolveDb(params.project);
+    if (!qe && params.project) {
+      return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
+    }
+    const result = await querySearch(qe?._db ?? null, params);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
