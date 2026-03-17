@@ -1,191 +1,176 @@
 # Project Research Summary
 
-**Project:** AllClear v2.2 — Scan Data Integrity
-**Domain:** SQLite-backed service dependency graph — idempotent re-scan, stale-row cleanup, cross-repo service identity, cross-project MCP queries
-**Researched:** 2026-03-16
-**Confidence:** HIGH — all four research areas grounded in direct codebase inspection + official SQLite/MCP docs
+**Project:** AllClear v2.3 — Type-Specific Detail Panels
+**Domain:** Local service dependency graph UI with type-aware data model (library exports, infra resources)
+**Researched:** 2026-03-17
+**Confidence:** HIGH
 
 ## Executive Summary
 
-AllClear v2.2 is a targeted bug-fix and capability milestone for an already-shipped system. The graph UI, agent scanning, MCP server, FTS5 search, snapshot mechanism, and project switcher are all working. The problems being solved are: (1) every re-scan appends duplicate rows rather than replacing them, causing the graph to grow unboundedly and impact queries to fan out incorrectly; (2) the MCP server resolves its database path from `process.cwd()` at startup, so agents working in any repo other than the one the server launched from see empty query results; and (3) there is no enforced naming convention for services across repos, causing the same logical service to appear as multiple unconnected nodes. All three problems have known root causes confirmed by direct codebase inspection.
+AllClear v2.3 is a targeted correctness release. The agent scanning layer already produces structurally correct data for library and infra nodes, but the storage and display layers were never updated to handle it. The "METHOD PATH" whitespace-split parser in `persistFindings()` silently garbles every library export and infra resource it processes, and the detail panel has no rendering path for infra nodes at all — they fall through to the service rendering path and appear with misleading "Calls"/"Called by" labels. The recommended approach is a strict bottom-up sequence: schema migration first, storage fix second, API surface extension third, UI panel changes last. No new npm dependencies are required.
 
-The recommended approach is to address the data corruption problem first, before adding any new capability. Migration 004 adds the UNIQUE constraint on `(repo_id, name)` that makes idempotent upserts possible, but this migration has a critical dependency ordering requirement: the upsert SQL in `_stmtUpsertService` must switch from `INSERT OR REPLACE` to `INSERT ... ON CONFLICT DO UPDATE` at the same time the constraint is added. If the constraint lands first, the first re-scan after migration wipes all child rows (connections, endpoints, schemas, fields) via `ON DELETE CASCADE`. This constraint-and-upsert change must ship as a single atomic change. The scan version bracket (migration 005 + `beginScan`/`endScan` methods) then builds on the clean upsert to provide stale-row cleanup. The MCP cross-project query feature is fully independent and can be developed in parallel.
+The core technical pattern is a `kind` discriminant column on the existing `exposed_endpoints` table, combined with type-conditional dispatch in `persistFindings()` that branches on `svc.type`. This keeps all cross-cutting concerns (mismatch detection, FTS5 search, future export reports) pointing at a single table. The main risk is data pollution: users who have already scanned library or infra repos have malformed rows in `exposed_endpoints` that will block correct rows from inserting on re-scan via `INSERT OR IGNORE` unless migration 007 explicitly deletes them first. The migration must purge those rows before the fixed parser is deployed.
 
-The principal risk is the migration itself: production databases already contain duplicate `(repo_id, name)` rows — the exact data the migration must eliminate. A naive `CREATE TABLE ... AS SELECT *` copy fails on the first duplicate encountered. The migration must deduplicate with `SELECT MAX(id) ... GROUP BY repo_id, name` during the copy step, and must rebuild the FTS5 index afterward because row IDs change. Both requirements are well-documented with concrete SQL. A second risk is cross-repo service identity: the existing `_resolveServiceId()` name lookup is unscoped by repo, meaning two repos each containing a service named `api` or `worker` will have their connections merged into phantom edges. This must be addressed with a validation block-list rather than automatic name merging.
+The entire feature surface is contained within five existing files and one new migration file. All research is HIGH confidence — every finding is sourced from direct codebase inspection with no external dependencies to evaluate.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The v2.2 work is entirely within the existing worker stack: `better-sqlite3` 12.8.0 for synchronous SQLite access, `@modelcontextprotocol/sdk` 1.27.1 for the MCP stdio server, and `fastify` 5.8.2 for the HTTP/REST layer. No new dependencies are required. The migration system in `db/database.js` auto-discovers all `*.js` files in `db/migrations/` sorted alphabetically — dropping two new migration files is sufficient to extend the schema on next `openDb()`. The MCP server refactor switches from a module-level DB connection to per-call resolution via the existing `pool.js` module, which already handles multi-project DB caching for the HTTP layer.
+No new packages are required. The entire milestone is internal refactoring of the existing Node.js / `better-sqlite3` / Fastify / vanilla-JS stack. The relevant capability gap is not a missing library — it is a missing `kind` column (20-character schema addition) and a 20-line parser fix in `persistFindings()`.
+
+See `.planning/research/STACK.md` for full detail including code-level patches for each changed file.
 
 **Core technologies:**
-- `better-sqlite3` 12.8.0: synchronous SQLite with WAL + FTS5 — the only write path; the target of the UNIQUE constraint change
-- `@modelcontextprotocol/sdk` 1.27.1: MCP stdio server — agent-facing interface; needs per-call `resolveDb()` for cross-project support
-- `db/pool.js` (existing): project-hash-keyed QueryEngine cache — already used by the HTTP server; MCP server must adopt the same pattern
-- `db/migrations/` auto-discovery (existing): drop new migration files and they run automatically; no changes to `database.js` needed
-
-**Critical version requirements:**
-- Node.js 20+ (required by `better-sqlite3` 12.x and `fastify` 5.x — already in use)
-- SQLite 3.24+ for `ON CONFLICT DO UPDATE` UPSERT syntax (shipped with `better-sqlite3` 12.x — already satisfied)
+- `better-sqlite3` ^12.8.0: SQLite persistence — `ALTER TABLE ADD COLUMN ... DEFAULT` is safe and instant on existing rows; `INSERT OR IGNORE` with `UNIQUE(service_id, method, path)` handles deduplication correctly for NULL-method library/infra rows
+- Node.js ESM (>=20.0.0): worker daemon and migration runner — migration 007 follows the established pattern in `worker/db/migrations/`
+- Vanilla JS (browser ES2020+): detail panel rendering — `detail-panel.js` is 143-line template-literal module; no framework needed for the three-branch type dispatch
 
 ### Expected Features
 
-The features research is unusually precise because the root causes of all defects were identified in source. This milestone is a repair, not a greenfield build.
+See `.planning/research/FEATURES.md` for full detail including industry comparison table (Backstage, DependenTree, GitHub Dependency Graph) and feature prioritization matrix.
 
-**Must have (table stakes — v2.2 core):**
-- Migration 004: `UNIQUE(repo_id, name)` on `services` and composite unique on `connections` — foundation for all other fixes; includes dedup step for existing rows and FTS5 rebuild
-- `INSERT OR REPLACE` → `INSERT ... ON CONFLICT DO UPDATE` in `_stmtUpsertService` — must ship with migration 004 atomically or cascade-delete wipes child rows
-- Scan version bracket: `beginScan(repoId)` / `endScan(repoId, scanVersionId)` — new scan_versions table (migration 005); stale-row DELETE runs atomically after new scan succeeds
-- Remove `MAX(id) GROUP BY name` workaround from `getGraph()` — becomes incorrect after migration 004, must be removed
-- Agent prompt naming rule: lowercase-hyphenated convention enforced in `agent-prompt-deep.md` — cheapest identity fix; no schema change
-- Cross-project MCP queries: optional `project` param on all 5 MCP tools; per-call `resolveDb()` via `pool.js`
+**Must have (P1 — v2.3 core):**
+- Migration 007: add `kind TEXT NOT NULL DEFAULT 'endpoint'` to `exposed_endpoints`; optionally add `boundary_entry` column to `services` — additive, no data loss, ships first
+- Fix `persistFindings()`: type-conditional dispatch on `svc.type`; library/sdk stores full export string as `path` with `method=null, kind='export'`; infra stores full resource ref as `path` with `method=null, kind='resource'`; service keeps existing "GET /path" split with `kind='endpoint'`
+- `renderLibraryPanel()` in `detail-panel.js`: "Exports" section grouped as Functions (signature strings containing `(`) and Types; "Used by" consumer list with existing dedup `Set` logic preserved
+- `renderInfraPanel()` in `detail-panel.js`: "Manages" section from `exposed_endpoints` rows with `kind='resource'` grouped by prefix (`k8s:`, `tf:`, `helm:`); "Wires" section from existing connection edges with deploy/configure method labels
+- Update `showDetailPanel()` dispatch to add `infra` branch before all panel rendering work; add `infra` guard to `getNodeType()` in `utils.js` and `getNodeColor()` to prevent infra nodes falling to the service renderer
+- Extend `getGraph()` to attach `exposes: [{kind, method, path}]` per service node (embed in `/graph` response — not a separate per-click fetch)
 
-**Should have (v2.2.x — after core is confirmed working):**
-- Cross-repo canonical service identity: `service_registry` table + normalization function — add when multi-repo name divergence is confirmed in production
-- Scan version history panel in graph UI: `GET /versions` endpoint + history dropdown — infrastructure already exists (`map_versions` table, `createSnapshot()`)
+**Should have (P2 — include in same PR if no added risk):**
+- Source file link from `boundary_entry` in library panel header (field already emitted by agent; not currently persisted)
+- Text overflow handling for long function signatures (`text-overflow: ellipsis` on `.conn-path` for library/infra panels)
+- Prefix-grouped resource counts in infra panel (`k8s: (8)`, `tf: (4)`, `helm: (3)`)
 
-**Defer to v2.3+:**
-- Diff view between scan versions (services/connections added/removed)
-- Config-file service name aliases (`allclear.config.json`) for teams with naming debt
-
-**Anti-features (do not build):**
-- Fuzzy service name matching (Levenshtein / embeddings) — false merges are correctness bugs; a merged `user-service`/`users-service` creates phantom impact paths
-- Auto-repair of historical connections on identity merge — rewrites audit history; breaks snapshot consistency
-- Global shared SQLite DB for all projects — concurrent write from multiple workers causes `SQLITE_BUSY`; per-project isolation is explicit by design
-- Automatic incremental scan on every file save — agent scan invokes Claude twice per repo; commit-based incremental scan is already built
+**Defer (v2.4+):**
+- Export diff panel ("these 3 exports removed since last scan") — requires scan version history UI
+- Panel filter controls (show only functions, hide types) — revisit only if users report 50+ export panels
+- Live cluster state in infra panel — conflicts with scan-derived static data; covered by `/allclear:pulse`
 
 ### Architecture Approach
 
-All v2.2 changes are contained within `worker/`. No new top-level components are introduced. The changes follow the existing extension patterns: new migration files auto-discovered by `db/database.js`, new QueryEngine methods injected following the same pattern as `upsertRepo`/`persistFindings`, and MCP server switching from module-level DB to per-call resolution using the `pool.js` cache that the HTTP server already uses. The most structurally significant change is the MCP server: it currently opens one DB for its entire lifetime and closes it after each tool call; after v2.2, pool.js owns the connection and callers must stop calling `db.close()`.
+The data flow is strictly layered with a clear dependency chain. Agent prompts produce type-conditional `exposes` strings; `persistFindings()` classifies and stores them with a `kind` tag; `getGraph()` aggregates them onto service nodes; the HTTP layer passes them through unchanged; the UI reads them from `state.graphData.nodes[i].exposes` at click time. No component outside this chain changes. The `detectMismatches()` query, MCP server tools, web worker, and `connections` table are all unaffected.
 
-**Major components and their v2.2 changes:**
+See `.planning/research/ARCHITECTURE.md` for full data-flow diagrams, exact code patches, build order rationale, and anti-pattern documentation.
 
-1. `db/migrations/004_dedup_constraints.js` (NEW) — UNIQUE index on `services(repo_id, name)` + `canonical_name` column; dedup step in migration copy; FTS5 rebuild
-2. `db/migrations/005_scan_versions.js` (NEW) — `scan_versions` table; nullable `scan_version_id` FK columns on `services` and `connections`
-3. `db/query-engine.js` (MODIFIED) — +`beginScan`, +`endScan`; `persistFindings` accepts `scanVersionId`; `getGraph` removes MAX(id) workaround
-4. `scan/manager.js` (MODIFIED) — `beginScan` before agent invocation; `endScan` after `persistFindings` on success path only (failure leaves old data intact)
-5. `mcp/server.js` (MODIFIED) — `resolveDb()` helper; +`project` param on all 5 tools; stop closing pool-owned connections
-6. `db/pool.js` (MODIFIED) — remove inline migration workaround in `getQueryEngineByHash()` lines 178-202 after migration files 004+005 are in place
+**Major components and their v2.3 changes:**
+1. `worker/db/migrations/007_expose_kind.js` (NEW) — `ALTER TABLE exposed_endpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'endpoint'`
+2. `worker/db/query-engine.js` (MODIFIED) — `persistFindings()` type-conditional dispatch; `getGraph()` exposes attachment
+3. `worker/ui/modules/utils.js` + `state.js` (MODIFIED) — `getNodeType()` and `getNodeColor()` infra guards; `NODE_TYPE_COLORS.infra = '#68d391'`
+4. `worker/ui/modules/detail-panel.js` (MODIFIED) — three-way routing; updated `renderLibraryConnections(node, ...)`; new `renderInfraConnections(node, ...)`
+5. `worker/ui/graph.js` (MODIFIED) — map `s.exposes` into `state.graphData.nodes[i].exposes`
 
-Unchanged: `db/database.js`, `server/http.js` (already uses pool.js with `?project=` and `?hash=`).
+Unchanged: `agent-schema.json`, `http.js` (GET /graph passthrough), `connections` table and all queries, `detectMismatches()`, MCP server tools, web worker, `loadProject()` in UI.
 
 ### Critical Pitfalls
 
-1. **`INSERT OR REPLACE` cascade-deletes child rows when UNIQUE constraint is active** — REPLACE is delete-then-reinsert; `ON DELETE CASCADE` fires and wipes connections, endpoints, schemas, fields for every re-scanned service. Switch to `INSERT ... ON CONFLICT(repo_id, name) DO UPDATE SET ...` which updates in-place and preserves the existing `id`. This change must ship in the same PR as migration 004; deploying the migration before the code change causes silent data loss on the first re-scan.
+See `.planning/research/PITFALLS.md` for full coverage including recovery strategies, UX pitfalls, security mistakes, and a "looks done but isn't" verification checklist.
 
-2. **Migration 004 fails on existing databases with duplicate rows** — SQLite's rename-create-copy-drop pattern fails if the source table has duplicates. The copy INSERT fires the new UNIQUE constraint and aborts. The copy step must deduplicate: `SELECT MAX(id), repo_id, name, ... FROM services_old GROUP BY repo_id, name`. Test this migration against a database that already has duplicate rows — not a clean test fixture.
-
-3. **FTS5 index desync after migration** — After the rename-create-copy-drop migration rebuilds the `services` table with new row IDs, the FTS5 shadow index retains stale rowids. Add `INSERT INTO services_fts(services_fts) VALUES('rebuild')` as the final step of migration 004, inside the same migration transaction.
-
-4. **Cross-repo false edges from generic service names** — `_resolveServiceId(name)` does an unscoped lookup across all repos. Two repos with a service named `api`, `worker`, or `server` will have their connections merged into phantom edges. Add a validation block-list in `validateFindings()` that rejects generic names before any identity resolution runs.
-
-5. **MCP server resolves wrong DB from `process.cwd()`** — The MCP server is a long-running process; its CWD reflects where Claude Code was launched, not the repo the agent is querying. All five tool handlers must accept an optional `project` parameter and call `resolveDb(params.project)` per-call. Return a structured error `{ error: "no_scan_data", hint: "Run /allclear:map first" }` when the resolved DB does not exist — never return silent empty results.
+1. **"METHOD PATH" parser silently garbles all library/infra exposes** — fix by dispatching on `svc.type` in `persistFindings()` before any string splitting; verify after re-scan with `SELECT path FROM exposed_endpoints WHERE service_id = <lib_id>` — should return full function signatures, not split fragments
+2. **Migration 007 without data cleanup leaves malformed rows that permanently block correct inserts** — migration must DELETE all non-REST rows from `exposed_endpoints` (rows whose path does not match the `"VERB /path"` REST format) before deploying the fixed parser; `INSERT OR IGNORE` silently skips correct rows when a malformed row already occupies the same `(service_id, method, path)` key
+3. **Infra nodes fall through to service rendering path** — add `else if (nodeType === 'infra')` branch in `showDetailPanel()` as the very first panel change, even as a stub, before building `renderInfraConnections()`; the service fallthrough "works" (shows something) and masks the missing infra path
+4. **`getGraph()` does not include exposes — UI has no data source for panels** — extend `getGraph()` to attach `svc.exposes` from `exposed_endpoints` before any UI panel work begins; do NOT defer to a per-click fetch (adds 20-200ms latency, forces async rendering state)
+5. **XSS via function signatures rendered as raw innerHTML** — audit all `${e.path}`, `${e.method}`, `${e.source_file}` insertions in detail panel template literals; use `textContent` assignment or explicit HTML escaping for all user-controlled strings from scan results
 
 ## Implications for Roadmap
 
-The dependency graph is clear from research: schema changes precede application code that uses them; the UNIQUE constraint and upsert rewrite ship together; the scan version bracket builds on the dedup foundation; MCP cross-project queries are fully independent. This produces three focused phases.
+The dependency chain is strict and non-negotiable: schema before storage, storage before API, API before UI. Each phase is independently testable and produces a shippable artifact. Three phases cover the full milestone.
 
-### Phase 1: Schema Foundation + Upsert Repair
+### Phase 1: Schema + Storage Correctness
 
-**Rationale:** Everything else depends on the UNIQUE constraint being present and the upsert SQL being correct. These changes also carry the highest risk — if done incorrectly, existing user data is silently corrupted on the first re-scan. Isolating them as Phase 1 enables targeted testing before any other changes land. Migration 004 must be tested against a database seeded with duplicate rows; this is the only way to catch the dedup failure mode.
+**Rationale:** Migration 007 is the foundation for everything. The `kind` column must exist in the DB before any INSERT can set it, and the `persistFindings()` fix cannot land before the column exists. Existing malformed rows from the broken parser must be purged in this same phase — if they are not, re-scan after the fix still produces no new data because `INSERT OR IGNORE` silently skips correct rows that conflict with stale malformed ones.
 
-**Delivers:** Idempotent re-scan with no data corruption. The graph no longer grows unboundedly. The `MAX(id) GROUP BY name` workaround is removed. FTS5 index is rebuilt and correct. Agent prompt enforces lowercase-hyphenated naming to prevent the identity problem from growing.
+**Delivers:** A clean `exposed_endpoints` table with `kind` discriminant; correct storage of library exports as `kind='export'` (full function signature in `path`) and infra resources as `kind='resource'` (full resource ref in `path`); zero malformed rows; no existing service panel behavior changed.
 
-**Addresses:** Migration 004 (UNIQUE constraints + dedup + FTS5 rebuild), upsert SQL rewrite (`ON CONFLICT DO UPDATE`), remove `getGraph()` workaround, agent prompt naming convention, validation block-list for generic service names
+**Addresses:** FEATURES.md P1 items 1 and 2 (migration + persistFindings fix)
 
-**Avoids:** Pitfall 1 (cascade delete), Pitfall 2 (migration fails on duplicates), Pitfall 3 (FTS5 desync), Pitfall 4 (generic name false edges)
+**Avoids:** Pitfall 1 (garbled parser), Pitfall 3 (malformed rows blocking re-scan inserts)
 
-**Research flag:** Standard patterns. SQLite UPSERT syntax and migration dedup are documented in official SQLite docs. Implementation approach is fully specified in ARCHITECTURE.md with working SQL. No additional research needed.
+**Files:** `worker/db/migrations/007_expose_kind.js` (new), `worker/db/query-engine.js` (persistFindings only)
 
-### Phase 2: Scan Version Bracket + Stale-Row Cleanup
+### Phase 2: API Surface Extension
 
-**Rationale:** Depends on Phase 1 — the UNIQUE constraint must exist before `scan_version_id` stamping is meaningful. The scan version bracket makes re-scan atomic: new rows carry the new `scan_version_id`; stale rows from prior scans are deleted within the same transaction after the new scan succeeds. Failure at any point leaves old data intact.
+**Rationale:** The UI cannot show exposes data that is not in the graph response. `getGraph()` must be extended and `graph.js` must forward `exposes` into node objects before any panel rendering work begins. This phase is low-risk (additive response shape change; all existing consumers ignore unknown fields) and short (one query + one grouping loop).
 
-**Delivers:** Re-scan replaces the prior scan's data rather than appending. Deleted services and connections are removed from the graph. Partial scan failures leave old data valid and queryable.
+**Delivers:** `/graph` response includes `exposes: [{kind, method, path}]` per service node; `state.graphData.nodes[i].exposes` populated automatically after `loadProject()` runs; no UI panel changes yet — phase is complete when `node.exposes` is populated and verified in browser devtools.
 
-**Addresses:** Migration 005 (scan_versions table + FK columns on services and connections), `QueryEngine.beginScan` / `endScan`, modified `persistFindings` (accepts `scanVersionId`), modified `scan/manager.js` (bracket calls)
+**Addresses:** Pitfall 5 (no data source for panel); STACK.md "Option A: Embed exposes in /graph response"
 
-**Avoids:** Anti-pattern: delete-all-then-reinsert (destroys FK refs mid-transaction); partial write leaving graph in corrupt half-old/half-new state; `scan_version_id NOT NULL` (migration 005 must add nullable column — existing rows have no version ID)
+**Avoids:** Per-click fetch anti-pattern (adds click latency; forces async rendering; must handle loading and error states); embedding all exposes in graph response is acceptable here because library/infra nodes are rare relative to service nodes and exposes counts are small
 
-**Research flag:** Standard patterns. Scan version bracket is analogous to Apache Iceberg snapshots and dbt `strategy: check_timestamp`. Implementation fully specified in ARCHITECTURE.md with complete code examples. No additional research needed.
+**Files:** `worker/db/query-engine.js` (getGraph only), `worker/ui/graph.js` (map exposes into node objects)
 
-### Phase 3: Cross-Project MCP Queries
+### Phase 3: UI Detail Panel — Three Render Paths
 
-**Rationale:** Fully independent of Phases 1 and 2 — no schema changes, no dependency on scan version bracket. Can be developed in parallel with Phase 2 or sequenced after. The change is contained to `mcp/server.js` and adoption of the `pool.js` pattern already used by `server/http.js`.
+**Rationale:** All data is now correct and available in `node.exposes`. This is the user-visible payoff of Phases 1 and 2. The `utils.js` infra guard must be the very first commit within this phase before `detail-panel.js` is touched — without it, infra nodes return `"service"` from `getNodeType()` and route to `renderServiceConnections()` regardless of what `renderInfraConnections()` does.
 
-**Delivers:** Agents working in any repo can query any project's graph by passing `project` (absolute path or 12-char hash) to any of the 5 MCP tools. Falls back to existing `ALLCLEAR_PROJECT_ROOT` / `process.cwd()` behavior when parameter is absent — no breaking change for single-project users.
+**Delivers:** Clicking a library node shows "Exports" (functions grouped separately from types, optionally with source file link) + "Used by" consumer list. Clicking an infra node shows "Manages" (resources grouped by `k8s:`/`tf:`/`helm:` prefix) + "Wires" (deploy/configure connections). Service panel is completely unchanged.
 
-**Addresses:** Cross-project MCP queries, `mcp/server.js` refactor to per-call `resolveDb()`, `pool.js` inline migration workaround removal, `projectRoot` path traversal validation
+**Addresses:** All remaining P1 features; P2 differentiators (prefix grouping, source file link, text overflow handling)
 
-**Avoids:** Pitfall 5 (wrong DB from CWD); path traversal security (reject `..` segments; validate path is an existing directory before opening DB); pool connection lifecycle (stop calling `db.close()` in tool handlers after switching to pool.js)
+**Avoids:** Pitfall 4 (infra fallthrough to service renderer), XSS via raw innerHTML, UX pitfall of "Used by" displayed as primary content for libraries (industry reference: Backstage and DependenTree both show exports as primary, consumers as secondary)
 
-**Research flag:** Standard patterns. The `pool.js` caching pattern is already in use by the HTTP server; extending it to MCP is a mechanical refactor. The DB ownership change (stop closing pool connections) is the only non-obvious element, explicitly documented in ARCHITECTURE.md Anti-Pattern 3. No additional research needed.
+**Files:** `worker/ui/modules/utils.js`, `worker/ui/modules/state.js`, `worker/ui/modules/detail-panel.js`
 
 ### Phase Ordering Rationale
 
-- Phase 1 must precede Phase 2: the scan version bracket stamps rows with `scan_version_id`; without the UNIQUE constraint in place, the bracket adds overhead without the dedup guarantee that makes stale-row DELETE safe. The stale-row `endScan` delete relies on the new scan having replaced (not appended) the previous rows.
-- Phase 3 is independent: `mcp/server.js` and `pool.js` share no state with the migration or QueryEngine changes. Can be a parallel workstream or follow Phase 1, depending on developer bandwidth.
-- The v2.2.x features (cross-repo canonical identity, scan history UI) must not start until Phase 1 is confirmed working in production — canonical identity depends on the UNIQUE constraint being stable and the naming convention enforcement being in place.
+- Phase 1 before Phase 2: the `kind` column must exist in the DB before `getGraph()` can SELECT and attach typed exposes to nodes
+- Phase 2 before Phase 3: `node.exposes` must be populated in `state.graphData` before the panel renderers can filter on `e.kind === 'export'` or `e.kind === 'resource'`
+- Phase 3 is self-contained once Phases 1 and 2 are complete — all UI changes carry no back-end dependencies and can be reviewed in isolation
+- Within Phase 3, `utils.js` infra guard commits before `detail-panel.js` changes — makes a potential partial revert cleaner
 
 ### Research Flags
 
-Phases needing deeper research before implementation:
-- **Cross-repo canonical service identity (v2.2.x):** The `service_registry` table design and the query rewrites for impact tools to follow registry IDs rather than service IDs involve non-trivial schema and query changes. Needs a dedicated research pass before implementation starts.
-- **Scan version history UI (v2.2.x):** REST endpoint and UI panel are straightforward, but a future diff-between-versions feature (v2.3+) requires a diffing strategy worth researching before committing to a data model.
+No phase requires `/gsd:research-phase`. All uncertainties were resolved during this research pass through direct codebase inspection.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (schema + upsert):** SQLite UPSERT with `ON CONFLICT DO UPDATE`, migration dedup with `GROUP BY MAX(id)`, FTS5 rebuild — all documented in official SQLite docs and confirmed by codebase inspection.
-- **Phase 2 (scan version bracket):** Analogous to standard ETL snapshot patterns; implementation fully specified in ARCHITECTURE.md with working code examples.
-- **Phase 3 (MCP cross-project):** The `pool.js` pattern is already live in the HTTP server; extending it to MCP is a mechanical refactor with a clear implementation path in ARCHITECTURE.md.
+- **Phase 1:** SQLite `ALTER TABLE ADD COLUMN ... DEFAULT` behavior confirmed; migration pattern identical to existing 001-006 migrations; `INSERT OR IGNORE` UNIQUE NULL semantics confirmed from SQLite docs
+- **Phase 2:** `getGraph()` shape change is additive; no API versioning needed; existing consumers ignore unknown fields; pattern already used in this codebase
+- **Phase 3:** All function signatures, caller counts, and module boundaries confirmed by direct source inspection; `renderLibraryConnections()` has exactly one caller (`showDetailPanel()`) — safe to change signature
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All v2.2 work uses already-deployed libraries. No new packages. better-sqlite3 12.8.0, @modelcontextprotocol/sdk 1.27.1, fastify 5.8.2 already running in production. |
-| Features | HIGH | Root causes confirmed by direct source inspection of `query-engine.js`, `database.js`, `pool.js`, `manager.js`, `mcp/server.js`. Feature scope maps directly to documented tech debt SCAN-01..04 in PROJECT.md. Comparison with GitHub Dependency Graph, Datadog APM, dbt snapshots cross-validates the design. |
-| Architecture | HIGH | All affected files identified, all code paths traced. Build order (steps 1-7) in ARCHITECTURE.md is unambiguous. Working code examples provided for all new methods and migration SQL. Integration points documented with before/after patterns. |
-| Pitfalls | HIGH | SQLite UPSERT and FTS5 behaviors confirmed against official docs. `INSERT OR REPLACE` + `ON DELETE CASCADE` failure mode confirmed against Dexter's Log (specific SQLite behavior). MCP CWD pitfall confirmed by direct code reading of `mcp/server.js`. |
+| Stack | HIGH | No external deps; all findings from direct package.json + migration file inspection; zero new packages required |
+| Features | HIGH | Current panel scaffold confirmed by reading detail-panel.js line-by-line; agent output formats confirmed by reading agent-prompt-library.md and agent-prompt-infra.md; Backstage/DependenTree cross-validation supports export-first panel design |
+| Architecture | HIGH | All component boundaries confirmed by source inspection; broken parser located at exact lines (797-815); `renderLibraryConnections()` caller count verified (called from one location only); `detectMismatches()` filter confirmed compatible |
+| Pitfalls | HIGH | All failure modes traced to actual code paths; SQLite NULL UNIQUE behavior confirmed from SQLite documentation; `INSERT OR IGNORE` blocking scenario reproduced analytically |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Generic service name block-list completeness:** The research recommends blocking `server`, `worker`, `api`, `app`, `main` — but the complete list appropriate for this team's repos is unknown. During Phase 1 implementation, audit actual service names in existing project DBs before finalizing the block-list.
-- **Snapshot retention verification:** Research notes that `history-limit` enforcement is coded in `database.js` but flags the need to confirm it is called on every scan path. Verify this during Phase 2 implementation before shipping.
-- **MCP `projectRoot` allowed-roots policy:** PITFALLS.md recommends validating `projectRoot` against a set of allowed roots. The exact policy (e.g., "must be under HOME", "must appear in `~/.allclear/projects/`") needs a decision during Phase 3 implementation.
-- **pool.js `getQueryEngineByHash` refactor safety:** Lines 178-202 of `pool.js` contain an inline migration workaround for schema v2/v3. Confirm all callers are safe before removing these lines after migration files 004+005 land.
-- **`ON DELETE CASCADE` on `connections.source_service_id` / `target_service_id`:** The `endScan` delete order (connections before services) assumes FK cascade may or may not be present. Verify the migration 001 schema to confirm whether cascade is enabled; if not, the multi-step explicit delete in `endScan` is the required approach and must be respected.
+- **Malformed-row DELETE predicate in migration 007:** The exact SQLite-compatible DELETE predicate for purging non-REST `exposed_endpoints` rows must be finalized during Phase 1. SQLite has no built-in `REGEXP` without an extension, so `path NOT LIKE '% %'` is the first-pass proxy (REST endpoints always have a space between verb and path). However, some infra resource strings also contain spaces (e.g., `"k8s:ingress/payment → payment.example.com"`). A safer predicate: delete rows where `method IS NULL AND path NOT LIKE '/%'` — REST rows with no method have paths starting with `/`; library/infra rows have non-URL-path strings. Validate this predicate against a real database with pre-existing malformed rows before shipping migration 007.
+
+- **`boundary_entry` persistence decision:** The agent already emits `boundary_entry` and `agent-schema.json` documents it, but `persistFindings()` does not write it to the `services` table. The decision to add a `boundary_entry` column to `services` in migration 007 (enabling the source file link differentiator in Phase 3) should be made at the start of Phase 1. Adding it later requires a separate migration 008.
+
+- **Infra ingress format with embedded spaces:** `agent-prompt-infra.md` documents `"k8s:ingress/payment → payment.example.com"` which contains a space. Confirm at Phase 1 test time that `INSERT OR IGNORE` handles this string correctly as `(service_id, NULL, "k8s:ingress/payment → payment.example.com")` — the UNIQUE constraint allows two rows with `method=NULL` only if their `path` values differ; this string is unique per service as a whole, so it should insert without conflict.
 
 ## Sources
 
 ### Primary (HIGH confidence)
+- `worker/db/query-engine.js` — `persistFindings()` broken parser (lines 797-815), `getGraph()` response shape, `detectMismatches()` filter
+- `worker/db/migrations/003_exposed_endpoints.js` — current `exposed_endpoints` schema (`method TEXT`, `path TEXT NOT NULL`, `UNIQUE(service_id, method, path)`)
+- `worker/db/migrations/` directory — confirmed 001-006 exist; next migration is 007
+- `worker/server/http.js` — GET /graph passthrough; no exposes in current response
+- `worker/ui/modules/detail-panel.js` — routing logic; `renderLibraryConnections()`/`renderServiceConnections()` scaffold; sole caller of `renderLibraryConnections()` confirmed
+- `worker/ui/modules/utils.js` — `getNodeType()` confirmed missing infra guard
+- `worker/ui/modules/state.js` — `NODE_TYPE_COLORS` confirmed missing infra entry
+- `worker/scan/agent-prompt-library.md` — library exposes format (function signatures: `"functionName(param: T): R"`)
+- `worker/scan/agent-prompt-infra.md` — infra exposes format (`"k8s:deployment/name"`, ingress format with spaces)
+- `worker/scan/agent-schema.json` — `exposes` as `["string"]`; format type-conditional
+- `package.json` — confirmed no new dependencies needed
 
-- `worker/db/query-engine.js` — `_stmtUpsertService` (INSERT OR REPLACE), `getGraph()` MAX(id) workaround, `_resolveServiceId` cross-repo lookup, `persistFindings`
-- `worker/db/database.js` — migration auto-discovery, `openDb()` lifecycle, FK pragma ordering
-- `worker/db/pool.js` — project hash to DB path, pool cache, `listProjects()`, inline migration workaround (lines 178-202)
-- `worker/db/migrations/001_initial_schema.js` — confirmed absence of UNIQUE constraint on services; FTS5 trigger definitions
-- `worker/db/migrations/002_service_type.js`, `003_exposed_endpoints.js` — current max schema version is 3
-- `worker/scan/manager.js` — `scanRepos()` call sites for `upsertRepo`, `persistFindings`, `setRepoState`
-- `worker/mcp/server.js` — module-level `dbPath`; local `openDb()`; `db.close()` pattern in tool handlers
-- `.planning/PROJECT.md` — SCAN-01..04 tech debt, v2.2 milestone goals
-- [SQLite UPSERT official docs](https://sqlite.org/lang_upsert.html) — `ON CONFLICT DO UPDATE` syntax, `excluded.` qualifier, UNIQUE index requirement
-- [SQLite ON CONFLICT](https://sqlite.org/lang_conflict.html) — REPLACE semantics (delete-then-reinsert)
-- [GitHub Dependency Graph deduplication GA](https://github.blog/changelog/2025-05-05-dependency-graph-deduplication-is-now-generally-available/) — idempotent ingestion pattern cross-validation
-- [Anthropic MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) — `McpServer` + `StdioServerTransport` patterns
-- [code.claude.com/docs/en/plugins](https://code.claude.com/docs/en/plugins) — Plugin structure, SKILL.md format, hooks.json (v1 stack reference)
+### Secondary (MEDIUM confidence — industry reference)
+- Backstage Software Catalog system model (backstage.io/docs/features/software-catalog/system-model) — validates showing library exports as primary panel content, not just connections
+- DependenTree by Square (developer.squareup.com/blog/dependentree-graph-visualization-library) — validates function-level export display for library nodes
+- GitHub Dependency Graph (docs.github.com/code-security/supply-chain-security) — validates library vs service type distinction
 
-### Secondary (MEDIUM confidence)
-
-- [Dexter's Log: INSERT OR REPLACE with ON DELETE CASCADE](https://dexterslog.com/posts/insert-on-conflict-replace-with-on-delete-cascade-in-sqlite/) — confirmed cascade-delete failure mode for Pitfall 1
-- [Datadog Service Dependencies API](https://docs.datadoghq.com/api/latest/service-dependencies/) — cross-repo service identity patterns
-- [Apache Iceberg snapshot versioning](https://medium.com/towards-data-engineering/mastering-snapshot-versioning-in-apache-iceberg-a-deep-dive-5e0200612ce8) — scan version bracket analogy
-- [Sling Academy: UNIQUE constraints in SQLite](https://www.slingacademy.com/article/best-practices-for-using-unique-constraints-in-sqlite/) — rename-create-copy-drop migration pattern; pre-existing duplicate failure mode
-- [SQLite FTS5 trigger patterns](https://simonh.uk/2021/05/11/sqlite-fts5-triggers/) — correct FTS5 external content table trigger ordering
-- [Datadog Security Labs: SQL injection in MCP server](https://securitylabs.datadoghq.com/articles/mcp-vulnerability-case-study-SQL-injection-in-the-postgresql-mcp-server/) — MCP input validation requirements
-- [Airbyte: idempotency in data pipelines](https://airbyte.com/data-engineering-resources/idempotency-in-data-pipelines) — ETL dedup pattern reference
+### Tertiary
+- SQLite NULL UNIQUE behavior (sqlite.org/nulls.html) — confirmed: each NULL is distinct in UNIQUE indexes; `(service_id, NULL, "path1")` and `(service_id, NULL, "path2")` do NOT conflict; `(service_id, NULL, "path1")` inserted twice DOES conflict
 
 ---
-*Research completed: 2026-03-16*
+*Research completed: 2026-03-17*
 *Ready for roadmap: yes*

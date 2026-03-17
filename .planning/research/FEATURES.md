@@ -1,28 +1,32 @@
 # Feature Research
 
-**Domain:** Developer tool — scan data integrity for a local service dependency graph (SQLite-backed, agent-scanned)
-**Researched:** 2026-03-16
-**Confidence:** HIGH (patterns verified against SQLite official docs, codebase inspection, and established dependency-tool design)
+**Domain:** Developer tool — type-specific detail panels for a local service dependency graph UI
+**Researched:** 2026-03-17
+**Confidence:** HIGH (based on codebase inspection of v2.2 source + industry reference from Backstage catalog model)
 
-> **Scope note:** This document covers v2.2 features only. All v2.0/v2.1 capabilities (graph UI,
-> agent scanning, MCP tools, FTS5 search, snapshot mechanism, project switcher, log terminal) are
-> already shipped and are **dependencies**, not targets. Features below fix or extend existing
-> infrastructure — they must not break it.
+> **Scope note:** This document covers v2.3 features only. All prior capabilities (graph rendering,
+> agent scanning, connections storage, service detail panel, scan data integrity) are **already
+> shipped** and are **dependencies**, not targets. Features below extend the detail panel system to
+> handle library and infra nodes — they must not break the existing service detail panel.
 
 ---
 
-## Current State of the Codebase (Evidence Base)
+## Current State (Evidence Base)
 
-These are confirmed facts from reading the source, not assumptions:
+Read directly from the v2.2 source. These are facts, not assumptions.
 
-| Problem | Where it lives | Root cause |
-|---------|---------------|------------|
-| Duplicate service rows on re-scan | `services` table has no UNIQUE constraint on `(repo_id, name)` | INSERT OR REPLACE in `upsertService` inserts a new row instead of updating the existing one because `INSERT OR REPLACE` on a table with only `PRIMARY KEY` as the unique index assigns a new `id` |
-| `getGraph()` dedup workaround | `query-engine.js` line 547: `WHERE s.id IN (SELECT MAX(id) FROM services GROUP BY name)` | Symptom-fix only — connections still reference old service IDs; impact queries on old IDs return no results |
-| No cross-repo identity | Each repo scan produces its own service rows; if `auth-service` appears in repo A's scan and is referenced by repo B's scan, they get separate IDs with no link | No global name registry or canonical service identity table |
-| MCP server locked to one project | `resolveDbPath()` in `mcp/server.js` uses `process.cwd()` at startup; agents in other repos see empty results | DB path is resolved once at process start; no per-call project switching |
-| Agent naming variability | `agent-prompt-deep.md` says "service name" but gives no normalization rule; agent can emit "auth-service", "AuthService", "auth_service" for the same logical service | Prompt does not enforce a canonical naming convention |
-| Scan versioning orphan cleanup | `createSnapshot()` in `database.js` retains N versions but the connections/services of the *previous* scan are never pruned — they accumulate | Re-scan appends; no "replace this repo's scan data" transaction |
+| What exists | File | Notes |
+|-------------|------|-------|
+| Service detail panel (calls / called-by with mismatch flags) | `worker/ui/modules/detail-panel.js` | Works correctly; not changed in v2.3 |
+| Library panel scaffold (`renderLibraryConnections`) | `worker/ui/modules/detail-panel.js:61–96` | Renders connection edges using `e.method` and `e.path`; reads same format as service panel; shows "Provides (N)" and "Used by (N services)" |
+| `exposed_endpoints` table (migration 003) | `worker/db/migrations/003_exposed_endpoints.js` | Schema: `(service_id, method, path, handler)` — designed for "GET /users" REST endpoints only; not structured for library exports or infra resources |
+| `persistFindings()` exposes parser | `worker/db/query-engine.js:797–815` | Splits `svc.exposes` strings on whitespace: `parts[0]` = method, `parts[1]` = path; treats all entries as REST-style; a library export `"createClient(config: ClientConfig): EdgeworksClient"` would store `"createClient(config:"` as `method` and `"ClientConfig):"` as `path` — unusable |
+| Agent prompts produce correct data | `worker/scan/agent-prompt-library.md`, `agent-prompt-infra.md` | Library exposes: `"functionName(params): ReturnType"` and type names. Infra exposes: `"k8s:deployment/payment-service"`, `"tf:output/db_connection_string"`, `"helm:values/env.DATABASE_URL"`. Data is structurally correct; only the storage and display layers are wrong. |
+| No infra panel rendering | `worker/ui/modules/detail-panel.js:43–49` | `isLib` check covers `library` and `sdk`; infra nodes fall through to `renderServiceConnections` which shows REST-style method/path for k8s/tf/helm paths |
+
+The core problem: `persistFindings()` stores `svc.exposes` through a "GET /path" parser, and the
+panel renders everything as `method + path`. Library and infra data is structurally incompatible
+with this format at both storage and display layers.
 
 ---
 
@@ -30,102 +34,114 @@ These are confirmed facts from reading the source, not assumptions:
 
 ### Table Stakes (Users Expect These)
 
-Features that any re-scannable dependency tool must have. Without these, re-scanning actively harms
-data quality — which is worse than no re-scan at all.
+These are the minimum for v2.3 to feel correct. Without them, clicking a library or infra node
+produces confusing output (truncated function signatures as "method", empty or garbled paths).
 
 | Feature | Why Expected | Complexity | Depends On |
 |---------|--------------|------------|------------|
-| Idempotent re-scan (upsert by identity key) | Every ETL tool, SBOM generator, and dependency tracker treats re-ingestion as "replace not append." GitHub Dependency Graph deduplication (GA May 2025) is the same pattern. Without it, each scan adds phantom rows, impact queries fan out incorrectly, and the graph grows unboundedly. | MEDIUM | Requires adding UNIQUE constraint `(repo_id, name)` on `services` and `(source_service_id, target_service_id, protocol, method, path)` on `connections` — delivered as a new migration |
-| Stale-row cleanup after re-scan | Re-scanning a repo should remove services and connections that no longer exist in that repo. Without cleanup, deleted services linger as ghost nodes. Tools like dbt snapshots and Iceberg handle this with explicit "replace partition" semantics. | MEDIUM | Depends on idempotent upsert (above); requires a DELETE WHERE repo_id = ? AND id NOT IN (just-upserted IDs) within the same transaction |
-| Schema migration for new constraints | Users who already have a database must have the UNIQUE constraints applied via a migration, not require a database wipe. The existing migration system (`schema_versions` table, numbered files in `db/migrations/`) handles this. | LOW | Existing migration infrastructure; add `004_scan_integrity.js` |
-| Scan transaction atomicity | All writes for a single repo scan (upsert services + delete stale + upsert connections + delete stale connections + update repo_state) must succeed or fail together. A partial write leaves the graph in a corrupt half-old/half-new state. | LOW | `better-sqlite3` supports synchronous transactions; wrap `persistFindings()` in `db.transaction()` |
+| Library detail panel shows exported API surface | Any tool that shows library nodes (Backstage Component kind=library, GitHub Dependency Graph, DependenTree) shows what the library exports, not just who calls it. The library's exports ARE the thing that changes and breaks callers. | MEDIUM | New `exposed_items` table or `exposed_endpoints` schema extension; storage fix in `persistFindings()`; `renderLibraryPanel()` in detail-panel.js |
+| Library panel shows consumer list (deduplicated by service name) | The current scaffold already does dedup via a `Set` in `renderLibraryConnections`. This behavior is correct and expected — users want "which 3 services use this SDK?" not a list of individual import edges. | LOW | Already partially built; depends on correct data being stored first |
+| Infra detail panel shows managed resources with typed prefixes | When clicking an infra diamond node, users need to see what it manages: `k8s:deployment/payment-service`, `k8s:configmap/payment-env`, not a garbled REST representation. The `k8s:`, `tf:`, `helm:`, `compose:` prefixes from the agent prompt are the display format — they should be preserved as-is. | MEDIUM | New storage column (or separate `exposed_items` table) that stores raw exposes strings without parsing them as REST endpoints; new `renderInfraPanel()` function |
+| Infra panel shows configured/deployed services | Infra → service connections have `method: "deploy"` or `method: "configure"` and a structured path like `k8s:configmap/payment-env → PAYMENT_DB_URL`. The panel should show "Configures: payment-service (via k8s:configmap/payment-env → PAYMENT_DB_URL)". This is already stored in the `connections` table — only the display is wrong. | LOW | No storage changes needed; `renderInfraPanel()` reads existing connection edges with k8s/tf/helm protocols |
+| `persistFindings()` stores library/infra exposes without garbling them | The current `parts = endpoint.trim().split(/\s+/)` parser must not run on library function signatures or infra resource strings. A `"k8s:deployment/payment-service"` must be stored as a single displayable unit, not split into nonsense method+path. | MEDIUM | Schema: add `item_type` column to `exposed_endpoints` OR create separate `exposed_items` table; update `persistFindings()` with type-conditional storage; migration 007 |
 
 ### Differentiators (Competitive Advantage)
 
-Features that go beyond the table stakes and provide meaningful additional value for multi-repo workflows.
+Features that go beyond "not broken" and actively add value for v2.3 specifically.
 
 | Feature | Value Proposition | Complexity | Depends On |
 |---------|-------------------|------------|------------|
-| Cross-repo canonical service identity | When service "payments" is scanned from repo A and referenced by repo B, they should resolve to the same graph node. Tools like Datadog APM and ServiceNow CMDB use a "canonical name registry" pattern: a `service_registry` table keyed on normalized service name; foreign-keyed from `services`. This enables a single graph node with multiple repo sources. | HIGH | Requires schema change: `service_registry (id, canonical_name)` + FK from `services.registry_id`; impact queries must follow registry IDs, not service IDs; requires normalization function (lowercase, strip hyphens/underscores) |
-| Agent naming convention enforcement | Instruct the deep-scan agent to emit service names in a specific normalized form (e.g., lowercase-hyphenated: `auth-service`, not `AuthService`). This is the cheapest form of canonical identity — prevents divergence before it reaches the DB. | LOW | Requires adding a naming rule section to `agent-prompt-deep.md`; no schema change needed; prevents the cross-repo identity problem from growing |
-| Cross-project MCP queries (any working directory) | MCP tools currently resolve the DB path from `process.cwd()` at startup. Agents working in any repo should be able to query the full graph regardless of which project they launched from. Pattern: read `~/.allclear/projects/` directory, enumerate available project DBs, accept optional `project` parameter on each tool call, or merge all project DBs into a unified query. | MEDIUM | MCP server changes only; no schema change; risk of opening multiple SQLite files simultaneously (mitigated by read-only mode + per-call open/close already in place) |
-| Scan version history browsable in UI | The `map_versions` table and `createSnapshot()` function already exist. The UI has no way to view or restore a previous version. Exposing this as a "History" panel or dropdown in the graph UI closes the loop. | MEDIUM | Depends on existing `map_versions` table and `VACUUM INTO` snapshot mechanism; requires a new REST endpoint `GET /versions` and UI component |
+| Library panel groups exports by kind (functions vs types) | Backstage and GitHub Dependency Graph both distinguish interface/type exports from callable function exports. Showing `"Types (3): ClientConfig, EventHandler, Subscription"` vs `"Functions (4): createClient, publishEvent..."` makes the library surface immediately scannable. Parsing is trivial: strings containing `(` are functions, others are types. | LOW | Correct data in storage first; purely a `renderLibraryPanel()` classification step — no schema change needed |
+| Infra panel groups resources by prefix (k8s / tf / helm) | When an infra repo manages 15 resources, grouping by `k8s:` (8), `tf:` (4), `helm:` (3) mirrors how operators think. No additional data needed — the prefix is already in the stored string. Pure display logic. | LOW | Correct data in storage first; purely a `renderInfraPanel()` grouping step — no schema change needed |
+| Source file link for library exports | The agent stores `boundary_entry` (e.g., `src/index.ts`) on each library service. Showing this in the panel gives developers a one-click navigation target. Already in the `services` table as `root_path` / can be stored in handler column of `exposed_endpoints`. | LOW | `boundary_entry` is already in the agent JSON; needs to be persisted to `services` table (add `boundary_entry` column in migration 007) or read from handler column |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Fuzzy service name matching (Levenshtein / embedding similarity) | "auth-service" and "auth_service" should merge automatically | Fuzzy matching introduces false merges (e.g., "user-service" and "users-service" are different services). In a dependency graph, a false merge is a correctness bug, not a cosmetic one — it creates phantom impact paths. Embedding-based matching requires ChromaDB to be running, which is optional. | Enforce exact normalized form via agent prompt; require explicit `allclear.config.json` override for known aliases. Correctness over convenience. |
-| Auto-repair of historical connections on identity merge | "When I merge two service identities, rewrite all old connection rows to point to the new canonical ID" | This retroactively rewrites audit history. Snapshots become inconsistent with the live DB. Connection rows that were accurate at scan time become misleading. | Re-scan after a rename to generate correct data; the new scan replaces old rows via the upsert mechanism |
-| Global shared SQLite database (single file for all projects) | "One query to see all projects" | SQLite under concurrent write from multiple workers (one per project) without WAL lock coordination causes `SQLITE_BUSY` errors. Per-project isolation is an explicit design decision for this reason. AllClear PROJECT.md: "per-project DB isolation via hash of project root." | Cross-project MCP queries that open each project DB read-only and merge results in memory — no shared write DB needed |
-| Automatic incremental scan on every file save | "Scan should run whenever I save a file" | The two-phase agent scan is expensive (invokes Claude twice per repo). Triggering it on every save would saturate the agent runner and degrade Claude Code performance. | Commit-based incremental scan (already built in `buildScanContext()`): scan only when HEAD changes; user-triggered with `/allclear:map` |
-| Schema drift alerts (notify when agent output format changes) | "Tell me when the agent started returning different field names" | This requires version-pinning the agent prompt output schema and comparing it on every scan — significant validation overhead for a problem that is solved by simply keeping the prompt stable and using Zod schema validation on findings (already exists in `findings.js`) | `parseAgentOutput()` in `findings.js` already validates against a schema; a parse failure is surfaced as a scan error |
+| Expand/collapse sections inside the panel | "Show me only the types, hide the functions" | Adds stateful UI complexity (section open/closed state, animations, JS event overhead) for a panel that typically shows <20 items. Premature optimization. | Render everything; CSS scroll handles long lists. Revisit if users report panels with 50+ exports. |
+| Click-to-navigate from a library export to its source file | "Click `createClient` and open `src/client.ts` in editor" | Requires editor integration (deep-link protocol or file:// open), which is OS-dependent, requires user permission, and is outside the AllClear scope (no external service deps). | Show the source file path as plain text. Users can copy-paste. |
+| Live "who's importing this function right now" from AST | "Instead of scan data, show real-time import analysis" | Requires a language server per repo (TypeScript Language Service, pylsp, rust-analyzer). Multi-language, multi-version, out-of-process. Out of scope for v2.3. | Use connection edges from the last scan; users re-scan when they need fresh data. |
+| Infra panel with kubectl live status | "Show whether `k8s:deployment/payment-service` is currently Running vs CrashLoopBackOff" | `/allclear:pulse` already covers live service health. Mixing scan-derived static data (what the IaC says should exist) with live cluster state in the same panel creates confusion about data freshness. | Link to `/allclear:pulse` output for live state; keep the detail panel as scan-derived static data only. |
+| Separate "Exports" tab vs "Connections" tab in the panel | "Library panel should have tabs for its own exports and its outgoing calls" | Tab UI requires layout changes that affect the panel for all node types. Current panel has no tabs. Scope creep. | Render exports section above connections section. Vertical layout with section headers is sufficient. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Migration 004: UNIQUE constraints on services(repo_id, name) and connections(...)]
-    └──required by──> [Idempotent upsert (INSERT OR REPLACE works correctly)]
-    └──required by──> [Stale-row cleanup (safe to DELETE WHERE id NOT IN)]
+[Migration 007: schema for type-aware exposes storage]
+    └──required by──> [Fix persistFindings() to not garble library/infra exposes]
+    └──required by──> [Library panel shows exported API surface (correct data)]
+    └──required by──> [Infra panel shows managed resources (correct data)]
 
-[Idempotent upsert]
-    └──required by──> [Scan transaction atomicity (wrap in db.transaction())]
-    └──required by──> [Stale-row cleanup (must know which IDs were just written)]
+[Fix persistFindings() storage]
+    └──required by──> [renderLibraryPanel() — needs correct stored exports]
+    └──required by──> [renderInfraPanel() — needs correct stored resources]
+    └──NOT required by──> [Infra panel shows configured/deployed services]
+                              (connections already stored correctly; display only)
 
-[Stale-row cleanup]
-    └──enhances──> [Cross-repo canonical service identity (no stale ghost nodes to confuse merge)]
+[renderLibraryPanel()]
+    └──enhances──> [Groups exports by kind (functions vs types) — pure display logic]
+    └──enhances──> [Source file link — reads boundary_entry from services table]
 
-[Agent naming convention enforcement (prompt change)]
-    └──reduces need for──> [Cross-repo canonical service identity (fewer divergent names reach DB)]
-    └──does NOT replace──> [Cross-repo canonical service identity (runtime enforcement still needed)]
+[renderInfraPanel()]
+    └──enhances──> [Groups resources by prefix (k8s/tf/helm) — pure display logic]
 
-[Cross-repo canonical service identity]
-    └──required by──> [Impact queries across repo boundaries (MCP tools work correctly)]
-    └──conflicts with──> [Fuzzy name matching (anti-feature — choose one approach)]
+[Existing renderServiceConnections() in detail-panel.js]
+    └──unchanged by all of the above — service panel is not touched in v2.3]
 
-[Existing map_versions + VACUUM INTO (v2.0 shipped)]
-    └──required by──> [Scan version history UI (GET /versions endpoint + UI component)]
-
-[Existing per-project DB isolation]
-    └──required by──> [Cross-project MCP queries (enumerate project DBs, open read-only per call)]
+[Existing connections table (protocol, method, path)]
+    └──already correct for infra connections (deploy/configure with k8s: paths)]
+    └──already correct for library connections (sdk/import protocol)]
 ```
 
 ### Dependency Notes
 
-- **Migration 004 is the critical foundation**: Every other table-stakes feature depends on the UNIQUE constraints it adds. It must ship first and handle the case where users already have duplicate rows (migrate with dedup step: keep MAX(id) per group, delete rest, then add constraint).
-- **Stale-row cleanup must be atomic with upsert**: If cleanup runs separately from upsert, a crash between them leaves the graph in a half-pruned state. Both must be in the same `db.transaction()`.
-- **Agent prompt naming convention is cheap and should ship alongside Migration 004**: It prevents the identity problem from growing while the schema fix cleans up existing data.
-- **Cross-repo identity is independent of the MCP cross-project query feature**: Identity is about merging the same service seen from different repos into one node. Cross-project queries are about querying different project databases from any working directory. They solve different problems and can ship independently.
-- **Scan version history UI depends only on existing infrastructure**: The `map_versions` table, `createSnapshot()`, and the REST server already exist. This is a new endpoint + UI widget with no schema changes needed.
+- **The storage fix must ship before any panel rendering work.** Writing `renderLibraryPanel()` against the current garbled data would require the renderer to undo the parser's damage — fragile and wrong.
+- **Migration 007 is the foundation.** It must handle existing users who have library/infra repos already scanned (their `exposed_endpoints` rows have garbled data — the migration should truncate those rows for non-service types or add a `raw_text` column to store the original string alongside the broken method/path).
+- **The infra "configured services" panel section needs no storage changes.** Connection edges for infra repos already have correct protocol (`k8s`, `tf`, `helm`) and method (`deploy`, `configure`). Only `renderInfraPanel()` needs to display them differently from REST connections.
+- **`renderLibraryConnections()` already exists.** It is a scaffold that will be replaced/extended — not built from scratch. The "Used by" dedup logic (`Set` of consumer names) is correct and should be kept.
+- **`boundary_entry` from the agent prompt is not currently persisted.** The agent emits it, `agent-schema.json` documents it, but `persistFindings()` does not write it to the `services` table. This is a minor gap; storing it in migration 007 as a new column enables the source file link differentiator.
 
 ---
 
-## MVP Definition (v2.2)
+## MVP Definition (v2.3)
 
-### Launch With (v2.2 core — fixes the stated bugs)
+### Launch With (v2.3 core)
 
-Minimum for the milestone to deliver its stated goal: "Fix data duplication from re-scanning and
-cross-repo conflicts. Add scan versioning and cross-project MCP queries."
+Minimum for the milestone goal: "Make library and infra nodes show type-appropriate data in the
+detail panel."
 
-- [ ] Migration 004: UNIQUE constraints on `services(repo_id, name)` and `connections(source_service_id, target_service_id, protocol, method, path)` — with dedup step for existing rows — the foundation everything else stands on
-- [ ] Idempotent `persistFindings()` wrapped in `db.transaction()` with stale-row DELETE — re-scan replaces, not appends
-- [ ] Remove `MAX(id) GROUP BY name` workaround from `getGraph()` — the workaround becomes incorrect after constraint is added
-- [ ] Agent prompt naming rule: lowercase-hyphenated convention enforced in `agent-prompt-deep.md` — cheapest identity fix
-- [ ] Cross-project MCP queries: MCP tools accept optional `project_root` parameter; fall back to enumerating all known project DBs when none specified — agents in any repo see the full graph
+- [ ] Migration 007: add `raw_text` column to `exposed_endpoints` (stores original agent string
+  verbatim); add `boundary_entry` column to `services` (optional, for source file display) — handles
+  existing rows safely by defaulting `raw_text = path` for existing service rows
+- [ ] Fix `persistFindings()`: detect node type from `svc.type`; for `service` nodes continue
+  using the existing "GET /path" parser; for `library`/`sdk` nodes store the full export string in
+  `raw_text` with `method=null`; for `infra` nodes store the full resource string in `raw_text`
+  with `method=null`; persist `boundary_entry` to services row
+- [ ] `renderLibraryPanel()` in `detail-panel.js`: show exports grouped as Functions and Types
+  (classify by presence of `(`); show source file from `boundary_entry`; show "Used by" consumer
+  list (keep existing dedup Set logic)
+- [ ] `renderInfraPanel()` in `detail-panel.js`: show managed resources from `exposed_endpoints.raw_text`
+  grouped by prefix (`k8s:`, `tf:`, `helm:`, `compose:`); show deploy/configure connections to
+  services from existing connection edges with correct method labels
+- [ ] Update `showDetailPanel()` dispatch: add `infra` to the type check (currently only `library`
+  and `sdk` get non-service rendering); route `infra` type nodes to `renderInfraPanel()`
 
-### Add After Validation (v2.2.x)
+### Add After Validation (v2.3.x)
 
-Features to add once core dedup and MCP cross-project queries are confirmed working.
+- [ ] `/api/graph` endpoint enrichment: include `exposed_items` count per node so the UI can show
+  "14 exports" or "8 resources" on the node tooltip — add only if users ask for it
+- [ ] Re-scan existing library/infra repos to populate `raw_text` correctly — no code needed, just
+  operator action; document in CHANGELOG
 
-- [ ] Cross-repo canonical service identity: `service_registry` table + normalization function — add when multiple repos with overlapping service names are confirmed working and divergence reappears
-- [ ] Scan version history panel in graph UI: `GET /versions` endpoint + history dropdown — add when users ask "what changed since yesterday?"
+### Future Consideration (v2.4+)
 
-### Future Consideration (v2.3+)
-
-- [ ] Diff view between scan versions (which services/connections were added/removed) — add when history browsing is shipped and users want to understand changes
-- [ ] Config-file service name aliases (`allclear.config.json` `"service-aliases": {"AuthService": "auth-service"}`) — add if teams with legacy naming need a migration path without re-scanning
+- [ ] Diff panel: "these 3 exports were removed since last scan" — requires scan version history UI
+  (deferred to v2.4, depends on map_versions browsability)
+- [ ] Filter panel content (show only functions, hide types) — revisit only if users report panels
+  with 50+ exports
 
 ---
 
@@ -133,45 +149,43 @@ Features to add once core dedup and MCP cross-project queries are confirmed work
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Migration 004: UNIQUE constraints + dedup | HIGH — fixes root cause of all duplication bugs | MEDIUM — migration must handle existing duped rows safely | P1 — foundation |
-| Idempotent persistFindings + stale-row cleanup | HIGH — re-scan no longer corrupts the graph | MEDIUM — transaction wrapping + DELETE WHERE id NOT IN | P1 — table stakes |
-| Remove MAX(id) workaround from getGraph() | HIGH — workaround breaks after constraint is added | LOW — delete ~5 lines, replace with direct query | P1 — required cleanup |
-| Agent prompt naming convention | HIGH — prevents divergence at source | LOW — add one section to agent-prompt-deep.md | P1 — cheap, immediate value |
-| Cross-project MCP queries | HIGH — agents in any repo see the full graph | MEDIUM — enumerate project DBs, add optional param to tools | P1 — stated milestone goal |
-| Cross-repo canonical service identity | MEDIUM — needed only when services appear in multiple repos | HIGH — schema change + query rewrites + normalization | P2 — add after P1 confirms benefit |
-| Scan version history UI | MEDIUM — adds browsability to already-captured snapshots | MEDIUM — new REST endpoint + UI panel | P2 — infrastructure already exists |
-| Config-file service name aliases | LOW — only needed for teams with established naming debt | LOW — config parsing + alias table | P3 — future |
+| Migration 007 (raw_text + boundary_entry columns) | HIGH — foundation for everything else | LOW — additive migration, no data loss | P1 — must ship first |
+| Fix `persistFindings()` type-conditional storage | HIGH — current data is unusable for library/infra | MEDIUM — branch on `svc.type`, keep REST path for services | P1 — required |
+| `renderLibraryPanel()` with functions/types grouping | HIGH — library node clicks currently show confusing data | MEDIUM — new render function replacing scaffold | P1 — required |
+| `renderInfraPanel()` with resource grouping | HIGH — infra node clicks currently show garbled REST output | MEDIUM — new render function, uses existing connection data for deploy/configure | P1 — required |
+| Update `showDetailPanel()` dispatch for `infra` type | HIGH — without this the infra panel function is never called | LOW — add one branch to existing type check | P1 — required |
+| Source file link (boundary_entry) | MEDIUM — nice to have, helps navigation | LOW — store one extra field, display in panel header | P2 — ship in same PR if easy |
+| Groups by prefix in infra panel | MEDIUM — improves scannability for repos with many resources | LOW — pure display logic, no data changes | P2 — include in renderInfraPanel() |
 
 **Priority key:**
-- P1: Required to meet the v2.2 milestone goal
-- P2: Should add once P1 is stable and confirmed correct
+- P1: Required for v2.3 to meet its stated goal
+- P2: Include in same PR if it adds no risk; defer if it does
 - P3: Future consideration
 
 ---
 
-## Competitor Feature Analysis
+## Industry Reference: How Comparable Tools Handle This
 
-How established tools handle each of the four research questions.
+| Tool | Type differentiation in detail panel | Library panel content | Infra/resource panel content |
+|------|-------------------------------------|-----------------------|-----------------------------|
+| **Backstage catalog** | Separate entity pages per Kind (Component, Resource, API, Library). Each Kind has a different default tab set. Library components show "Provided APIs", "Consumed APIs", "Dependencies". | Exported APIs listed by name and type; dependencies on other catalog entities | Resource entities show owner, system, and linked components — not raw IaC files |
+| **GitHub Dependency Graph** | Differentiates packages (libraries) from runtime services. Library packages show: exports (from package manifest), consumers (repositories that depend on it), vulnerability alerts. | Exports derived from `package.json` exports field or SBOM manifest; shown as package name + version | No infra node type; closest equivalent is the "environments" tab which shows deployment targets per repo |
+| **Novatec Service Dependency Graph (Grafana)** | All nodes are services; no library or infra distinction. Detail tooltip shows: response time, error rate, request rate per connection. | N/A | N/A |
+| **DependenTree (Square)** | Differentiates library packages from service applications. Library nodes show exports at function level (which functions are actually called by consumers, derived from static analysis). | Function-level export + call-site mapping — the "what is actually used" view, not just "what is exported" | N/A |
+| **AllClear v2.3 (target)** | Three types: service (circle), library (hexagon), infra (diamond). Service panel: unchanged (calls/called-by with mismatch detection). Library panel: exported API surface + consumer list. Infra panel: managed resources grouped by prefix + deploy/configure connections. | Exports from scan data (function signatures + type names); consumers from connection edges | Resources from scan data (k8s/tf/helm prefixed strings); deploy/configure targets from connection edges |
 
-| Problem | GitHub Dependency Graph | Datadog APM Service Map | dbt Snapshots | AllClear v2.2 approach |
-|---------|------------------------|------------------------|---------------|------------------------|
-| Idempotent ingestion | Deduplication GA May 2025 — each submission replaces the previous for that manifest+SHA | Traces replace previous state per service+env; no accumulation | `strategy: check_timestamp` — replaces changed rows, keeps unchanged | `INSERT OR REPLACE` on UNIQUE `(repo_id, name)`; DELETE stale within transaction |
-| Service identity across repos | Repository-scoped packages; cross-repo links via package name match (exact string) | Global service registry keyed on `service` tag string (must be consistent across all instrumented code) | N/A (single repo scope) | Agent-enforced naming convention (lowercase-hyphenated) + optional `service_registry` canonical identity table |
-| Scan versioning / history | Dependency graph snapshot per commit SHA; history via git log | No history — live state only | Immutable snapshots with `dbt snapshot`; configurable retention | `map_versions` table + VACUUM INTO snapshot files; configurable `history-limit` in `allclear.config.json` |
-| Cross-project querying | GitHub-scoped; cross-org via API with org token | Global APM — all envs in one query; filter by env | dbt project-scoped | MCP tools accept `project_root` param; enumerate `~/.allclear/projects/` DBs read-only and merge results in memory |
+**Key insight from industry reference:** Backstage and DependenTree both show the library's exports as the primary content of a library node — not just its connections. This validates the v2.3 design direction. No tool in this category shows the "Used by" list as the primary content for a library; it is secondary to the export surface. AllClear's current scaffold has this inverted (connections first, no exports).
 
 ---
 
 ## Sources
 
-- SQLite `INSERT OR REPLACE` / UPSERT — [sqlite.org/lang_upsert.html](https://sqlite.org/lang_upsert.html) — HIGH confidence (official docs)
-- SQLite ON CONFLICT clause — [sqlite.org/lang_conflict.html](https://sqlite.org/lang_conflict.html) — HIGH confidence (official docs)
-- GitHub Dependency Graph Deduplication GA — [github.blog/changelog/2025-05-05](https://github.blog/changelog/2025-05-05-dependency-graph-deduplication-is-now-generally-available/) — HIGH confidence (official changelog)
-- Datadog Service Dependencies API — [docs.datadoghq.com/api/latest/service-dependencies](https://docs.datadoghq.com/api/latest/service-dependencies/) — HIGH confidence (official docs)
-- Idempotency in data pipelines — [airbyte.com/data-engineering-resources/idempotency-in-data-pipelines](https://airbyte.com/data-engineering-resources/idempotency-in-data-pipelines) — MEDIUM confidence (industry reference)
-- Apache Iceberg snapshot versioning — [medium.com/towards-data-engineering — Iceberg snapshots](https://medium.com/towards-data-engineering/mastering-snapshot-versioning-in-apache-iceberg-a-deep-dive-5e0200612ce8) — MEDIUM confidence (tutorial, pattern reference)
-- Codebase inspection: `worker/db/query-engine.js`, `worker/db/database.js`, `worker/db/migrations/001_initial_schema.js`, `worker/mcp/server.js`, `worker/scan/manager.js` — HIGH confidence (source of truth for current state)
+- Codebase inspection: `worker/ui/modules/detail-panel.js`, `worker/db/query-engine.js:797–815`, `worker/db/migrations/003_exposed_endpoints.js`, `worker/scan/agent-prompt-library.md`, `worker/scan/agent-prompt-infra.md`, `worker/scan/agent-schema.json` — HIGH confidence (source of truth)
+- Backstage Software Catalog system model — [backstage.io/docs/features/software-catalog/system-model](https://backstage.io/docs/features/software-catalog/system-model/) — MEDIUM confidence (industry reference for type-differentiated catalog UI)
+- DependenTree, Square's graph visualization library — [developer.squareup.com/blog/dependentree-graph-visualization-library](https://developer.squareup.com/blog/dependentree-graph-visualization-library/) — MEDIUM confidence (function-level library export display reference)
+- GitHub Dependency Graph documentation — [docs.github.com/code-security/supply-chain-security](https://docs.github.com/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) — MEDIUM confidence (library vs service type distinction)
+- Novatec Service Dependency Graph panel — [grafana.com/grafana/plugins/novatec-sdg-panel](https://grafana.com/grafana/plugins/novatec-sdg-panel/) — MEDIUM confidence (comparison: service-only tool with no library/infra differentiation)
 
 ---
-*Feature research for: AllClear v2.2 — Scan Data Integrity*
-*Researched: 2026-03-16*
+*Feature research for: AllClear v2.3 — Type-Specific Detail Panels*
+*Researched: 2026-03-17*

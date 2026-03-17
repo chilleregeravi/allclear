@@ -1,496 +1,518 @@
 # Architecture Research
 
-**Domain:** AllClear v2.2 — Scan Data Integrity: upsert dedup, scan versioning, identity merging, cross-project MCP queries
-**Researched:** 2026-03-16
-**Confidence:** HIGH — based on direct codebase inspection of all affected modules
+**Domain:** AllClear v2.3 — Type-Specific Detail Panels (library exports, infra resources)
+**Researched:** 2026-03-17
+**Confidence:** HIGH — based on direct source code inspection of all affected modules
 
 ---
 
-## Standard Architecture
+## Context
 
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        MCP Server (stdio)                               │
-│  impact_query  impact_changed  impact_graph  impact_search  impact_scan │
-│                                                                         │
-│  TODAY: dbPath resolved once at module load from CWD/env var            │
-│  v2.2:  +project param on all tools; per-call resolveDb() via pool.js   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                     HTTP Worker (server/http.js)                        │
-│  POST /scan    GET /graph    GET /projects   GET /search                │
-│  Already multi-project: ?project= and ?hash= resolution via pool.js    │
-│  No changes needed in v2.2                                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│                     scan/manager.js  (scanRepos)                        │
-│  upsertRepo → buildScanContext → agentRunner → parseAgentOutput         │
-│                                                                         │
-│  TODAY: persistFindings called directly after parse                     │
-│  v2.2:  +beginScan before agent call; +endScan after persistFindings    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                     db/pool.js  (getQueryEngine)                        │
-│  projectRoot → hash → ~/.allclear/projects/{hash}/impact-map.db         │
-│  getQueryEngine(root)  getQueryEngineByHash(hash)  listProjects()       │
-│  No schema changes; minor: remove inline migration workaround           │
-├─────────────────────────────────────────────────────────────────────────┤
-│                  db/query-engine.js  (QueryEngine)                      │
-│  upsertRepo  upsertService  upsertConnection  persistFindings           │
-│  getGraph    detectMismatches  transitiveImpact  search                 │
-│                                                                         │
-│  v2.2 additions:                                                        │
-│    beginScan(repoId) → scan_version_id                                  │
-│    endScan(repoId, scanVersionId) → delete stale rows                   │
-│    upsertService gains UNIQUE(repo_id, name) enforcement via migration  │
-│    getGraph: remove MAX(id) GROUP BY name workaround                    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                  db/database.js  (openDb / runMigrations)               │
-│  Auto-discovers *.js from db/migrations/, runs in version order         │
-│                                                                         │
-│  Existing:                                                              │
-│    001_initial_schema.js    (schema v1)                                 │
-│    002_service_type.js      (schema v2)                                 │
-│    003_exposed_endpoints.js (schema v3)                                 │
-│  New:                                                                   │
-│    004_dedup_constraints.js (schema v4) — UNIQUE index + canonical_name │
-│    005_scan_versions.js     (schema v5) — scan_versions table + FK cols │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Status in v2.2 |
-|-----------|----------------|----------------|
-| `migrations/004_dedup_constraints.js` | Add UNIQUE(repo_id, name) index on services; add canonical_name TEXT column | NEW |
-| `migrations/005_scan_versions.js` | Add scan_versions table; add scan_version_id FK columns on services and connections | NEW |
-| `QueryEngine.beginScan(repoId)` | Insert a scan_versions row, return its ID for use as a bracket | NEW |
-| `QueryEngine.endScan(repoId, scanVersionId)` | Mark scan complete; DELETE services/connections from prior scan versions for this repo | NEW |
-| `QueryEngine.upsertService` | INSERT OR REPLACE — behavior unchanged, but UNIQUE constraint (migration 004) now enforces dedup at DB layer | MODIFIED |
-| `QueryEngine.persistFindings` | Accept scanVersionId param; stamp services + connections with it | MODIFIED |
-| `QueryEngine.getGraph` | Remove MAX(id) GROUP BY name workaround after migration 004 guarantees uniqueness | MODIFIED |
-| `scan/manager.js scanRepos` | Call beginScan before agent invocation; call endScan after persistFindings | MODIFIED |
-| `mcp/server.js` | Replace module-level dbPath constant with per-call resolveDb(project); add optional project param to all 5 tools | MODIFIED |
-| `pool.js getQueryEngineByHash` | Remove inline migration workaround (lines 178-202) — migration files now cover those versions | MODIFIED |
+This file covers v2.3 integration architecture only. Previous v2.2 migration research has been superseded. The question answered here: how do type-specific detail panels integrate with the existing architecture, what components change, what is new, and in what order should work proceed?
 
 ---
 
-## Recommended Project Structure
+## Existing System Overview
 
 ```
-worker/
-├── db/
-│   ├── database.js                     # unchanged — auto-discovers migrations
-│   ├── pool.js                         # minor: remove inline migration workaround
-│   ├── query-engine.js                 # +beginScan, +endScan, modified persistFindings + getGraph
-│   └── migrations/
-│       ├── 001_initial_schema.js       # unchanged
-│       ├── 002_service_type.js         # unchanged
-│       ├── 003_exposed_endpoints.js    # unchanged
-│       ├── 004_dedup_constraints.js    # NEW: UNIQUE(repo_id, name) + canonical_name
-│       └── 005_scan_versions.js        # NEW: scan_versions table + scan_version_id FKs
-├── scan/
-│   └── manager.js                      # +beginScan/endScan calls in scanRepos()
-└── mcp/
-    └── server.js                       # +project param on tools; resolveDb() via pool.js
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          Agent Scan Layer                                │
+│  agent-prompt-service.md   agent-prompt-library.md   agent-prompt-infra.md│
+│          ↓                         ↓                         ↓           │
+│          └──────── agent-schema.json (shared output shape) ──────────────┘
+│                                                                          │
+│  exposes format is TYPE-CONDITIONAL:                                     │
+│    service  → "METHOD /path"  e.g. "GET /users"                         │
+│    library  → "fnName(param: T): R"  or just "TypeName"                 │
+│    infra    → "k8s:deployment/name"  "tf:output/name"  etc.             │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │ findings JSON → POST /scan
+┌──────────────────────────────▼───────────────────────────────────────────┐
+│                      Persistence Layer (query-engine.js)                 │
+│  persistFindings(repoId, findings, commit, scanVersionId)                │
+│                                                                          │
+│  BROKEN SECTION (lines 797-815):                                         │
+│    for (const endpoint of svc.exposes) {                                 │
+│      const parts = endpoint.trim().split(/\s+/);   // "METHOD PATH" only │
+│      const method = parts.length > 1 ? parts[0] : null;                 │
+│      const path   = parts.length > 1 ? parts[1] : parts[0];             │
+│      INSERT INTO exposed_endpoints(service_id, method, path, handler)   │
+│    }                                                                     │
+│  → library exports: method="createClient(config:", path="ClientConfig):" │
+│  → infra resources: method="k8s:deployment/payment-service", path=null  │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │ SQLite (WAL, per-project DB)
+┌──────────────────────────────▼───────────────────────────────────────────┐
+│                        Database Layer                                    │
+│  exposed_endpoints (id, service_id, method TEXT, path TEXT NOT NULL,     │
+│                     handler TEXT)                                        │
+│  UNIQUE(service_id, method, path)                                        │
+│                                                                          │
+│  services (id, repo_id, name, root_path, language, type,                 │
+│            scan_version_id)   ← `type` column added in migration 002    │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │ getGraph() → { services, connections,
+                               │               repos, mismatches }
+                               │ NOTE: exposes NOT included in getGraph() today
+┌──────────────────────────────▼───────────────────────────────────────────┐
+│                        HTTP API Layer (http.js)                          │
+│  GET /graph   → qe.getGraph()      (passes result through unchanged)     │
+│  Services array includes `type` field from DB — detail panel uses it    │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │ JSON
+┌──────────────────────────────▼───────────────────────────────────────────┐
+│                          UI Layer                                        │
+│  loadProject() → state.graphData.nodes (each node has id/name/type/      │
+│                  language/repo_name — NO exposes field today)            │
+│                                                                          │
+│  interactions.js click → showDetailPanel(node)                           │
+│                                                                          │
+│  detail-panel.js:                                                        │
+│    getNodeType(node):                                                    │
+│      "library"|"sdk" → renderLibraryConnections(outgoing, incoming, ...) │
+│      else             → renderServiceConnections(outgoing, incoming, ...) │
+│    MISSING: no "infra" branch in getNodeType() or detail-panel routing   │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
-
-### Structure Rationale
-
-- **migrations/**: database.js auto-discovers all *.js files sorted alphabetically. Adding 004 and 005 requires zero changes to database.js — drop the files and they run automatically on next openDb().
-- **QueryEngine is the only write path**: scan/manager.js delegates all writes to QueryEngine methods already. beginScan/endScan follow the same injection pattern as upsertRepo/persistFindings — fully testable with mock QueryEngine.
-- **MCP server switches from module-level DB to per-call**: today the MCP server opens one DB for its lifetime (resolved from CWD/env). With project param support, it must open per-call from pool.js (which caches connections). This is already the pattern used by the five tool handlers (`const db = openDb(); ... db.close()`).
 
 ---
 
-## Architectural Patterns
+## Component Responsibilities
 
-### Pattern 1: Scan Version Bracket
+| Component | Current Responsibility | v2.3 Change |
+|-----------|----------------------|-------------|
+| `migrations/007_expose_kind.js` | Does not exist | NEW: add `kind` column to `exposed_endpoints` |
+| `persistFindings()` in `query-engine.js` | Stores exposes via "METHOD PATH" split (broken for lib/infra) | MODIFIED: dispatch on `svc.type` to set correct `kind`, store raw string for lib/infra |
+| `getGraph()` in `query-engine.js` | Returns services/connections/repos/mismatches — no exposes | MODIFIED: attach `exposes` array per service node |
+| `GET /graph` in `http.js` | Passes `qe.getGraph()` through | UNCHANGED: additive response shape change is transparent |
+| `loadProject()` in UI JS | Builds `state.graphData.nodes` from API response | UNCHANGED: nodes will now carry `exposes` array automatically |
+| `utils.js getNodeType()` | Returns "library", "sdk", "frontend", "service" — no "infra" | MODIFIED: add `if (node.type === 'infra') return 'infra'` guard |
+| `state.js NODE_TYPE_COLORS` | Colors for library/sdk/frontend/service | MODIFIED: add `infra` color entry |
+| `detail-panel.js showDetailPanel()` | Routes to renderLibraryConnections or renderServiceConnections | MODIFIED: add `infra` branch; pass `node` to library renderer |
+| `detail-panel.js renderLibraryConnections()` | Shows "Provides" (outgoing) and "Used by" (incoming) | MODIFIED: add `node` param; render `node.exposes` (kind=export) as "Exports" section |
+| `detail-panel.js renderInfraConnections()` | Does not exist | NEW: show `node.exposes` (kind=resource) and outgoing edges labeled deploy/configure |
 
-**What:** Before each scan, create a `scan_versions` row and capture its ID. Pass that ID down through `persistFindings` to stamp every service and connection row written. After the scan succeeds, call `endScan` which marks the version complete and deletes any services/connections for this repo that carry an older `scan_version_id`. If the scan fails, `endScan` is never called — no cleanup of old rows occurs, old data remains valid.
+---
 
-**When to use:** Every execution of `scanRepos()` for every repo, regardless of scan mode (full or incremental). Skip mode (`ctx.mode === 'skip'`) bypasses the whole agent path and should not call beginScan.
+## Key Integration Points
 
-**Trade-offs:** Adds two DB round-trips per repo per scan. Insignificant compared to agent invocation time (10s–300s). The delete in endScan cascades through connections referencing deleted services — requires `ON DELETE CASCADE` on `connections.source_service_id` and `connections.target_service_id` FKs, or explicit multi-step deletion.
+### 1. Migration 007: Add `kind` Column to `exposed_endpoints`
 
-**Example:**
-```javascript
-// QueryEngine additions
-beginScan(repoId) {
-  const result = this._db.prepare(
-    'INSERT INTO scan_versions (repo_id, started_at) VALUES (?, ?)'
-  ).run(repoId, new Date().toISOString());
-  return result.lastInsertRowid;
-}
+**File:** `worker/db/migrations/007_expose_kind.js`
+**Type:** New file
 
-endScan(repoId, scanVersionId) {
-  this._db.prepare(
-    'UPDATE scan_versions SET completed_at = ? WHERE id = ?'
-  ).run(new Date().toISOString(), scanVersionId);
+The existing `exposed_endpoints` table was designed for HTTP endpoints only. For v2.3 it becomes a generic "service surface" table by adding a `kind` discriminant:
 
-  // Delete connections referencing stale services first (FK constraint order)
-  this._db.prepare(`
-    DELETE FROM connections
-    WHERE source_service_id IN (
-      SELECT id FROM services WHERE repo_id = ? AND scan_version_id != ?
-    ) OR target_service_id IN (
-      SELECT id FROM services WHERE repo_id = ? AND scan_version_id != ?
-    )
-  `).run(repoId, scanVersionId, repoId, scanVersionId);
-
-  // Now delete stale service rows
-  this._db.prepare(
-    'DELETE FROM services WHERE repo_id = ? AND scan_version_id != ?'
-  ).run(repoId, scanVersionId);
-}
-
-// scan/manager.js scanRepos() — modified loop body
-const scanVersionId = queryEngine.beginScan(repo.id);
-// ... existing: agent invocation + parseAgentOutput ...
-queryEngine.persistFindings(repo.id, result.findings, currentHead, scanVersionId);
-queryEngine.endScan(repo.id, scanVersionId);  // only on success
+```sql
+ALTER TABLE exposed_endpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'endpoint';
 ```
 
-### Pattern 2: UNIQUE Constraint Upsert for Dedup
+`kind` values:
+- `'endpoint'` — HTTP verb + path (service type; existing rows default to this)
+- `'export'`   — function signature or exported type name (library/sdk)
+- `'resource'` — infrastructure resource reference (infra; k8s/tf/helm/compose prefixed)
 
-**What:** Migration 004 adds a `UNIQUE(repo_id, name)` index to the `services` table. The existing `INSERT OR REPLACE` statement in `QueryEngine._stmtUpsertService` then becomes a true dedup upsert — a second scan of the same repo replaces the existing service row rather than inserting a new duplicate.
+The UNIQUE constraint `(service_id, method, path)` continues to work correctly:
+- For `endpoint` rows: method = HTTP verb, path = URL path
+- For `export` rows: method = NULL, path = full function signature string
+- For `resource` rows: method = NULL, path = full resource ref string
 
-**When to use:** This is a passive change — no application code changes in QueryEngine are needed beyond migration 004. The `INSERT OR REPLACE` already handles it. However, `INSERT OR REPLACE` deletes the old row and inserts a new one (changing `rowid`/`id`). This is fine because `persistFindings` collects fresh IDs from each upsert and uses them for all FK relationships within the same transaction.
+No column rename needed. `path` holding non-URL strings for lib/infra is semantically odd but practically fine — it is never parsed by the mismatch detection query, only displayed.
 
-**Trade-offs:** Old connections referencing the deleted service row's ID must be cleaned up before the new row is inserted. The scan version bracket (Pattern 1) handles this: `endScan` deletes stale connections before deleting stale services. Within a single scan, the `serviceIdMap` in `persistFindings` captures the new IDs immediately after each upsert.
+**Why not separate tables:** A single table with `kind` means one query to fetch all surface data for any node, one FTS5 virtual table covers all types in the future, and the `detectMismatches()` query keeps its existing `EXISTS (SELECT 1 FROM exposed_endpoints WHERE service_id = ...)` check — no JOIN across tables.
 
-**Example:**
+### 2. `persistFindings()` — Type-Conditional Dispatch
+
+**File:** `worker/db/query-engine.js` — lines 797-815
+**Type:** Modify existing
+
+Current code treats every `svc.exposes` item as `"METHOD PATH"`. Replace with dispatch on `svc.type`:
+
 ```javascript
-// migrations/004_dedup_constraints.js
-export const version = 4;
-export function up(db) {
-  db.exec(`
-    ALTER TABLE services ADD COLUMN canonical_name TEXT;
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_service_repo_name
-      ON services(repo_id, name);
-  `);
-}
-```
+// Replace lines 797-815 in persistFindings():
+for (const svc of findings.services || []) {
+  const svcId = serviceIdMap.get(svc.name);
+  if (!svcId || !svc.exposes) continue;
 
-After migration 004, `getGraph()` can drop the `WHERE s.id IN (SELECT MAX(id) FROM services GROUP BY name)` workaround — duplicates no longer exist.
+  for (const item of svc.exposes) {
+    let method = null;
+    let path = item.trim();
+    let kind = 'endpoint';
 
-### Pattern 3: MCP Multi-Project Resolution
+    if (svc.type === 'service') {
+      const parts = item.trim().split(/\s+/);
+      if (parts.length > 1) { method = parts[0]; path = parts[1]; }
+      kind = 'endpoint';
+    } else if (svc.type === 'library' || svc.type === 'sdk') {
+      kind = 'export';
+      // method stays null, path is raw function signature or type name
+    } else if (svc.type === 'infra') {
+      kind = 'resource';
+      // method stays null, path is raw resource ref ("k8s:deployment/name")
+    }
 
-**What:** Replace the module-level `dbPath` constant and single-open `openDb()` in `mcp/server.js` with a per-call `resolveDb(project)` helper. The `project` parameter (optional, on all five tools) accepts an absolute filesystem path to any repo or a 12-char project hash. When absent, falls back to `ALLCLEAR_PROJECT_ROOT` env var, then `process.cwd()` — identical to current behavior.
-
-**When to use:** All five MCP tool handlers call `resolveDb(params.project)` instead of the module-level `openDb()`. Pool caching in `pool.js` prevents repeated SQLite open overhead across tool calls for the same project.
-
-**Trade-offs:** The MCP server currently opens a single DB once and keeps it for its lifetime. After this change, it opens a connection per tool call (then closes it). Pool caching makes this cheap for repeated calls to the same project, but the first call to a new project incurs a full `openDb()` including migration run. For the MCP use case (agent queries), this is acceptable — query latency dominates.
-
-**Example:**
-```javascript
-// mcp/server.js additions
-import { getQueryEngine, getQueryEngineByHash } from '../db/pool.js';
-
-function resolveDb(project) {
-  if (!project) {
-    const root = process.env.ALLCLEAR_PROJECT_ROOT || process.cwd();
-    return getQueryEngine(root)?._db ?? null;
+    try {
+      this._db.prepare(
+        'INSERT OR IGNORE INTO exposed_endpoints (service_id, method, path, handler, kind) VALUES (?, ?, ?, ?, ?)'
+      ).run(svcId, method, path, svc.boundary_entry || null, kind);
+    } catch { /* ignore duplicates */ }
   }
-  if (project.startsWith('/')) {
-    return getQueryEngine(project)?._db ?? null;
+}
+```
+
+The `INSERT OR IGNORE` (matching existing code style) relies on the UNIQUE(service_id, method, path) constraint. For library/infra rows, `method` is always NULL so uniqueness is purely by `(service_id, path)`.
+
+### 3. `getGraph()` — Attach exposes to Service Nodes
+
+**File:** `worker/db/query-engine.js` — `getGraph()` method
+**Type:** Modify existing
+
+Currently `getGraph()` returns services with no `exposes` field. The detail panel needs exposes to render export/resource sections without an additional API call.
+
+Add after the services query:
+
+```javascript
+// After the services.all() call in getGraph():
+const allExposes = this._db.prepare(
+  'SELECT service_id, method, path, kind FROM exposed_endpoints'
+).all();
+
+const exposesByServiceId = {};
+for (const row of allExposes) {
+  if (!exposesByServiceId[row.service_id]) exposesByServiceId[row.service_id] = [];
+  exposesByServiceId[row.service_id].push(row);
+}
+for (const svc of services) {
+  svc.exposes = exposesByServiceId[svc.id] || [];
+}
+```
+
+The response shape change is additive — callers that ignore `exposes` (e.g. MCP tools, `/impact` route) are unaffected.
+
+### 4. `utils.js` — Add `infra` to `getNodeType()` and Color Map
+
+**File:** `worker/ui/modules/utils.js` and `worker/ui/modules/state.js`
+**Type:** Modify existing
+
+Without this fix, `infra` nodes fall through to `getNodeType()` returning `"service"`, and `showDetailPanel()` never reaches the infra renderer branch.
+
+In `utils.js`:
+```javascript
+export function getNodeType(node) {
+  if (node.type === 'infra') return 'infra';           // ADD THIS LINE
+  if (node.type === 'library' || node.type === 'sdk') return node.type;
+  if (node.name && /sdk|lib|client|shared|common/i.test(node.name)) return 'library';
+  if (node.name && /ui|frontend|web|dashboard|app/i.test(node.name)) return 'frontend';
+  return 'service';
+}
+```
+
+In `state.js` `NODE_TYPE_COLORS`:
+```javascript
+export const NODE_TYPE_COLORS = {
+  library:  '#9f7aea',
+  sdk:      '#9f7aea',
+  infra:    '#68d391',   // green — infrastructure/ops
+  frontend: '#f6ad55',
+  service:  '#4299e1',
+};
+```
+
+`getNodeColor()` in `utils.js` also needs the infra guard:
+```javascript
+export function getNodeColor(node) {
+  if (node.type === 'infra') return NODE_TYPE_COLORS.infra;   // ADD
+  if (node.type === 'library' || node.type === 'sdk') return NODE_TYPE_COLORS.library;
+  ...
+}
+```
+
+### 5. `detail-panel.js` — Three Render Paths
+
+**File:** `worker/ui/modules/detail-panel.js`
+**Type:** Modify existing
+
+**Routing change in `showDetailPanel()`:**
+```javascript
+// Replace the isLib conditional:
+if (nodeType === 'infra') {
+  html += renderInfraConnections(node, outgoing, nameById);
+} else if (nodeType === 'library' || nodeType === 'sdk') {
+  html += renderLibraryConnections(node, outgoing, incoming, nameById);
+} else {
+  html += renderServiceConnections(outgoing, incoming, nameById);  // unchanged
+}
+```
+
+**`renderLibraryConnections` signature change** (add `node` as first param):
+
+The function currently renders "Provides" and "Used by" from edge data alone. With `node.exposes` available, it should render an "Exports" section listing the actual function signatures:
+
+```javascript
+function renderLibraryConnections(node, outgoing, incoming, nameById) {
+  let html = '';
+
+  // Exports section — from exposes data
+  const exports = (node.exposes || []).filter(e => e.kind === 'export');
+  if (exports.length > 0) {
+    html += `<div class="detail-section">
+      <div class="detail-label">Exports (${exports.length})</div>`;
+    for (const ex of exports) {
+      html += `<div class="connection-item">
+        <div class="conn-path">${ex.path}</div>
+      </div>`;
+    }
+    html += `</div>`;
   }
-  // Assume 12-char hash
-  return getQueryEngineByHash(project)?._db ?? null;
+
+  // Used by — from incoming edges (deduplicated by service name)
+  if (incoming.length > 0) {
+    html += `<div class="detail-section">
+      <div class="detail-label">Used by (${incoming.length} services)</div>`;
+    const users = new Set();
+    for (const e of incoming) {
+      const source = nameById[e.source_service_id] || '?';
+      if (!users.has(source)) {
+        users.add(source);
+        html += `<div class="connection-item">
+          <div><span class="conn-target">${source}</span></div>
+          ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ''}
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  return html;
 }
-
-// Updated tool handler signature — example:
-server.tool(
-  'impact_query',
-  '...',
-  {
-    service: z.string(),
-    project: z.string().optional().describe(
-      'Absolute path to project root or 12-char project hash. ' +
-      'Defaults to ALLCLEAR_PROJECT_ROOT or cwd.'
-    ),
-    // ... existing params unchanged
-  },
-  async (params) => {
-    const db = resolveDb(params.project);
-    const result = await queryImpact(db, params);
-    // Note: do NOT close db here — pool.js owns the connection lifetime
-    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
-  },
-);
 ```
 
-Note: the current pattern calls `db.close()` after each tool invocation. With pool.js ownership, this must stop — pool.js caches the open connection for reuse. The existing `openDb()` in mcp/server.js opens a fresh `new Database(dbPath, { readonly: true })` each time, so closing it was safe. Pool-managed connections must not be closed by callers.
-
-### Pattern 4: Canonical Name for Cross-Repo Identity
-
-**What:** Services with the same logical name in different repos get a shared `canonical_name`. When `_resolveServiceId(name)` fails to find an exact match in the current repo's services, it falls back to a lookup by `canonical_name`. This allows connections to cross repo boundaries when names are consistent.
-
-**When to use:** Migration 004 adds the `canonical_name` column. It defaults to `NULL`. The agent prompt can be updated to emit a `canonical_name` field in its JSON output. If absent, `canonical_name` stays `NULL` and the existing name-based lookup is the only path.
-
-**Trade-offs:** Naming consistency is a social/process problem, not purely a technical one. Canonical name is a low-overhead hook for future improvement. For v2.2, the agent prompt should be updated to emit service names consistently (using directory basename as the hint, which `scan/manager.js` already does via `serviceHint = basename(repoPath)`). Do not over-engineer this: start with name-match dedup, add canonical_name as a future extension.
-
----
-
-## Data Flow
-
-### Scan Flow (v2.2 changes highlighted)
-
-```
-scanRepos(repoPaths, options, queryEngine)
-    │
-    ├── qe.upsertRepo(repoData)              repos row, unchanged
-    ├── buildScanContext(...)                 mode: full|incremental|skip, unchanged
-    │
-    ├── [SKIP mode] → continue               no scan needed, unchanged
-    │
-    ├── [NEW] scanVersionId = qe.beginScan(repo.id)
-    │                                        INSERT INTO scan_versions
-    │                                        returns scanVersionId
-    │
-    ├── agentRunner(interpolatedPrompt, repoPath)    unchanged
-    ├── parseAgentOutput(rawResponse)               unchanged
-    │
-    ├── [on parse failure] → results.push(error)
-    │         endScan is NOT called — old data preserved
-    │
-    ├── currentHead = getCurrentHead(repoPath)       unchanged
-    │
-    ├── qe.persistFindings(repoId, findings, currentHead, scanVersionId)
-    │       ├── upsertService({ ..., scan_version_id: scanVersionId })
-    │       │     └── UNIQUE(repo_id, name) fires
-    │       │         INSERT OR REPLACE: same (repo, name) → replaces old row
-    │       │         new row gets new id; serviceIdMap captures it immediately
-    │       ├── upsertConnection({ ..., scan_version_id: scanVersionId })
-    │       ├── upsertSchema / upsertField / exposed_endpoints   unchanged
-    │       └── setRepoState(repoId, currentHead)                unchanged
-    │
-    └── [NEW] qe.endScan(repo.id, scanVersionId)
-              ├── UPDATE scan_versions SET completed_at = now
-              ├── DELETE FROM connections WHERE source/target in stale services
-              └── DELETE FROM services WHERE repo_id = ? AND scan_version_id != ?
-```
-
-### MCP Query Flow (v2.2 changes highlighted)
-
-```
-Agent calls impact_query { service: "auth-service", project: "/workspace/api-gateway" }
-    │
-    ├── resolveDb("/workspace/api-gateway")
-    │       └── getQueryEngine("/workspace/api-gateway")     pool.js
-    │               ├── pool cache hit → return cached QueryEngine immediately
-    │               └── pool cache miss → openDb(root) → migrations run → new QueryEngine
-    │                                                    → cache it → return
-    │
-    ├── queryImpact(qe._db, { service: "auth-service", ... })
-    │       └── SELECT id FROM services WHERE name = 'auth-service'
-    │           SELECT ... FROM connections ...
-    │
-    └── return { results: [...] }
-         // db is NOT closed — pool owns the connection
-```
-
-### Cross-Repo Connection Resolution (within persistFindings)
-
-```
-Agent output: connections[{ source: "api-gateway", target: "auth-service" }]
-    │
-    ├── serviceIdMap has "api-gateway" → sourceId = serviceIdMap.get("api-gateway")
-    │
-    ├── serviceIdMap does NOT have "auth-service" (it's in a different repo)
-    │
-    └── _resolveServiceId("auth-service")
-            ├── SELECT id FROM services WHERE name = 'auth-service'   PRIMARY
-            │   → finds the auth-service row (different repo_id, same DB)
-            │   → returns its id
-            │
-            └── [future] SELECT id FROM services WHERE canonical_name = 'auth-service'
-                → fallback if name lookup fails
-```
-
-### Key Data Flows
-
-1. **Dedup on re-scan:** UNIQUE(repo_id, name) + INSERT OR REPLACE means the second scan of any repo replaces service rows in-place rather than appending duplicates. The scan version bracket ensures only current-scan rows survive — stale rows from the previous scan are deleted atomically after the new scan completes.
-
-2. **Cross-project MCP query:** Agent passes `project` param (absolute path to any repo). MCP server calls `getQueryEngine(project)` from pool.js, which hashes the path, opens the correct per-project SQLite DB (running any pending migrations), and returns the cached QueryEngine. Each project's DB is queried independently — no shared DB required.
-
-3. **Orphan connection prevention:** `endScan` deletes connections referencing stale service rows before deleting the service rows themselves, respecting FK constraints. The delete order is critical: connections first, then services.
-
----
-
-## Integration Points
-
-### New vs Modified: Summary Table
-
-| File | New or Modified | What Changes |
-|------|-----------------|--------------|
-| `worker/db/migrations/004_dedup_constraints.js` | NEW | UNIQUE(repo_id, name) index; canonical_name column |
-| `worker/db/migrations/005_scan_versions.js` | NEW | scan_versions table; scan_version_id columns on services + connections |
-| `worker/db/query-engine.js` | MODIFIED | +beginScan, +endScan; persistFindings accepts scanVersionId; getGraph removes workaround |
-| `worker/scan/manager.js` | MODIFIED | beginScan call before agent; endScan call after persistFindings |
-| `worker/mcp/server.js` | MODIFIED | resolveDb() helper; +project param on all 5 tools; stop closing pool-owned connections |
-| `worker/db/pool.js` | MODIFIED | Remove inline migration workaround in getQueryEngineByHash (lines 178-202) |
-| `worker/db/database.js` | UNCHANGED | Auto-discovers migrations; no code changes needed |
-| `worker/server/http.js` | UNCHANGED | Already uses pool.js with ?project= and ?hash= |
-
-### Component Boundaries
-
-| Boundary | Communication Pattern | Notes |
-|----------|-----------------------|-------|
-| scan/manager.js → QueryEngine | Direct method calls: beginScan, persistFindings, endScan | scanVersionId flows as a local variable — no state stored in manager |
-| mcp/server.js → pool.js | Import getQueryEngine, getQueryEngineByHash | MCP server currently uses its own DB open logic; must switch to pool.js |
-| pool.js → database.js | pool.js calls openDb(projectRoot) | Already the pattern for getQueryEngine(); getQueryEngineByHash() has an inline workaround to remove after migration files cover those versions |
-| QueryEngine._stmtUpsertService → services table | INSERT OR REPLACE; UNIQUE constraint fires on migration 004 | No application code change; the SQL statement is already correct |
-| QueryEngine.endScan → connections, services | Multi-step DELETE; connections before services | FK ordering matters; must delete connections referencing stale services first |
-
-### MCP Server DB Ownership Change
-
-This is the most structurally significant change. Today:
+**New `renderInfraConnections()` function:**
 
 ```javascript
-// mcp/server.js (current) — module-level, one DB for lifetime
-const dbPath = process.env.ALLCLEAR_DB_PATH || resolveDbPath(...);
-export function openDb() {
-  return new Database(dbPath, { readonly: true });
+function renderInfraConnections(node, outgoing, nameById) {
+  let html = '';
+
+  // Managed resources — from exposes data
+  const resources = (node.exposes || []).filter(e => e.kind === 'resource');
+  if (resources.length > 0) {
+    html += `<div class="detail-section">
+      <div class="detail-label">Manages (${resources.length})</div>`;
+    for (const r of resources) {
+      html += `<div class="connection-item">
+        <div class="conn-path">${r.path}</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Configures/Deploys — outgoing connections
+  if (outgoing.length > 0) {
+    html += `<div class="detail-section">
+      <div class="detail-label">Wires (${outgoing.length})</div>`;
+    for (const e of outgoing) {
+      const target = nameById[e.target_service_id] || '?';
+      html += `<div class="connection-item">
+        <div><span class="conn-method">${e.method || e.protocol}</span>
+             <span class="conn-path">${e.path || ''}</span></div>
+        <div class="conn-direction">→ <span class="conn-target">${target}</span></div>
+        ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  return html;
 }
-// each tool: const db = openDb(); ... db.close();
 ```
-
-After v2.2:
-
-```javascript
-// mcp/server.js (v2.2) — per-call, pool-managed
-import { getQueryEngine, getQueryEngineByHash } from '../db/pool.js';
-function resolveDb(project) { ... }
-// each tool: const db = resolveDb(params.project);
-// NO db.close() — pool owns the connection
-```
-
-The local `openDb()` export in mcp/server.js is used by tests. These tests must be updated to use the new resolveDb() pattern or mock pool.js.
 
 ---
 
-## Build Order
+## What Does NOT Change
 
-Build order is driven by dependency: schema changes must land before application code that uses them; the workaround removal in getGraph() must happen after migration 004 is active.
+| Component | Reason |
+|-----------|--------|
+| `agent-prompt-service.md` | Service exposes format ("METHOD PATH") is correct as-is |
+| `agent-schema.json` | Already documents `exposes` as type-conditional; no structural change |
+| `GET /graph` route in `http.js` | Passes `qe.getGraph()` through; additive response shape is transparent |
+| `connections` table and all queries | Infra connections already store correctly (protocol=k8s/tf/helm, method=deploy/configure) |
+| `detectMismatches()` | Already filters on `protocol NOT IN ('internal','sdk','import')` — infra protocols (k8s/tf/helm) are excluded, so the mismatch query won't fire on infra nodes even after exposes data is stored |
+| `renderServiceConnections()` | Service panel is correct; no changes needed |
+| Web Worker / force simulation | Pure layout; unaffected |
+| MCP server tools | No `exposed_endpoints` queries in MCP tools; unaffected |
+| `loadProject()` in UI | Builds nodes from API response; `exposes` will flow through automatically once `getGraph()` returns it |
+
+---
+
+## Data Flow: v2.3 Changes
 
 ```
-Step 1 — migrations/004_dedup_constraints.js (NEW FILE)
-  UNIQUE(repo_id, name) index on services
-  canonical_name TEXT column (nullable, no default)
-  Benefit immediately: upsertService dedup works at DB layer
-  Dependency: none
-
-Step 2 — migrations/005_scan_versions.js (NEW FILE)
-  scan_versions table: id, repo_id, started_at, completed_at
-  ALTER services ADD COLUMN scan_version_id INTEGER REFERENCES scan_versions(id)
-  ALTER connections ADD COLUMN scan_version_id INTEGER REFERENCES scan_versions(id)
-  Dependency: step 1 should land first (same migration run is fine)
-
-Step 3 — QueryEngine.beginScan / endScan (MODIFIED query-engine.js)
-  New prepared statements for scan_versions INSERT/UPDATE
-  Multi-step DELETE in endScan (connections then services)
-  persistFindings accepts optional scanVersionId param (backward-compatible: NULL if not passed)
-  Dependency: step 2 (scan_versions table must exist)
-
-Step 4 — QueryEngine.getGraph: remove MAX(id) GROUP BY workaround (MODIFIED query-engine.js)
-  Remove WHERE s.id IN (SELECT MAX(id) FROM services GROUP BY name) from getGraph()
-  Dependency: step 1 (UNIQUE constraint guarantees no duplicates)
-  Can combine with step 3
-
-Step 5 — scan/manager.js: bracket beginScan/endScan (MODIFIED scan/manager.js)
-  Add scanVersionId = qe.beginScan(repo.id) before agent call
-  Pass scanVersionId to qe.persistFindings(...)
-  Add qe.endScan(repo.id, scanVersionId) after persistFindings on success path
-  Dependency: step 3
-
-Step 6 — mcp/server.js: project param + resolveDb() (MODIFIED mcp/server.js)
-  Add import of getQueryEngine, getQueryEngineByHash from pool.js
-  Replace module-level dbPath/openDb() with resolveDb(project)
-  Add optional project param to all 5 tool schemas
-  Remove db.close() calls in tool handlers
-  Update/mock tests that used the local openDb() export
-  Dependency: none (independent of steps 1-5; can be done in parallel)
-
-Step 7 — pool.js: remove inline migration workaround (MODIFIED pool.js)
-  Remove lines 178-202 from getQueryEngineByHash() (v2, v3 inline migration checks)
-  Replace with openDb() via projectRoot resolution or trust that migrations auto-run
-  Dependency: steps 1 + 2 migration files exist and cover those schema versions
+Agent scan → findings.services[i].exposes (type-conditional strings)
+    │
+    ▼
+persistFindings() → dispatch on svc.type:
+    service  → kind='endpoint',  method=HTTP verb, path=URL path
+    library  → kind='export',    method=null,      path=fn signature / type name
+    infra    → kind='resource',  method=null,      path=k8s/tf/helm ref
+    │
+    ▼
+exposed_endpoints rows with kind discriminant
+    │
+    ▼
+getGraph() → attach svc.exposes = [{kind, method, path}, ...] to each service row
+    │
+    ▼
+GET /graph response → services[i].exposes present
+    │
+    ▼
+state.graphData.nodes[i].exposes = [...]  (loadProject() unchanged)
+    │
+    ▼
+showDetailPanel(node) → node.exposes available to all renderers:
+    infra   → renderInfraConnections(node, ...)
+              → node.exposes.filter(e => e.kind === 'resource')  "Manages" section
+              → outgoing edges labeled by method (deploy/configure)  "Wires" section
+    library → renderLibraryConnections(node, ...)
+              → node.exposes.filter(e => e.kind === 'export')    "Exports" section
+              → incoming edges deduplicated by source              "Used by" section
+    service → renderServiceConnections(...)  UNCHANGED
 ```
 
-Steps 1-2 can be a single PR (both migration files). Steps 3-4-5 can be a single PR (QueryEngine + scan/manager). Step 6 can be a separate PR in parallel. Step 7 is cleanup after all migration files are merged.
+---
+
+## Recommended Build Order
+
+Dependencies flow strictly bottom-up. Schema changes must land before application code that relies on them.
+
+### Step 1 — Migration 007: Add `kind` column (NEW FILE)
+
+**File:** `worker/db/migrations/007_expose_kind.js`
+**What:** `ALTER TABLE exposed_endpoints ADD COLUMN kind TEXT NOT NULL DEFAULT 'endpoint'`
+**Why first:** All subsequent steps depend on this column. Adding a column with DEFAULT is instant and non-destructive on existing rows (they get `kind='endpoint'` automatically).
+**Risk:** None — pure schema addition, no query changes required.
+
+### Step 2 — Fix `persistFindings()`: Type-Conditional Storage (MODIFY `query-engine.js`)
+
+**What:** Replace "METHOD PATH" string split (lines 797-815) with `svc.type` dispatch that sets `kind` correctly for library and infra exposes.
+**Why second:** Depends on Step 1 (kind column must exist in INSERT). This is the core correctness fix.
+**Risk:** Low — only the INSERT path changes; all existing read queries are unaffected. Service exposes behavior unchanged.
+
+### Step 3 — Update `getGraph()`: Attach Exposes to Service Nodes (MODIFY `query-engine.js`)
+
+**What:** Query all `exposed_endpoints` rows after loading services; group by `service_id`; attach as `svc.exposes` array in the response.
+**Why third:** Depends on Step 2 producing correct `kind` values. Must precede UI changes so nodes carry exposes data.
+**Risk:** Low — additive change to response shape; no existing consumer breaks.
+
+### Step 4 — Fix `utils.js`: Add `infra` to Type Detection (MODIFY `utils.js` + `state.js`)
+
+**What:** Add `if (node.type === 'infra') return 'infra'` guard in `getNodeType()`; add infra guard in `getNodeColor()`; add `infra` color to `NODE_TYPE_COLORS` in `state.js`.
+**Why fourth:** Without this, the routing in Step 5 never reaches the infra branch. Must precede panel changes.
+**Risk:** None — purely additive guards; does not change behavior for service/library/sdk/frontend nodes.
+
+### Step 5 — Expand `detail-panel.js`: Three Render Paths (MODIFY `detail-panel.js`)
+
+**What:**
+- Update routing in `showDetailPanel()` to detect `nodeType === 'infra'`
+- Add `node` as first param to `renderLibraryConnections()`; add "Exports" section from `node.exposes`
+- Add new `renderInfraConnections(node, outgoing, nameById)` function; render "Manages" + "Wires" sections
+**Why last:** Depends on all prior steps — needs `node.type === 'infra'` routed correctly (Step 4), `node.exposes` present (Step 3), and correct `kind` values (Step 2).
+**Risk:** Moderate — `renderLibraryConnections` signature changes (old 3-arg → new 4-arg with `node` as first). Confirm no other callers exist (currently only called from `showDetailPanel()` in the same file — confirmed safe).
+
+---
+
+## Integration Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Migration 007 ↔ `persistFindings()` | Direct SQLite schema | Migration must run before any INSERT with `kind` column |
+| `getGraph()` ↔ `loadProject()` in UI | HTTP JSON | `exposes` is additive; old UI ignores unknown fields gracefully |
+| `detail-panel.js` ↔ `utils.js` | ES module import | `getNodeType()` must return `'infra'` before panel routing works |
+| `renderLibraryConnections()` ↔ callers | Module-internal function | Only called once from `showDetailPanel()` — safe to change signature |
+| `detectMismatches()` ↔ `exposed_endpoints` | Direct SQL query | Mismatch query filters by `protocol NOT IN ('internal','sdk','import')` — infra protocols (k8s, tf, helm) are already excluded; adding `kind` column does not affect this query |
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Deleting All Rows Before Re-Insert
+### Anti-Pattern 1: Fetch Exposes on Panel Click
 
-**What people do:** `DELETE FROM services WHERE repo_id = ?` before each scan, then re-insert everything from the agent output.
+**What people do:** Add `GET /node-detail/:id` that returns exposes for a single node when the panel opens.
+**Why wrong:** Adds a round-trip latency on every click. The `/graph` response already loads all node data at project switch time. A per-click request adds 20-200ms and requires error handling for the loading state.
+**Do this instead:** Attach `exposes` to service rows in `getGraph()`. One network call at project load covers all panel data needs.
 
-**Why it's wrong:** Destroys FK references from connections mid-transaction. If the agent fails after deletion but before re-insert, the DB is empty for that repo. Visible gap in the graph during scan execution. Also means old data is unavailable if the new scan produces worse output (agent hallucination, partial parse).
+### Anti-Pattern 2: Parse exposes Format at Render Time
 
-**Do this instead:** Scan version bracket — new rows carry the new `scan_version_id`; old rows survive until `endScan` confirms the scan succeeded. Old data remains queryable during the scan.
+**What people do:** Store the raw agent string and split "METHOD PATH" in the UI renderer, with special cases per node type.
+**Why wrong:** The parser belongs at storage time where `svc.type` is known. Parsing in the UI duplicates the same broken "METHOD PATH" logic and requires the renderer to know about three different string formats.
+**Do this instead:** Parse and tag with `kind` at `persistFindings()` time. UI receives pre-classified rows with explicit `kind`, `method`, and `path` fields.
 
-### Anti-Pattern 2: MAX(id) GROUP BY name as Permanent Fix
+### Anti-Pattern 3: Separate Tables per Type
 
-**What people do:** Keep the `WHERE s.id IN (SELECT MAX(id) FROM services GROUP BY name)` in `getGraph()` permanently as the dedup mechanism.
+**What people do:** Create `library_exports (service_id, signature, file)` and `infra_resources (service_id, resource_ref, file)` tables, keeping `exposed_endpoints` HTTP-only.
+**Why wrong:** Any cross-type "what does this node expose?" query requires a three-way UNION. FTS5 indexing would need separate virtual tables per type. The mismatch detection query cannot reference a single table. Every future cross-cutting feature (search, export reports) must be updated for each table.
+**Do this instead:** Single `exposed_endpoints` table with `kind` discriminant. One query, one index, one table.
 
-**Why it's wrong:** It hides symptoms without fixing the root cause. Connections table still references the lower-id (stale) service rows — those connections are invisible in the graph even though they exist in the DB. FTS5 index also contains all duplicates, making search results noisy.
+### Anti-Pattern 4: Skipping the `infra` Guard in `getNodeType()`
 
-**Do this instead:** Migration 004 UNIQUE constraint + scan version bracket. Once migration 004 runs, there are no duplicates to hide. Remove the GROUP BY workaround from getGraph().
-
-### Anti-Pattern 3: Closing Pool-Managed Connections in MCP Tool Handlers
-
-**What people do:** Keep `if (db) db.close()` after each MCP tool call after switching to pool.js.
-
-**Why it's wrong:** Pool.js caches the open connection keyed by projectRoot. Closing it invalidates the cache entry, so the next tool call for the same project incurs a full openDb() + migrations run again. Also, the next call may fail if the DB is in the process of closing.
-
-**Do this instead:** Do not close pool-managed connections. Pool.js owns the connection lifetime for the worker process. The MCP server process only closes connections on SIGTERM (which terminates the process anyway).
-
-### Anti-Pattern 4: Inline Migration Logic in pool.js
-
-**What people do:** Add schema version checks directly in `getQueryEngineByHash()` (this already exists as a workaround — lines 178-202 of pool.js handle v2 and v3 inline).
-
-**Why it's wrong:** Migration logic is duplicated. When new migrations land (004, 005), pool.js needs manual updates too. This is the exact situation that caused the workaround: `openDb()` via `getQueryEngine()` runs migrations automatically, but `getQueryEngineByHash()` opened the DB directly and skipped the migration system.
-
-**Do this instead:** After migration files 004 and 005 exist, remove the inline workaround. `getQueryEngineByHash()` should open via a path that triggers `runMigrations()`, or call `openDb()` with a fake projectRoot derived from the hash path.
-
-### Anti-Pattern 5: scan_version_id as Required Column
-
-**What people do:** Add `scan_version_id NOT NULL` to services and connections in migration 005.
-
-**Why it's wrong:** Existing rows in already-deployed databases have no `scan_version_id`. Making it NOT NULL with no default causes migration to fail on existing DBs. Making it NOT NULL with DEFAULT 0 is also wrong — 0 is not a valid scan_versions.id.
-
-**Do this instead:** Add `scan_version_id INTEGER REFERENCES scan_versions(id)` as nullable (no NOT NULL, no DEFAULT). Existing rows get NULL. The scan version bracket only stamps rows it creates. `endScan` targets rows `WHERE scan_version_id != ?` which correctly leaves NULL rows (from pre-v2.2 data) alone until the next full scan replaces them.
+**What people do:** Add infra rendering to `detail-panel.js` without first fixing `getNodeType()` in `utils.js`.
+**Why wrong:** `showDetailPanel()` calls `getNodeType(node)` to determine which renderer to use. Without the `infra` guard, infra nodes return `"service"` from `getNodeType()` and route to `renderServiceConnections()` — the infra renderer is never reached.
+**Do this instead:** Fix `utils.js` (Step 4) before modifying `detail-panel.js` (Step 5).
 
 ---
 
-## Scaling Considerations
+## Recommended Project Structure Changes
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 1-20 repos, <1000 services per repo | Current per-project SQLite; no adjustments needed |
-| 20-100 repos | listProjects() opens all DBs at startup; add in-memory project index cache with 60s TTL |
-| 100+ repos | endScan DELETE across large services tables; batch delete in chunks of 500 rows if needed |
+```
+worker/
+├── db/
+│   ├── migrations/
+│   │   ├── 001_initial_schema.js       # unchanged
+│   │   ├── 002_service_type.js         # unchanged
+│   │   ├── 003_exposed_endpoints.js    # unchanged
+│   │   ├── 004_dedup_constraints.js    # unchanged (from v2.2)
+│   │   ├── 005_scan_versions.js        # unchanged (from v2.2)
+│   │   ├── 006_dedup_repos.js          # unchanged (from v2.2)
+│   │   └── 007_expose_kind.js          # NEW: kind column on exposed_endpoints
+│   └── query-engine.js                 # MODIFIED: persistFindings dispatch + getGraph exposes
+└── ui/
+    └── modules/
+        ├── state.js                    # MODIFIED: add infra to NODE_TYPE_COLORS
+        ├── utils.js                    # MODIFIED: getNodeType + getNodeColor infra guard
+        └── detail-panel.js             # MODIFIED: 3-way routing + new renderInfraConnections
+```
 
-### Scaling Priorities
+---
 
-1. **First bottleneck:** `endScan` DELETE of stale connections + services. For typical repos (<500 services), this is a millisecond operation. For repos with thousands of services (e.g., a monorepo), consider wrapping in a transaction and batching.
-2. **Second bottleneck:** `getQueryEngineByHash` opening DB without pool cache for MCP tool calls across many projects. Pool caching handles repeated calls; first call per project takes ~50ms for migrations check. Acceptable for agent query latency.
+## Confidence Assessment
+
+| Area | Confidence | Source |
+|------|------------|--------|
+| Broken parser location | HIGH | Direct read of query-engine.js lines 797-815 |
+| exposed_endpoints schema | HIGH | Migration 003 read directly |
+| getGraph() response shape | HIGH | query-engine.js getGraph() read directly |
+| detail-panel routing | HIGH | detail-panel.js and interactions.js read directly |
+| utils.js type detection gap | HIGH | utils.js getNodeType() confirmed — no infra guard exists |
+| Migration numbering (007) | HIGH | Migrations 004-006 confirmed in directory listing |
+| renderLibraryConnections caller count | HIGH | Only called from showDetailPanel() in same file — confirmed |
+| detectMismatches() compatibility | HIGH | Query filter confirmed: `protocol NOT IN ('internal','sdk','import')` excludes infra |
 
 ---
 
 ## Sources
 
-- `worker/db/database.js` — migration auto-discovery system, openDb lifecycle (source code, HIGH confidence)
-- `worker/db/pool.js` — projectHashDir, pool cache, listProjects, inline migration workaround to remove (source code, HIGH confidence)
-- `worker/db/query-engine.js` — upsertService (INSERT OR REPLACE), persistFindings, getGraph MAX(id) workaround, _resolveServiceId cross-repo lookup (source code, HIGH confidence)
-- `worker/db/migrations/001_initial_schema.js` — services table without UNIQUE constraint; confirmed absence of constraint (source code, HIGH confidence)
-- `worker/db/migrations/002_service_type.js`, `003_exposed_endpoints.js` — current max schema version is 3 (source code, HIGH confidence)
-- `worker/scan/manager.js` — scanRepos call sites for upsertRepo, persistFindings, setRepoState (source code, HIGH confidence)
-- `worker/mcp/server.js` — module-level dbPath constant; local openDb(); db.close() pattern in tool handlers (source code, HIGH confidence)
-- `.planning/PROJECT.md` — known tech debt SCAN-01..04, v2.2 milestone goals (source code, HIGH confidence)
+- `worker/db/query-engine.js` — persistFindings() broken parser (lines 797-815), getGraph() shape, detectMismatches() filter (source code, HIGH)
+- `worker/db/migrations/003_exposed_endpoints.js` — current exposed_endpoints schema (source code, HIGH)
+- `worker/db/migrations/` directory — confirmed 001-006 exist; next migration is 007 (source code, HIGH)
+- `worker/server/http.js` — GET /graph passthrough, no exposes in response (source code, HIGH)
+- `worker/ui/modules/detail-panel.js` — routing logic, renderLibraryConnections/renderServiceConnections (source code, HIGH)
+- `worker/ui/modules/utils.js` — getNodeType() confirmed missing infra guard (source code, HIGH)
+- `worker/ui/modules/state.js` — NODE_TYPE_COLORS missing infra entry (source code, HIGH)
+- `worker/scan/agent-prompt-library.md` — library exposes format: function signatures (source code, HIGH)
+- `worker/scan/agent-prompt-infra.md` — infra exposes format: k8s:/tf:/helm: prefixed refs (source code, HIGH)
+- `worker/scan/agent-schema.json` — exposes as string array, format type-conditional (source code, HIGH)
+- `.planning/PROJECT.md` — v2.3 milestone goals and out-of-scope constraints (source code, HIGH)
 
 ---
-*Architecture research for: AllClear v2.2 Scan Data Integrity*
-*Researched: 2026-03-16*
+
+*Architecture research for: AllClear v2.3 Type-Specific Detail Panels*
+*Researched: 2026-03-17*

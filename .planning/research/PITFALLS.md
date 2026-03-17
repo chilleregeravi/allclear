@@ -1,149 +1,135 @@
 # Pitfalls Research
 
-**Domain:** SQLite-backed service dependency graph — adding idempotent upserts, cross-repo service identity merging, scan versioning, and cross-project MCP queries to an existing live system
-**Researched:** 2026-03-16
-**Confidence:** HIGH (SQLite official docs confirmed; codebase inspected; better-sqlite3 GitHub issues cross-referenced; Dexter's Log foreign key cascade post verified)
+**Domain:** Type-specific detail panels and type-conditional data models in an existing SQLite-backed service dependency graph (AllClear v2.3)
+**Researched:** 2026-03-17
+**Confidence:** HIGH — based on direct codebase inspection of all relevant files; all failure modes confirmed against actual code paths in `worker/db/query-engine.js`, `worker/scan/findings.js`, `worker/ui/modules/detail-panel.js`, `worker/db/migrations/003_exposed_endpoints.js`, and the three type-specific agent prompts
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: INSERT OR REPLACE Silently Deletes All Child Rows (Connections, Endpoints, Schemas, Fields)
+### Pitfall 1: The "METHOD PATH" Parser Silently Discards All Library and Infra Exposes Data
 
 **What goes wrong:**
-`INSERT OR REPLACE` is not an update — it is a delete-then-reinsert. When the services table has a row with `(repo_id=1, name="auth-service")` and you INSERT OR REPLACE a new row for the same service, SQLite deletes the old row first, reassigns a new `id`, then inserts the fresh row. Every row in `connections`, `exposed_endpoints`, `schemas`, and `fields` that referenced the old `services.id` is cascade-deleted (because `foreign_keys = ON` is set in `database.js`). The service appears in the graph with the right name but zero connections and zero endpoints — silently, with no error.
+`persistFindings()` in `query-engine.js` (lines 797–815) processes `svc.exposes` with a single split on whitespace: `parts = endpoint.trim().split(/\s+/)`. For service endpoints this works — `"GET /users"` splits into `["GET", "/users"]`. For library exports it fails silently: `"createClient(config: ClientConfig): EdgeworksClient"` splits into `["createClient(config:", "ClientConfig):", "EdgeworksClient"]` and stores method `"createClient(config:"`, path `"ClientConfig):"`. For infra resources it also fails: `"k8s:deployment/payment-service"` stores method `null` (only one part), path `"k8s:deployment/payment-service"` — which is correct by accident, but `"k8s:ingress/payment → payment.example.com"` splits on the space before `→` and stores method `"k8s:ingress/payment"`, path `"→"`. None of these throw errors — they insert silently into `exposed_endpoints` with malformed data.
 
 **Why it happens:**
-The current `_stmtUpsertService` in `query-engine.js` uses `INSERT OR REPLACE INTO services`. This was written before scan deduplication was a requirement. Without a UNIQUE constraint on `(repo_id, name)`, REPLACE never fires its conflict path — but as soon as migration 004 adds that UNIQUE constraint, every re-scan triggers the delete-then-reinsert path and wipes the connection graph for each re-scanned service.
+The `exposed_endpoints` table and `persistFindings()` were written for REST services before library and infra types were added. The schema assumes all exposes entries are `"METHOD PATH"` pairs. The parser was never updated when the library and infra agent prompts were added in a later phase.
 
 **How to avoid:**
-Replace `INSERT OR REPLACE` with `INSERT ... ON CONFLICT(repo_id, name) DO UPDATE SET root_path=excluded.root_path, language=excluded.language, type=excluded.type`. This performs an in-place update that preserves the existing `id` and leaves all child rows intact.
+Type-dispatch in `persistFindings()` before parsing `svc.exposes`. Use `svc.type` to decide the parse strategy:
+- `service`: existing `split(/\s+/)` for `"METHOD PATH"` format
+- `library` / `sdk`: store the entire string as `path`, leave `method` null. The path IS the function signature or type name.
+- `infra`: extract the typed prefix (`k8s:`, `tf:`, `helm:`, `compose:`) as a structured identifier. Store the full string as `path`, leave `method` null.
 
-```sql
-INSERT INTO services (repo_id, name, root_path, language, type)
-VALUES (@repo_id, @name, @root_path, @language, @type)
-ON CONFLICT(repo_id, name) DO UPDATE SET
-  root_path = excluded.root_path,
-  language  = excluded.language,
-  type      = excluded.type
-```
-
-Apply the same change to `repos` (upsert by `path`) and `repo_state` (upsert by `repo_id`) — both already use `INSERT OR REPLACE` and have the same latent risk.
+This also means the `exposed_endpoints` UNIQUE constraint `UNIQUE(service_id, method, path)` may need to accommodate `method = null` for library/infra rows — verify that `NULL` values are handled correctly by SQLite's UNIQUE index (they are: SQLite treats each NULL as distinct, so two rows with the same `path` but `method = NULL` do NOT conflict).
 
 **Warning signs:**
-- After a re-scan, the graph shows service nodes but no edges
-- `exposed_endpoints` table is empty after the second scan of any repo
-- `connections` count drops to zero immediately after `writeScan()` completes
+- Library nodes show "No connections" in the detail panel despite having exported functions
+- `SELECT * FROM exposed_endpoints WHERE service_id = <lib_id>` shows rows with `path = "→"` or `path = "ClientConfig):"`
+- Infra nodes show zero exposes in the detail panel despite agent scanning them
 
 **Phase to address:**
-Schema migration phase (add UNIQUE constraint) must be paired atomically with the upsert syntax rewrite. If the UNIQUE constraint is added first (migration) before the upsert statements are rewritten (code), the first re-scan after deploying migration 004 will cascade-delete everything. Both changes must ship together.
+Data storage phase (Schema migration + `persistFindings()` rewrite). Must be done before the UI detail panel phase — the panel cannot show correct data until the storage layer stores it correctly.
 
 ---
 
-### Pitfall 2: Adding UNIQUE Constraint to `services` Table Fails if Duplicate Rows Already Exist
+### Pitfall 2: renderLibraryConnections() Shows Nothing Because Libraries Have No Edges in This Schema
 
 **What goes wrong:**
-The current `services` table has no UNIQUE constraint on `(repo_id, name)`. Every re-scan appends new rows for the same service rather than updating existing ones. Production databases already contain multiple rows for the same `(repo_id, name)` pair — this is the bug that v2.2 is fixing. When migration 004 tries to create a new `services` table with `UNIQUE(repo_id, name)` and copies the old data into it (SQLite's required pattern for adding constraints), the `INSERT INTO new_services SELECT * FROM old_services` statement fails with `UNIQUE constraint failed` on the first duplicate it encounters. The migration transaction rolls back and the schema stays at version 3 forever.
+`renderLibraryConnections()` in `detail-panel.js` filters `state.graphData.edges` for connections where the library is the source or target. This works correctly — IF there are edges between the library and its consumers. But in the current schema, `exposed_endpoints` stores what a service exposes; it does NOT create edges in the `connections` table between a library and its consumers. A library node appears in the graph with `type = "library"` but `incoming.length === 0` and `outgoing.length === 0`, so the panel renders the "No connections" fallback even though the library has consumers.
+
+The root issue is that connections are only created when an agent scans the consuming service and reports a connection to the library. If only the library repo has been scanned (but not its consumers), there are no edges, and the panel correctly shows nothing. But even when consumer repos have been scanned, `renderLibraryConnections()` retrieves the function signature from `e.method` and `e.path` on the connection edge — which were set by the consuming service's scanner, not the library's `exposes` list. The library's own exposes data (its public API surface) is stored in `exposed_endpoints` but is never fetched by the UI.
 
 **Why it happens:**
-SQLite cannot add constraints with `ALTER TABLE` — it requires the rename-create-copy-drop pattern. The copy step runs an unconstrained INSERT that fails if the source table contains duplicates. The migration author assumes the table is clean, but the whole reason for this migration is that it is not clean.
+The detail panel was built on top of the `connections` graph (edges between nodes). Library/infra exposes data is in a separate table (`exposed_endpoints`) that the UI never queries. There is no API endpoint that returns a service's exposed endpoints to the UI.
 
 **How to avoid:**
-The copy step must deduplicate before inserting. Use a `GROUP BY` with `MAX(id)` to keep only the most recent row per `(repo_id, name)` pair:
-
-```sql
-INSERT INTO services_new (id, repo_id, name, root_path, language, type)
-SELECT MAX(id), repo_id, name, root_path, language, type
-FROM services_old
-GROUP BY repo_id, name;
-```
-
-Then migrate `connections`, `schemas`, and `fields` to re-point to the surviving `MAX(id)` rows. Rows referencing a deleted duplicate `id` must be updated to reference the surviving `id`, or deleted if their source and target both resolve to the same surviving service.
+The detail panel for library and infra nodes needs to query `exposed_endpoints` directly, not derive information from edges. Add a new HTTP route `GET /api/exposes?service_id=<id>` (or include exposes in the `GET /graph` response) so the UI can show a library's exported functions alongside (or instead of) the edge-derived connection list. The existing `renderLibraryConnections()` then becomes a secondary section ("Consumer services using this library") while the new primary section shows "Exported API" from `exposed_endpoints`.
 
 **Warning signs:**
-- Migration 004 fails with `SQLITE_CONSTRAINT_UNIQUE` on first run against a real database
-- Worker fails to start because `runMigrations()` throws and `_db` is never set
-- Schema version stays at 3 after worker restart attempts
+- Library detail panel always shows "No connections" regardless of scan results
+- The `exposed_endpoints` table has rows for the library but the panel never shows them
+- `renderLibraryConnections()` is not broken — it just has no data to show because edges are never populated from `exposed_endpoints`
 
 **Phase to address:**
-Migration 004 implementation phase. Write the migration against a database that already has duplicates — not against a fresh test database. Add an integration test that seeds duplicates before running migration 004.
+HTTP API + UI panel phase. Cannot be addressed by fixing `persistFindings()` alone — requires a new data fetch path from UI to DB.
 
 ---
 
-### Pitfall 3: FTS5 Index Desynchronization After `INSERT OR REPLACE` Reassigns Row IDs
+### Pitfall 3: Migration for Type-Conditional Storage Breaks the UNIQUE Constraint on exposed_endpoints
 
 **What goes wrong:**
-The `services_fts` table is a content-mode FTS5 table backed by `services.rowid`. When `INSERT OR REPLACE` deletes the old service row (old `id` = 42) and inserts a new one (new `id` = 99), the `services_ad` trigger fires on delete (removes rowid 42 from the FTS index) and `services_ai` fires on insert (adds rowid 99). This is correct. However, `services_fts MATCH 'auth-service'` now returns rowid 99, which maps to the newly created service row. Any stale FTS results cached by the `search()` function that reference the old rowid 42 will return no rows from the backing table — FTS5 says the service exists but the joined query returns nothing. More seriously: after the duplicate-elimination migration, some rowids change en masse. The FTS index is not rebuilt. All FTS searches silently return stale or empty results until the index is rebuilt with `INSERT INTO services_fts(services_fts) VALUES('rebuild')`.
+The current `exposed_endpoints` schema has `UNIQUE(service_id, method, path)`. When the parser is fixed (Pitfall 1) to store library exports as `method = NULL, path = "functionName(...)"`, two separate exports with different signatures insert fine. But when the agent re-scans and produces the same export list, `INSERT OR IGNORE` fires correctly on `(service_id, NULL, "createClient(config: ClientConfig): EdgeworksClient")`. This is correct.
+
+However, if the existing `exposed_endpoints` table already contains rows with malformed data from the broken parser (e.g., `path = "→"`, `path = "ClientConfig):"`) and a migration adds a `type` column to distinguish service vs. library vs. infra rows without first cleaning up the malformed rows, the `exposed_endpoints` table becomes permanently polluted. The UNIQUE constraint prevents the corrected rows from being inserted on next scan (`INSERT OR IGNORE` silently skips the new row because the old malformed row still exists for the same `(service_id, method, path)` triple).
 
 **Why it happens:**
-FTS5 content tables maintain their own shadow index. They synchronize through triggers on INSERT/UPDATE/DELETE. When rows are deleted and reinserted with new IDs (by REPLACE or by migration), the trigger chain fires correctly for individual upserts but the FTS index can diverge if a bulk operation bypasses triggers (e.g., a direct `INSERT INTO services_new SELECT ... FROM services_old` inside a migration — this goes directly to the new table's triggers, but the old FTS table still has the old rowids).
+The migration adds a column but does not clean up existing data. The `INSERT OR IGNORE` in `persistFindings()` treats the existing malformed row as a successful match and does not update it. The table stays malformed until the row is explicitly deleted or replaced.
 
 **How to avoid:**
-After any migration that rebuilds the `services` table (the rename-create-copy-drop pattern), explicitly rebuild all FTS5 indexes as the final step of the same migration transaction:
+Migration 007 must:
+1. Add the `expose_type` column to `exposed_endpoints` (TEXT, nullable, default null)
+2. DELETE all existing `exposed_endpoints` rows whose `path` does not match `^[A-Z]+ /` (service REST format) — these are malformed library/infra rows from the broken parser
+3. Set `expose_type = 'rest'` on all remaining rows (they are service rows)
 
-```sql
-INSERT INTO services_fts(services_fts) VALUES('rebuild');
-INSERT INTO connections_fts(connections_fts) VALUES('rebuild');
-INSERT INTO fields_fts(fields_fts) VALUES('rebuild');
-```
-
-This is a full O(N) rebuild but runs only once per migration and is safe in a transaction.
+Alternatively, change `persistFindings()` to use `INSERT OR REPLACE` (not `INSERT OR IGNORE`) for `exposed_endpoints` so that re-scans always update stale rows. But verify that `INSERT OR REPLACE` does not cascade-delete anything referencing `exposed_endpoints` — the current schema has no child tables referencing it, so this is safe.
 
 **Warning signs:**
-- FTS5 search returns service names but the JOIN to `services` returns no rows
-- `search()` function returns results with IDs that no longer exist in the `services` table
-- FTS results are a subset of actual services, missing recently re-scanned ones
+- After deploying the fix, library exposes still show malformed data
+- Re-scan of a library repo does not update the exposed functions list
+- `SELECT * FROM exposed_endpoints WHERE service_id = X` returns both old malformed rows and new correct rows for the same service
 
 **Phase to address:**
-Migration 004 implementation phase. Add the FTS rebuild as the last step of the migration, inside the same transaction.
+Schema migration phase (Migration 007). Must run before `persistFindings()` fix is deployed, or at least atomically with it.
 
 ---
 
-### Pitfall 4: Cross-Repo Service Identity Merging Creates False Edges by Name Collision
+### Pitfall 4: The Detail Panel Falls Into the Service Rendering Path for Infra Nodes
 
 **What goes wrong:**
-The v2.2 goal is to merge services with the same name across repos into one graph node. The `_resolveServiceId(name)` function in `query-engine.js` already does unscoped name lookup: `SELECT id FROM services WHERE name = ?`. If two repos each have a service named `worker` (a common generic name), the first scan creates `services(id=1, repo_id=1, name='worker')`. The second scan resolves `worker` to `id=1` and writes connections from repo 2's `worker` to repo 1's `worker`. The graph shows a self-referencing node. Impact queries traverse these phantom edges and report the wrong services as "affected." The user sees false positives on every `allclear:cross-impact` run.
+`showDetailPanel()` in `detail-panel.js` checks `getNodeType(node)` and routes to `renderLibraryConnections()` if `nodeType === "library" || nodeType === "sdk"`. All other types — including `"infra"` — fall through to `renderServiceConnections()`. An infra node then shows a "Calls" / "Called by" panel in service format, which misrepresents infra connections. An infra node's connections use `method: "deploy"` or `method: "configure"` and `protocol: "k8s"` — these display as `"deploy"` in the method badge and `"k8s:deployment/payment-service"` in the path field, which is technically accurate but contextually wrong ("Calls" implies an API call, not a deployment).
+
+More importantly: if infra-specific detail content (managed resources list) is later added to `renderInfraConnections()`, forgetting to add the `nodeType === "infra"` branch to the routing condition means the new function is never called. This is easy to miss because the service fallthrough "works" (shows something), hiding the bug.
 
 **Why it happens:**
-Service names are not globally unique across independent repos. `worker`, `server`, `api`, `gateway`, `proxy`, `scheduler` are common across any team's portfolio. Name-only resolution assumes names are globally canonical — this is only safe when the team has enforced a naming convention across repos, which most teams have not.
+The routing condition was written for the original two types (service and library). Infra was added as a third type after the panel was written. The condition was not updated.
 
 **How to avoid:**
-The identity merging strategy must be explicit, not implicit. Two options:
-
-1. **Agent-enforced canonical names**: The scan agent prompt instructs the agent to use the service's published name (from package.json, Cargo.toml, go.mod, etc.) not its folder name. Validation in `validateFindings()` rejects names that are too generic (block-list: `server`, `worker`, `api`, `app`, `main`).
-
-2. **Explicit cross-repo link table**: Add a `service_aliases` table that maps `(repo_id, local_name) → canonical_service_id`. Merging is only applied when an alias mapping exists. Default: no merging — services in different repos are always distinct nodes unless explicitly aliased.
-
-Option 2 is safer. Option 1 requires perfect agent compliance and has no enforcement fallback.
+Immediately add an `else if (nodeType === "infra")` branch, even before `renderInfraConnections()` is fully built. A stub that renders `<div>Infra node — managed resources panel coming soon</div>` is better than silently falling through to service rendering. This makes the routing explicit and prevents the service fallthrough from masking missing infra-specific content.
 
 **Warning signs:**
-- Impact graph shows a service connecting to itself (self-loop edge)
-- `/allclear:cross-impact` reports services in unrelated repos as affected
-- Two repos each have a node named `api` but only one appears in the graph (the other was merged into it)
+- Infra nodes show "Calls" and "Called by" section headers instead of "Manages" or "Deployed services"
+- `renderInfraConnections()` exists in the file but never appears in the rendered panel for any node
+- Clicking an infra node and a service node produces visually identical panel layouts
 
 **Phase to address:**
-Cross-repo identity merging phase. This is the highest-risk feature in v2.2. Start with option 1 (canonical names + block-list validation) as the MVP, not option 2, to avoid the complexity of the alias table. Block generic names at validation time before any merge logic runs.
+UI panel phase. Add the routing branch as the very first change before building any infra-specific HTML.
 
 ---
 
-### Pitfall 5: MCP Server Resolves DB Path from `process.cwd()` — Wrong DB When Invoked from Any Repo
+### Pitfall 5: getGraph() Does Not Return exposed_endpoints — UI Has No Source for Library/Infra Exposes
 
 **What goes wrong:**
-The MCP server in `worker/mcp/server.js` calls `resolveDbPath(process.env.ALLCLEAR_PROJECT_ROOT || process.cwd())`. When Claude Code invokes the MCP server, `process.cwd()` is the directory Claude Code was launched from, not the repo being queried. If the user opens Claude Code in `~/sources/frontend` and asks `allclear_impact` about a service in `~/sources/backend`, the MCP server opens `~/.allclear/projects/<hash-of-frontend>/impact-map.db` — a different database than the one the `backend` worker populated. The tool returns empty results with no error.
+The `/graph` endpoint returns `{ services, connections, repos, mismatches }`. The `state.graphData` object in the UI contains `nodes` (from services) and `edges` (from connections). There is no `exposes` collection in graph state. When the detail panel needs to show a library's exported API, it has no data to work with unless a separate fetch is made. If the panel is built under the assumption that exposes data is embedded in the node object (e.g., `node.exposes`), it will always render empty because the node objects from `getGraph()` do not include exposes data.
 
 **Why it happens:**
-The MCP server is a separate process from the worker. It doesn't know which worker is running or which project the agent is currently working in. `process.cwd()` reflects the shell working directory at MCP server startup, not the project being analyzed.
+`getGraph()` was written for the service-to-service connection graph. Exposes data is a per-service property stored in a separate table. The connection was never made between the graph data model and the exposes table.
 
 **How to avoid:**
-The MCP tools must accept a `projectRoot` parameter and pass it to `resolveDbPath()`. When the agent calls `allclear_impact({ service: "auth-service", projectRoot: "/Users/me/sources/backend" })`, the tool opens the correct per-project DB. The `projectRoot` parameter should be optional (falls back to `ALLCLEAR_PROJECT_ROOT` env var, then `process.cwd()`) so existing single-project usage is unaffected. Validate the resolved path: if the DB file does not exist at the resolved location, return a structured error `{ error: "no_scan_data", hint: "Run /allclear:map first" }` rather than silently returning empty results.
+Two valid approaches:
+1. **Embed in node**: Extend `getGraph()` to LEFT JOIN `exposed_endpoints` and attach `exposes: [{method, path, expose_type}]` directly to each service node. This is simpler for the UI but increases graph payload size.
+2. **Separate fetch**: Add `GET /api/service/:id/exposes` and fetch lazily when the user clicks a node. This is more efficient for large graphs (most nodes are services with no exposes).
+
+Approach 2 is better for the existing architecture because the detail panel already opens on click — the fetch can happen at click time. Avoid approach 1 for now because it increases payload size for every graph load even when the user never opens the detail panel.
 
 **Warning signs:**
-- MCP tool returns `{ results: [] }` for a service that definitely exists in the graph
-- Running `allclear_impact` from a different terminal directory changes the results
-- Two repos with different services appear to share the same MCP query result set
+- `node.exposes` is `undefined` in the detail panel render function
+- The exposes section renders empty even after `persistFindings()` is fixed
+- No API route exists that accepts a service ID and returns its exposed endpoints
 
 **Phase to address:**
-Cross-project MCP queries phase. All five MCP tool handlers must be updated to accept `projectRoot`. Add an integration test that opens two different project DBs and verifies each tool queries the correct one.
+HTTP API phase. Must precede the UI detail panel phase.
 
 ---
 
@@ -151,12 +137,10 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Keep `INSERT OR REPLACE` for services without adding UNIQUE constraint | No migration needed | Next re-scan appends duplicates forever; graph dedup stays as `MAX(id) GROUP BY name` workaround | Never — the workaround is in `getGraph()` and is already noted as tech debt (SCAN-01..04) |
-| Add UNIQUE constraint migration without deduplicating first | Simpler migration SQL | Migration fails on any real database with existing scans; worker refuses to start | Never — dedup must precede constraint |
-| Name-only service identity merging without block-list | Simpler merge code | False edges from generic names (`worker`, `api`, `server`) corrupt the graph | Never without block-list; never for unrecognized names |
-| Skip `projectRoot` parameter on MCP tools | No API change needed | All MCP queries silently query wrong DB in multi-repo setups | Never — defeats the entire purpose of cross-project queries |
-| Skip FTS rebuild after migration | Faster migration | FTS search returns stale or wrong rowids until next full re-scan | Never — FTS rebuild is O(rows) not O(DB size); cheap |
-| Snapshot files without size cap | Simpler code | Unbounded disk growth; 100 scans × 5 MB snapshot = 500 MB in `~/.allclear` | Acceptable only during early testing; add retention before shipping |
+| Re-use `exposed_endpoints` table for library/infra without adding an `expose_type` column | No schema migration needed | Library function signatures and infra resources mixed with REST endpoints in same table; mismatch detection queries must filter by service type to avoid false positives | Never — mismatch detection already queries this table and will flag function signatures as "missing endpoints" |
+| Add infra routing to detail panel by piggybacking on library branch (`nodeType === "library" \|\| nodeType === "infra"`) | One-line change | Infra and library have different semantics; library shows "Provided by" but infra should show "Manages"; shared rendering path produces confusing labels | Acceptable only as a temporary stub; give infra its own render function before the phase is marked complete |
+| Skip the `/api/service/:id/exposes` endpoint and embed exposes in `getGraph()` | No second fetch needed in UI | Graph payload grows by `(num_library_nodes + num_infra_nodes) × avg_exposes_count` entries; hits the browser DOM size limit at ~50 nodes with 30+ exports each | Acceptable only for single-team installs with < 10 library/infra nodes |
+| Use `INSERT OR IGNORE` instead of `INSERT OR REPLACE` for fixed `exposed_endpoints` parser | Simpler, no cascades possible (no child tables) | Existing malformed rows from old scanner block correct rows from being inserted; re-scan never fixes old stale data | Never after migration cleanup — only safe once migration deletes all malformed rows first |
 
 ---
 
@@ -164,12 +148,10 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `INSERT OR REPLACE` + `foreign_keys = ON` | Assuming REPLACE is a safe UPDATE synonym | REPLACE deletes and reinserts, firing ON DELETE CASCADE on all child tables; use `ON CONFLICT DO UPDATE` to update in-place |
-| FTS5 content table + table rebuild migration | Skipping FTS rebuild after rename-create-copy-drop | After migration, call `INSERT INTO services_fts(services_fts) VALUES('rebuild')` to resync the shadow index |
-| `ON CONFLICT DO UPDATE` + `excluded.` alias | Referencing column without `excluded.` prefix | In `DO UPDATE SET name = name` the right-hand `name` refers to the existing row value, not the proposed new value; use `excluded.name` for the incoming value |
-| `ON CONFLICT(col)` + no UNIQUE index on that column | Upsert clause silently ignored | SQLite requires a UNIQUE index on the conflict-target columns for `ON CONFLICT(col)` to activate; without the index, every row is treated as a fresh insert |
-| VACUUM INTO snapshot + WAL mode | Using `cp` to copy the DB file | `cp` copies the WAL sidecar, which may be in mid-transaction; `VACUUM INTO` creates a clean, consistent copy without WAL sidecars |
-| Cross-project MCP + `ALLCLEAR_PROJECT_ROOT` env | Setting env variable once at server start | MCP server is a long-running process; env var is fixed at startup; per-call `projectRoot` parameter is the correct mechanism for per-request DB routing |
+| `exposed_endpoints` UNIQUE(service_id, method, path) + `method = NULL` for library rows | Assuming two NULL methods won't conflict; or assuming they WILL conflict and using a workaround | SQLite treats each NULL as distinct in UNIQUE indexes — `(service_id=1, method=NULL, path="fn1")` and `(service_id=1, method=NULL, path="fn2")` are allowed; `(service_id=1, method=NULL, path="fn1")` inserted twice DOES conflict |
+| Detail panel state + project switcher teardown | Forgetting to clear exposes fetch cache on project switch | If exposes are fetched lazily per click and cached, the cache must be cleared in the project-switcher teardown path (see known tech debt: `setupControls()` listener accumulation) |
+| `getNodeType()` in `utils.js` returns `"library"` for both `type="library"` and `type="sdk"` nodes | Building infra logic that checks `getNodeType()` and misses raw `node.type === "infra"` | Verify whether `getNodeType()` maps `"infra"` or falls through to a default; add explicit `"infra"` handling in `getNodeType()` before using it in routing conditions |
+| New HTTP route for exposes + existing Fastify CORS config | Adding `/api/service/:id/exposes` without verifying it respects existing CORS origin whitelist | The CORS config in `http.js` is an allowlist — new routes inherit it automatically via `@fastify/cors` plugin registration order; no per-route CORS config needed |
 
 ---
 
@@ -177,10 +159,9 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Snapshot retention not enforced | `~/.allclear/projects/` grows unbounded; disk full errors | Enforce `history-limit` from `allclear.config.json` on every `createSnapshot()` call (already coded in `database.js`, verify it is called after every scan) | After ~20 scans of a medium-size repo (5 MB snapshot × 20 = 100 MB per project) |
-| FTS5 `'rebuild'` called inside a large transaction | Rebuild holds a write lock for the duration; other reads block | Run FTS rebuild as its own transaction after the migration transaction commits, not nested inside it | When DB has > 10,000 service rows (uncommon at current scale) |
-| `getGraph()` with `MAX(id) GROUP BY name` workaround | Graph query slows as duplicate rows accumulate (O(N²) GROUP BY on unindexed `name`) | Fixing the upsert (Pitfall 1) eliminates duplicates; workaround becomes unnecessary and should be removed post-migration | After 10+ re-scans of a large repo without the upsert fix |
-| Storing scan history in `map_versions` with `snapshot_path` pointing to a deleted file | `getVersions()` returns rows whose snapshot files were manually deleted; history UI shows dead links | On each `createSnapshot()` call, verify file exists before recording; or accept orphan rows and handle missing files gracefully in the UI | First time a developer manually clears `~/.allclear` to free disk space |
+| Embedding all exposes in `getGraph()` response | Graph load latency increases; UI DOM builds large invisible data structure for every node | Lazy fetch exposes only on click (Pitfall 5 approach 2) | At ~30 library/infra nodes with 20+ exports each (~600 extra rows in graph response) |
+| Loading all exposes upfront on graph load even for unfocused nodes | 300ms+ delay before graph renders; user perceives slow map | Fetch exposes per-click with `AbortController` to cancel in-flight fetch on panel close | Immediately visible for any infra repo with > 50 k8s resources |
+| Querying `exposed_endpoints` without a covering index on `(service_id)` | Detail panel exposes fetch is slow for large graphs | The existing table has no explicit index on `service_id` alone (only on the composite UNIQUE key) — `(service_id, method, path)` covers `service_id` as the leftmost column so index scans work correctly; verify with `EXPLAIN QUERY PLAN` | At ~10,000 exposed endpoint rows across all services |
 
 ---
 
@@ -188,9 +169,8 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| MCP `projectRoot` parameter passed directly to `resolveDbPath()` without validation | Path traversal: attacker-controlled `projectRoot = "../../etc"` causes DB open attempt on arbitrary path | Validate `projectRoot` is an absolute path under a set of allowed roots (e.g., parent directory of `ALLCLEAR_DATA_DIR`, or must be an existing directory on disk); reject any path containing `..` segments |
-| MCP server opens DB in read-write mode for cross-project queries | Agent tools that are supposed to be read-only can modify another project's scan data | MCP server already uses `readonly: true` — preserve this; never open the cross-project DB with write access from MCP tools |
-| `ALLCLEAR_PROJECT_ROOT` env var accepted without sanitization | Env injection from a crafted `.env` file in a scanned repo could redirect MCP queries | Document that `ALLCLEAR_PROJECT_ROOT` is trusted input; scan workers should never read `.env` files from scanned repos into the current process environment |
+| Rendering `node.exposes` HTML directly without escaping function signatures | XSS: a library export named `"<img src=x onerror=alert(1)>"` injected by a malicious scan result renders as HTML | Always use `textContent` or explicit HTML escaping when rendering user-controlled strings in the detail panel; the current panel uses template literals with direct string interpolation — audit all `${e.method}`, `${e.path}`, `${e.source_file}` insertions |
+| No sanitization of `expose_type` column values in migration | If a row with an unexpected `expose_type` value slips in, UI rendering switches on the value and falls through to undefined behavior | Constrain `expose_type` to a CHECK constraint in migration 007: `CHECK(expose_type IN ('rest', 'function', 'type', 'k8s', 'tf', 'helm', 'compose') OR expose_type IS NULL)` |
 
 ---
 
@@ -198,23 +178,23 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Re-scan shows "scan complete" but graph is empty due to cascade delete (Pitfall 1) | User assumes the scan found no services; re-scans repeatedly, worsening the situation | Write a post-scan integrity check: after `writeScan()`, query `SELECT COUNT(*) FROM connections` and warn if it drops to zero after previously being non-zero |
-| Migration fails silently and worker falls back to old schema | User runs `/allclear:map`, gets old duplicate-filled graph, assumes the fix didn't work | `runMigrations()` already wraps each migration in a transaction; on failure, log the migration error to the shared logger with `component: 'db'` and surface it in the log terminal |
-| Cross-project MCP returns empty results with no indication of why | Agent concludes the service doesn't exist or has no dependencies | Structured error response: `{ error: "no_scan_data", projectRoot: "...", hint: "Run /allclear:map in that project first" }` |
-| Scan version history shows timestamps but no label | User can't distinguish a post-refactor scan from a pre-refactor scan | Auto-label each version with the git commit short hash and the number of services found: `"abc1234 — 12 services"` |
+| Library detail panel shows "No connections" when library has no consumer edges yet | User believes the library is unused; runs unnecessary re-scans | Show "Exported API" from `exposed_endpoints` even when no consumer edges exist; separate "API Surface" section from "Used by" section so an unlinked library still shows its exports |
+| Infra detail panel shows connection labels from service rendering ("Calls", "Called by") | User confused — infra doesn't "call" services; it deploys/configures them | Rename labels to "Manages" (for deploy connections) and "Configures" (for configure connections) in `renderInfraConnections()` |
+| Clicking a library node with 40+ exported functions overflows the detail panel | Detail panel grows past viewport; user must scroll within the panel to see consumers | Cap exposes display to first 20 entries with a "Show all (N)" expand link; or truncate long function signatures |
+| Long function signatures like `"createRenderPipeline(descriptor: GPURenderPipelineDescriptor): Promise<GPURenderPipeline>"` overflow the panel | Text overflows connection item container; panel layout breaks | Apply `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` to `.conn-path` for library nodes; show full signature in a tooltip on hover |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Upsert preserves child rows:** After re-scanning a repo, verify `SELECT COUNT(*) FROM connections` is non-zero and matches the pre-scan count (not reset to zero)
-- [ ] **Migration 004 survives duplicates:** Seed a test DB with 3 duplicate `(repo_id, name)` rows, run migration 004, verify it completes and produces exactly 1 row per unique pair
-- [ ] **FTS5 remains in sync after migration:** After migration 004, run `SELECT name FROM services_fts WHERE services_fts MATCH '"auth-service"'` and verify it returns the surviving row's `id`, not a deleted one
-- [ ] **ON CONFLICT activates (UNIQUE index exists):** Run `EXPLAIN QUERY PLAN INSERT INTO services ... ON CONFLICT(repo_id, name) DO UPDATE ...` and confirm it shows "UNIQUE INDEX" in the plan, not a full table scan
-- [ ] **No false cross-repo edges:** Seed two repos each with a service named `api`, scan both, verify the graph shows two distinct `api` nodes (one per repo), not one merged node with phantom edges
-- [ ] **MCP queries correct project DB:** With two project DBs open, call `allclear_impact` with `projectRoot` pointing to each; verify results are different and match the correct DB
-- [ ] **Snapshot retention respected:** After 15 scans, verify `ls ~/.allclear/projects/<hash>/snapshots/` shows at most `history-limit` (default: 10) files
-- [ ] **MCP `projectRoot` validated:** Pass `projectRoot = "../../etc"` to an MCP tool and verify it returns an error rather than attempting to open that path
+- [ ] **Parser dispatches on type:** After `persistFindings()` fix, scan a library repo and verify `SELECT path FROM exposed_endpoints WHERE service_id = X` returns full function signatures, not split fragments
+- [ ] **Infra exposes stored correctly:** After fix, scan an infra repo and verify `SELECT path FROM exposed_endpoints WHERE service_id = Y` returns `"k8s:deployment/..."` format, not `"→"` or empty
+- [ ] **Migration cleans malformed rows:** Run migration 007 against a DB with pre-existing malformed exposes rows; verify zero rows remain with `path = '→'` or `path LIKE '%ClientConfig):%'`
+- [ ] **Infra panel uses infra rendering:** Click an infra node and verify the panel does NOT show "Calls" or "Called by" section headers
+- [ ] **Library panel shows exports:** Click a library node after a re-scan and verify exported function names appear under an "Exported API" section
+- [ ] **Exposes fetch API exists:** `GET /api/service/:id/exposes` returns `[{method, path, expose_type}]` for a scanned library — not 404
+- [ ] **XSS escaping in panel:** The detail panel HTML template uses safe escaping (not raw `innerHTML` concatenation) for all user-controlled fields including function signatures
+- [ ] **UNIQUE NULL handling verified:** Insert two library exports with `method = NULL` and different `path` values into `exposed_endpoints` for the same service — verify both rows insert without UNIQUE constraint error
 
 ---
 
@@ -222,12 +202,11 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Cascade delete wiped connections after REPLACE (Pitfall 1) | HIGH | Re-scan all repos from scratch to rebuild the connection graph; ensure upsert fix is deployed first or re-scan will repeat the deletion |
-| Migration 004 failed, worker stuck at schema v3 | MEDIUM | Fix the migration SQL to include dedup step; or manually deduplicate via SQLite CLI (`DELETE FROM services WHERE id NOT IN (SELECT MAX(id) FROM services GROUP BY repo_id, name)`) then rerun migration |
-| FTS5 index desync after migration | LOW | Run `INSERT INTO services_fts(services_fts) VALUES('rebuild')` via better-sqlite3 or SQLite CLI; no data loss, only index rebuild |
-| False cross-repo edges from name collision | MEDIUM | Identify the generic service names involved; add them to the block-list in `validateFindings()`; re-scan affected repos to replace the bad data |
-| MCP queries wrong project DB | LOW | Add `projectRoot` parameter to the affected tool call; or set `ALLCLEAR_PROJECT_ROOT` env var correctly; no data corruption — wrong DB was read-only |
-| Snapshot files accumulating unbounded | LOW | Delete snapshots directory manually: `rm -rf ~/.allclear/projects/<hash>/snapshots/`; worker creates a fresh snapshot on next scan |
+| Malformed library/infra exposes in `exposed_endpoints` | LOW | `DELETE FROM exposed_endpoints WHERE path IN ('→') OR path LIKE '%):%'` via SQLite CLI; re-scan affected repos |
+| Migration 007 deployed without data cleanup — malformed rows block correct inserts | MEDIUM | Run cleanup query manually, then change `INSERT OR IGNORE` to `INSERT OR REPLACE` in `persistFindings()` for exposes, then re-scan |
+| Library detail panel shows service-format connections | LOW | Fix the `showDetailPanel()` routing condition to include `"sdk"` check; re-test with click — no data loss, UI-only fix |
+| Infra nodes falling through to service rendering | LOW | Add `nodeType === "infra"` branch in `showDetailPanel()`; pure UI fix, no data migration needed |
+| `getGraph()` does not include exposes, panel renders empty | MEDIUM | Add `/api/service/:id/exposes` route, add fetch call in detail panel click handler, re-test |
 
 ---
 
@@ -235,31 +214,29 @@ Cross-project MCP queries phase. All five MCP tool handlers must be updated to a
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| INSERT OR REPLACE cascade-deletes child rows | Upsert rewrite phase (must ship with UNIQUE constraint migration) | After re-scan, `SELECT COUNT(*) FROM connections` equals pre-scan count |
-| Migration 004 fails on existing duplicates | Migration 004 implementation | Migration test: seed duplicates → run migration → verify 1 row per `(repo_id, name)` |
-| FTS5 index desync after migration | Migration 004 implementation | Post-migration FTS search returns correct rowids matching current `services.id` values |
-| `ON CONFLICT DO UPDATE` not activating (missing index) | Upsert rewrite phase | `EXPLAIN QUERY PLAN` confirms UNIQUE INDEX usage |
-| Cross-repo false edges from name collision | Cross-repo identity merging phase | Two repos with `api` service → two distinct graph nodes |
-| MCP queries wrong project DB | Cross-project MCP queries phase | Two-project integration test with `projectRoot` parameter |
-| `projectRoot` path traversal | Cross-project MCP queries phase | Fuzzing test rejects `..` path segments |
-| Snapshot disk growth | Scan versioning phase | After 15 scans, snapshot count ≤ `history-limit` |
+| "METHOD PATH" parser discards library/infra exposes | Phase 1: `persistFindings()` type-dispatch rewrite | After scan, `exposed_endpoints` has full function signatures for library nodes |
+| Migration doesn't clean malformed existing rows | Phase 1: Migration 007 | Zero rows with malformed paths after migration; re-scan inserts correct rows |
+| `renderLibraryConnections()` has no data to show | Phase 2: HTTP route for exposes | `GET /api/service/:id/exposes` returns correct data before panel phase begins |
+| Detail panel has no exposes data source | Phase 2: HTTP route for exposes | UI can fetch and render exposes before wiring to full panel design |
+| Infra nodes fall through to service rendering | Phase 3: UI panel routing | Infra click shows distinct panel content, not service labels |
+| Library panel shows "No connections" instead of exports | Phase 3: UI panel — exposes section | Library click shows "Exported API" section populated from exposes fetch |
+| XSS via function signatures in panel | Phase 3: UI panel | HTML escaping audit passes; no raw `innerHTML` with user-controlled strings |
 
 ---
 
 ## Sources
 
-- [SQLite UPSERT official documentation](https://sqlite.org/lang_upsert.html) — Confirms UPSERT syntax added in SQLite 3.24.0 (2018-06-04); `excluded.` qualifier behavior; `ON CONFLICT(col)` requires UNIQUE index on target column
-- [Dexter's Log: INSERT ON CONFLICT REPLACE with ON DELETE CASCADE deletes child records](https://dexterslog.com/posts/insert-on-conflict-replace-with-on-delete-cascade-in-sqlite/) — Confirmed failure mode: REPLACE deletes parent first, cascade fires, child rows destroyed before new parent is inserted
-- [better-sqlite3 Issue #654: FTS5 triggers fail to transact with RETURNING clause](https://github.com/WiseLibs/better-sqlite3/issues/654) — Root cause is SQLite bug; fixed in better-sqlite3 v7.4.6
-- [SQLite Forum: Corrupt FTS5 table after declaring triggers a certain way](https://sqlite.org/forum/info/da59bf102d7a7951740bd01c4942b1119512a86bfa1b11d4f762056c8eb7fc4e) — FTS5 UPDATE trigger must use delete-then-reinsert; wrong order corrupts the index
-- [simonh.uk: SQLite FTS5 Triggers](https://simonh.uk/2021/05/11/sqlite-fts5-triggers/) — Correct AFTER INSERT/DELETE/UPDATE trigger patterns for external content FTS5 tables
-- [Sling Academy: Best Practices for UNIQUE Constraints in SQLite](https://www.slingacademy.com/article/best-practices-for-using-unique-constraints-in-sqlite/) — Adding UNIQUE constraint requires rename-create-copy-drop; pre-existing duplicates abort the copy INSERT
-- [Miguel Grinberg: Fixing ALTER TABLE errors with Flask-Migrate and SQLite](https://blog.miguelgrinberg.com/post/fixing-alter-table-errors-with-flask-migrate-and-sqlite) — Batch mode migration pattern; unnamed constraint handling
-- [Sequelize Issue #12823: Multi-column UNIQUE constraint corrupted during migration](https://github.com/sequelize/sequelize/issues/12823) — Real-world example of multi-column UNIQUE being flattened to per-column UNIQUE during SQLite migration rebuild
-- [Datadog Security Labs: SQL injection in MCP server](https://securitylabs.datadoghq.com/articles/mcp-vulnerability-case-study-SQL-injection-in-the-postgresql-mcp-server/) — MCP server input validation requirements; parameter sanitization before DB path resolution
-- Codebase inspection: `worker/db/query-engine.js` (`_stmtUpsertService`, `_resolveServiceId`, `getGraph()` MAX(id) workaround), `worker/db/database.js` (`writeScan()`, `openDb()` pragma ordering), `worker/db/migrations/001_initial_schema.js` (FTS5 trigger definitions, no UNIQUE on services), `worker/mcp/server.js` (`resolveDbPath()` from `process.cwd()`) — confirmed specific anti-patterns
+- Codebase inspection: `worker/db/query-engine.js` lines 797–815 (`persistFindings()` exposes parser — confirmed split logic and `INSERT OR IGNORE` behavior)
+- Codebase inspection: `worker/ui/modules/detail-panel.js` (`showDetailPanel()` routing condition, `renderLibraryConnections()` vs. `renderServiceConnections()`)
+- Codebase inspection: `worker/db/migrations/003_exposed_endpoints.js` (schema: `method TEXT`, `path TEXT NOT NULL`, `UNIQUE(service_id, method, path)`)
+- Codebase inspection: `worker/scan/agent-prompt-library.md` (exposes format: `"functionName(param: Type): ReturnType"` — confirmed multi-word strings with spaces)
+- Codebase inspection: `worker/scan/agent-prompt-infra.md` (exposes format: `"k8s:deployment/service"`, `"k8s:ingress/name → host"` — confirmed space in ingress format breaks the parser)
+- Codebase inspection: `worker/scan/agent-schema.json` (`exposes: ["string — format depends on type (see prompt)"]` — confirms type-conditional format expectation)
+- Codebase inspection: `worker/server/http.js` (GET /graph returns `qe.getGraph()` — no exposes included in response)
+- [SQLite UNIQUE index and NULL values](https://sqlite.org/nulls.html) — Confirmed: SQLite treats each NULL as distinct in UNIQUE constraints; two rows with `method = NULL` and the same `path` DO conflict (same service_id + NULL method + same path = UNIQUE violation); two rows with `method = NULL` and DIFFERENT paths do not conflict
+- Known issue: `PROJECT.md` v2.3 milestone description — "exposed_endpoints parsing assumes 'METHOD PATH' format — breaks for function signatures and k8s resources"
 
 ---
 
-*Pitfalls research for: AllClear v2.2 — Scan Data Integrity (idempotent upserts, cross-repo service identity, scan versioning, cross-project MCP queries)*
-*Researched: 2026-03-16*
+*Pitfalls research for: AllClear v2.3 — Type-Specific Detail Panels (library exports, infra resources)*
+*Researched: 2026-03-17*
