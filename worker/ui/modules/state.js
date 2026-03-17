@@ -64,4 +64,5 @@ export const NODE_TYPE_COLORS = {
   sdk: "#9f7aea",
   frontend: "#f6ad55",
   service: "#4299e1",
+  infra: '#68d391',
 };

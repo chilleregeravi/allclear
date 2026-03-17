@@ -37,6 +37,7 @@ export function getNeighborIds(nodeId) {
 }
 
 export function getNodeType(node) {
+  if (node.type === 'infra') return 'infra';
   if (node.type === "library" || node.type === "sdk") return node.type;
   if (node.name && /sdk|lib|client|shared|common/i.test(node.name))
     return "library";
@@ -46,6 +47,7 @@ export function getNodeType(node) {
 }
 
 export function getNodeColor(node) {
+  if (node.type === 'infra') return NODE_TYPE_COLORS.infra;
   if (node.type === "library" || node.type === "sdk")
     return NODE_TYPE_COLORS.library;
   if (node.name && /sdk|lib|client|shared|common/i.test(node.name))
