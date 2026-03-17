@@ -54,7 +54,7 @@ Full details: `.planning/milestones/v2.2-ROADMAP.md`
 
 - [x] **Phase 30: Storage Correctness** — Migration 007 adds `kind` column and purges malformed rows; `persistFindings()` dispatches on node type (completed 2026-03-17)
 - [x] **Phase 31: API Surface Extension** — `getGraph()` attaches `exposes` arrays to nodes; `graph.js` forwards data into `state.graphData` (completed 2026-03-17)
-- [ ] **Phase 32: UI Detail Panels** — `utils.js` infra guard + three-way panel routing + library and infra renderers
+- [x] **Phase 32: UI Detail Panels** — `utils.js` infra guard + three-way panel routing + library and infra renderers (completed 2026-03-17)
 
 ## Phase Details
 
@@ -113,4 +113,4 @@ Plans:
 | 27-29 | v2.2 | 5/5 | Complete | 2026-03-16 |
 | 30. Storage Correctness | 2/2 | Complete    | 2026-03-17 | - |
 | 31. API Surface Extension | 1/1 | Complete    | 2026-03-17 | - |
-| 32. UI Detail Panels | 1/2 | In Progress|  | - |
+| 32. UI Detail Panels | 2/2 | Complete   | 2026-03-17 | - |

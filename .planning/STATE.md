@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Type-Specific Detail Panels
 status: planning
-stopped_at: Completed 32-ui-detail-panels 32-01-PLAN.md
-last_updated: "2026-03-17T15:41:45.444Z"
+stopped_at: Completed 32-ui-detail-panels 32-02-PLAN.md
+last_updated: "2026-03-17T15:44:43.159Z"
 last_activity: 2026-03-17 — Roadmap created, Phase 30 ready to plan
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -45,6 +45,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 30-storage-correctness P30-02 | 15min | 1 tasks | 3 files |
 | Phase 31 P31-01 | 2min | 2 tasks | 5 files |
 | Phase 32-ui-detail-panels P32-01 | 1min | 2 tasks | 3 files |
+| Phase 32-ui-detail-panels P32-02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 31]: exposes:s.exposes||[] in loadProject() node mapping ensures state nodes always have exposes array, never undefined
 - [Phase 32-ui-detail-panels]: infra guard in getNodeType() inserted before library/sdk check — nodes named 'k8s-infra-lib' with type='infra' correctly return 'infra'
 - [Phase 32-ui-detail-panels]: infra color is '#68d391' (green) in NODE_TYPE_COLORS, matching design spec
+- [Phase 32-ui-detail-panels]: escapeHtml applied to ALL user-controlled strings in new renderers to address XSS concern from STATE.md
+- [Phase 32-ui-detail-panels]: Library Exports section replaces old Provides section — actual export surface from node.exposes is more useful than outgoing edge list
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T15:41:45.441Z
-Stopped at: Completed 32-ui-detail-panels 32-01-PLAN.md
+Last session: 2026-03-17T15:44:43.157Z
+Stopped at: Completed 32-ui-detail-panels 32-02-PLAN.md
 Resume file: None
