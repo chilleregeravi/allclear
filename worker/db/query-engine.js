@@ -797,20 +797,29 @@ export class QueryEngine {
     for (const svc of findings.services || []) {
       const svcId = serviceIdMap.get(svc.name);
       if (!svcId || !svc.exposes) continue;
-      for (const endpoint of svc.exposes) {
-        // Parse "GET /users" or just "/users"
-        const parts = endpoint.trim().split(/\s+/);
-        const method = parts.length > 1 ? parts[0] : null;
-        const path = parts.length > 1 ? parts[1] : parts[0];
+
+      for (const item of svc.exposes) {
+        let method = null;
+        let path = item.trim();
+        let kind = 'endpoint';
+
+        if (svc.type === 'service') {
+          const parts = item.trim().split(/\s+/);
+          if (parts.length > 1) { method = parts[0]; path = parts[1]; }
+          kind = 'endpoint';
+        } else if (svc.type === 'library' || svc.type === 'sdk') {
+          kind = 'export';
+        } else if (svc.type === 'infra') {
+          kind = 'resource';
+        }
+
         try {
           this._db
             .prepare(
-              "INSERT OR IGNORE INTO exposed_endpoints (service_id, method, path, handler) VALUES (?, ?, ?, ?)",
+              'INSERT OR IGNORE INTO exposed_endpoints (service_id, method, path, handler, kind) VALUES (?, ?, ?, ?, ?)'
             )
-            .run(svcId, method, path, svc.boundary_entry || null);
-        } catch {
-          /* ignore duplicates */
-        }
+            .run(svcId, method, path, svc.boundary_entry || null, kind);
+        } catch { /* ignore duplicates */ }
       }
     }
 
