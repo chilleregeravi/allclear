@@ -97,11 +97,11 @@ Plans:
   3. Clicking an infra node opens a detail panel with a "Manages" section listing resources grouped by prefix (`k8s:`, `tf:`, `helm:`) with per-prefix counts
   4. The infra panel shows a "Wires" section listing services connected to the infra node
   5. Clicking a service node renders the existing service panel without any visual or behavioral change
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 32-01: Add `infra` guard to `getNodeType()` in `utils.js` and `getNodeColor()` in `state.js`
-- [ ] 32-02: Three-way routing in `showDetailPanel()` and implement `renderLibraryConnections()` and `renderInfraConnections()` in `detail-panel.js`
+- [ ] 32-01-PLAN.md — Infra guard in getNodeType()/getNodeColor() and NODE_TYPE_COLORS infra color
+- [ ] 32-02-PLAN.md — Three-way panel routing, library exports renderer, infra resources renderer, escapeHtml
 
 ## Progress
 
