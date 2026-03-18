@@ -106,7 +106,28 @@ check(
   "teardown removes mouseleave", "removeEventListener mouseleave"
 );
 
-// ── Part 3: Behavioral teardown test ──────────────────────────────────────
+// ── Part 3: Force Worker removal checks ───────────────────────────────────
+
+check(
+  !src.includes('forceWorker.postMessage'),
+  "no forceWorker.postMessage calls remain",
+  null
+);
+
+check(
+  !src.includes('state.forceWorker'),
+  "no state.forceWorker references remain",
+  null
+);
+
+// Direct drag update instead of Worker message
+check(
+  src.includes('state.positions[state.dragNodeId]'),
+  "drag updates state.positions directly",
+  "state.positions[state.dragNodeId]"
+);
+
+// ── Part 4: Behavioral teardown test ──────────────────────────────────────
 // Uses a lightweight mock canvas (EventTarget) to confirm that after
 // teardownInteractions(canvas), a 'click' event does NOT invoke onClick.
 
