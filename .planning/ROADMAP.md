@@ -167,6 +167,6 @@ Plans:
 | 33. Data Model | 1/1 | Complete    | 2026-03-18 | - |
 | 34. Layout Engine & Node Rendering | 2/2 | Complete    | 2026-03-18 | - |
 | 35. External Actors | 2/2 | Complete    | 2026-03-18 | - |
-| 36. Edge Rendering | 1/1 | Complete   | 2026-03-18 | - |
+| 36. Edge Rendering | 1/1 | Complete    | 2026-03-18 | - |
 | 37. Controls & Filters | 3/3 | Complete   | 2026-03-18 | - |
 | 38. Intelligence | v3.0 | 0/2 | Not started | - |
