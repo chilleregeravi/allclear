@@ -80,7 +80,9 @@ Full details: `.planning/milestones/v2.3-ROADMAP.md`
   2. `actor_connections` table links actor rows to service rows with direction and protocol
   3. `node_metadata` table accepts arbitrary key/value pairs keyed by (service_id, view, key) without schema changes
   4. Running the migration against an existing database populates actor rows from connections where `crossing = 'external'`
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 33-01-PLAN.md — Migration 008: actors, actor_connections, node_metadata tables + tests
 
 ### Phase 34: Layout Engine & Node Rendering
 **Goal**: The graph renders with a deterministic, stable layered layout and distinct node shapes per type
@@ -147,7 +149,7 @@ Full details: `.planning/milestones/v2.3-ROADMAP.md`
 | 22-26 | v2.1 | 11/11 | Complete | 2026-03-16 |
 | 27-29 | v2.2 | 5/5 | Complete | 2026-03-16 |
 | 30-32 | v2.3 | 5/5 | Complete | 2026-03-18 |
-| 33. Data Model | v3.0 | 0/? | Not started | - |
+| 33. Data Model | v3.0 | 0/1 | In progress | - |
 | 34. Layout Engine & Node Rendering | v3.0 | 0/? | Not started | - |
 | 35. External Actors | v3.0 | 0/? | Not started | - |
 | 36. Edge Rendering | v3.0 | 0/? | Not started | - |
