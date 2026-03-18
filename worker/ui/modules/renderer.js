@@ -2,6 +2,22 @@
  * Canvas rendering — draws edges (with arrows), nodes, labels, and mismatch indicators.
  */
 
+/**
+ * Returns the layer key for a given node — used by the layer filter.
+ * Layer → node type mapping:
+ *   "services"  → "service" | "frontend" | unknown (safe default)
+ *   "libraries" → "library" | "sdk"
+ *   "infra"     → "infra"
+ *   "external"  → "actor"
+ */
+function nodeLayer(node) {
+  const t = (node.type || "service").toLowerCase();
+  if (t === "library" || t === "sdk") return "libraries";
+  if (t === "infra") return "infra";
+  if (t === "actor") return "external";
+  return "services"; // "service", "frontend", or unknown default
+}
+
 import {
   state,
   NODE_RADIUS,
@@ -33,9 +49,36 @@ export function render() {
 
   const visibleIds = new Set(
     state.graphData.nodes
-      .filter((n) => n.name.toLowerCase().includes(state.searchFilter))
+      .filter((n) => {
+        // 1. Search filter (existing)
+        if (!n.name.toLowerCase().includes(state.searchFilter)) return false;
+        // 2. Layer filter
+        if (!state.activeLayers.has(nodeLayer(n))) return false;
+        // 3. Language filter
+        if (state.languageFilter && n.language !== state.languageFilter) return false;
+        // 4. Boundary filter
+        if (state.boundaryFilter && n.boundary !== state.boundaryFilter) return false;
+        return true;
+      })
       .map((n) => n.id),
   );
+
+  // 5. Hide isolated nodes — remove from visibleIds nodes with zero visible edges
+  if (state.hideIsolated) {
+    const connectedIds = new Set();
+    for (const edge of state.graphData.edges) {
+      // Only count edges that pass protocol + mismatch filters and both endpoints visible
+      if (!state.activeProtocols.has(edge.protocol)) continue;
+      if (state.mismatchesOnly && !edge.mismatch) continue;
+      if (visibleIds.has(edge.source_service_id) && visibleIds.has(edge.target_service_id)) {
+        connectedIds.add(edge.source_service_id);
+        connectedIds.add(edge.target_service_id);
+      }
+    }
+    for (const id of [...visibleIds]) {
+      if (!connectedIds.has(id)) visibleIds.delete(id);
+    }
+  }
 
   const neighborIds = state.selectedNodeId
     ? getNeighborIds(state.selectedNodeId)
@@ -83,6 +126,7 @@ export function render() {
     const tgt = edge.target_service_id;
 
     if (!state.activeProtocols.has(edge.protocol)) continue;
+    if (state.mismatchesOnly && !edge.mismatch) continue;
     if (!visibleIds.has(src) && !visibleIds.has(tgt)) continue;
 
     const srcPos = state.positions[src];
