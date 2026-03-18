@@ -10,6 +10,7 @@ import { execSync } from "child_process";
 import { z } from "zod";
 import { createLogger } from '../lib/logger.js';
 import { getQueryEngine, getQueryEngineByHash, getQueryEngineByRepo } from '../db/pool.js';
+import { enrichImpactResult, enrichSearchResult } from '../db/query-engine.js';
 
 const dataDir =
   process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), ".allclear");
@@ -555,7 +556,11 @@ server.tool(
     if (!qe && params.project) {
       return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
     }
-    const result = await queryImpact(qe?._db ?? null, params);
+    const raw = await queryImpact(qe?._db ?? null, params);
+    // Enrich with type-aware summary when db is available
+    const result = qe?._db
+      ? enrichImpactResult(qe._db, params.service, raw.results)
+      : raw;
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
@@ -657,7 +662,12 @@ server.tool(
     if (!qe && params.project) {
       return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /allclear:map first in that project" }) }] };
     }
-    const result = await querySearch(qe?._db ?? null, params);
+    const raw = await querySearch(qe?._db ?? null, params);
+    // Enrich results with actor relationship sentences
+    const enrichedResults = qe?._db
+      ? enrichSearchResult(qe._db, raw.results)
+      : raw.results;
+    const result = { ...raw, results: enrichedResults };
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
