@@ -67,3 +67,20 @@ export const NODE_TYPE_COLORS = {
   infra: '#68d391',
   actor: '#e06060',    // coral — distinct from all other types
 };
+
+/**
+ * Line dash patterns per protocol.
+ * Values are logical pixels — caller must divide by transform.scale.
+ * EDGE-01: REST  → solid
+ * EDGE-02: gRPC  → dashed  [6, 4]
+ * EDGE-03: events → dotted [2, 4]
+ * EDGE-04: sdk/import → solid (no dash; arrowhead already drawn for all edges)
+ */
+export const PROTOCOL_LINE_DASH = {
+  rest:     [],
+  grpc:     [6, 4],
+  events:   [2, 4],
+  internal: [],
+  sdk:      [],
+  import:   [],
+};
