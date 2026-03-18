@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Layered Graph & Intelligence
 status: unknown
-stopped_at: Completed 34-layout-engine-01 — deterministic grid layout, force Worker removed
-last_updated: "2026-03-18T19:58:57.811Z"
+stopped_at: Completed 34-layout-engine-02 — boundary boxes, node shapes, connection count tooltip
+last_updated: "2026-03-18T20:04:00Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 11
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 34 (layout-engine) — EXECUTING
-Plan: 1 of 2
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Plan: 1 of 2
 - [Phase 34]: computeLayout() pure function — deterministic positions from node type+sort, no Worker
 - [Phase 34]: 18% right canvas reserved for Phase 35 actors via ACTOR_COLUMN_RESERVE_RATIO constant
 - [Phase 34]: HTTP handler reads boundaries from allclear.config.json directly — avoids QueryEngine change
+- [34-02]: Outline diamond for library/SDK uses dark background fill to prevent edge bleed-through, then nodeColor stroke
+- [34-02]: NODE-03 test slice uses 400 chars (ctx.fill() is 308 chars past infra match point)
 
 ### Pending Todos
 
@@ -62,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T19:58:57.807Z
-Stopped at: Completed 34-layout-engine-01 — deterministic grid layout, force Worker removed
+Last session: 2026-03-18T20:04:00Z
+Stopped at: Completed 34-layout-engine-02 — boundary boxes, node shapes, connection count tooltip
 Resume file: None

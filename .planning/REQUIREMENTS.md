@@ -13,15 +13,15 @@ Requirements for milestone v3.0 Layered Graph & Intelligence. Each maps to roadm
 - [x] **LAYOUT-02**: Node positions are stable across page reloads (no force simulation randomness)
 - [x] **LAYOUT-03**: Nodes within each layer are algorithmically spaced (grid-based positioning)
 - [x] **LAYOUT-04**: Services can be visually grouped into boundary boxes (user-defined in `allclear.config.json`)
-- [ ] **LAYOUT-05**: Boundary boxes render as dashed rounded rectangles with semi-transparent fill and label
+- [x] **LAYOUT-05**: Boundary boxes render as dashed rounded rectangles with semi-transparent fill and label
 
 ### Node Rendering
 
 - [x] **NODE-01**: Services render as filled circles
-- [ ] **NODE-02**: Libraries/SDKs render as outline diamonds
-- [ ] **NODE-03**: Infrastructure nodes render as filled diamonds
+- [x] **NODE-02**: Libraries/SDKs render as outline diamonds
+- [x] **NODE-03**: Infrastructure nodes render as filled diamonds
 - [ ] **NODE-04**: External system actors render as hexagons on the right side, outside the system boundary
-- [ ] **NODE-05**: Hovering a node shows tooltip with type and connection count
+- [x] **NODE-05**: Hovering a node shows tooltip with type and connection count
 
 ### External Actors
 
@@ -109,11 +109,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAYOUT-02 | Phase 34 | Complete |
 | LAYOUT-03 | Phase 34 | Complete |
 | LAYOUT-04 | Phase 34 | Complete |
-| LAYOUT-05 | Phase 34 | Pending |
+| LAYOUT-05 | Phase 34 | Complete |
 | NODE-01 | Phase 34 | Complete |
-| NODE-02 | Phase 34 | Pending |
-| NODE-03 | Phase 34 | Pending |
-| NODE-05 | Phase 34 | Pending |
+| NODE-02 | Phase 34 | Complete |
+| NODE-03 | Phase 34 | Complete |
+| NODE-05 | Phase 34 | Complete |
 | ACTOR-01 | Phase 35 | Pending |
 | ACTOR-02 | Phase 35 | Pending |
 | ACTOR-03 | Phase 35 | Pending |
