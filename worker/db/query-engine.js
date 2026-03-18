@@ -975,3 +975,90 @@ export class QueryEngine {
     return result.lastInsertRowid;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Enrichment helpers (exported for use by MCP tool handlers)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a type-aware summary sentence for an impact_query result.
+ * Best-effort — returns { results, summary } where summary may be a plain
+ * count phrase when type/boundary data is unavailable.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} serviceName
+ * @param {Array} results
+ * @returns {{ results: Array, summary: string }}
+ */
+export function enrichImpactResult(db, serviceName, results) {
+  let summary = `${results.length} connection(s) found`;
+  try {
+    // 1. Resolve service type
+    const svcRow = db
+      .prepare("SELECT type FROM services WHERE name = ? LIMIT 1")
+      .get(serviceName);
+    const nodeType = svcRow?.type || "service";
+
+    // 2. Load boundary membership from allclear.config.json
+    let boundaryLabel = "";
+    try {
+      const cfgPath = path.join(process.cwd(), "allclear.config.json");
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+      const boundaries = cfg.boundaries || {};
+      for (const [bName, members] of Object.entries(boundaries)) {
+        if (members.includes(serviceName)) { boundaryLabel = bName; break; }
+      }
+    } catch { /* config absent — no boundary label */ }
+
+    const count = results.length;
+    const boundaryPart = boundaryLabel ? ` in the ${boundaryLabel} boundary` : "";
+
+    if (nodeType === "library" || nodeType === "sdk") {
+      summary = `${nodeType} ${serviceName} is used by ${count} service(s)${boundaryPart}`;
+    } else if (nodeType === "infra") {
+      summary = `infrastructure node ${serviceName} has ${count} dependent(s)${boundaryPart}`;
+    } else {
+      summary = `service ${serviceName} has ${count} connection(s)${boundaryPart}`;
+    }
+  } catch { /* best-effort */ }
+
+  return { results, summary };
+}
+
+/**
+ * Append actor_sentences to each search result row.
+ * Each sentence follows the pattern:
+ *   "source-service connects to external ActorName via PROTOCOL"
+ * Best-effort — rows with no actors get actor_sentences: [].
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Array<{ path: string, protocol: string, source_service: string, target_service: string }>} results
+ * @returns {Array}
+ */
+export function enrichSearchResult(db, results) {
+  try {
+    const stmt = db.prepare(`
+      SELECT a.name AS actor_name, ac.protocol AS actor_protocol, s.name AS service_name
+      FROM actor_connections ac
+      JOIN actors a ON a.id = ac.actor_id
+      JOIN services s ON s.id = ac.service_id
+      WHERE s.name = ?
+    `);
+
+    return results.map((row) => {
+      try {
+        const actorRows = stmt.all(row.source_service);
+        const actor_sentences = actorRows.map(
+          (ar) =>
+            `${ar.service_name} connects to external ${ar.actor_name} via ${ar.actor_protocol || "unknown"}`
+        );
+        return { ...row, actor_sentences };
+      } catch {
+        return { ...row, actor_sentences: [] };
+      }
+    });
+  } catch {
+    // actors table absent — return results with empty actor_sentences
+    return results.map((row) => ({ ...row, actor_sentences: [] }));
+  }
+}
