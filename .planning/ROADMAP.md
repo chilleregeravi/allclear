@@ -136,7 +136,11 @@ Plans:
   4. Enabling "Mismatches only" hides all edges except those with detected mismatches
   5. Enabling "Hide isolated nodes" removes nodes with zero connections from the canvas
   6. Boundary and Language dropdowns filter to nodes in the selected boundary or written in the selected language
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 37-01-PLAN.md — State extensions + HTML/CSS minimal top bar and filter panel shell
+- [ ] 37-02-PLAN.md — filter-panel.js module: wire all controls to state + render
+- [ ] 37-03-PLAN.md — renderer.js filter logic: layer, mismatch, isolated, boundary, language
 
 ### Phase 38: Intelligence
 **Goal**: ChromaDB embeddings and MCP tool responses carry boundary and actor context so agents receive richer impact answers
@@ -161,5 +165,5 @@ Plans:
 | 34. Layout Engine & Node Rendering | v3.0 | 0/2 | Not started | - |
 | 35. External Actors | v3.0 | 0/2 | Not started | - |
 | 36. Edge Rendering | v3.0 | 0/1 | Not started | - |
-| 37. Controls & Filters | v3.0 | 0/? | Not started | - |
+| 37. Controls & Filters | v3.0 | 0/3 | Not started | - |
 | 38. Intelligence | v3.0 | 0/? | Not started | - |
