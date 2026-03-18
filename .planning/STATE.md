@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Layered Graph & Intelligence
 status: unknown
-stopped_at: Completed 35-02-PLAN.md
-last_updated: "2026-03-18T20:17:24.978Z"
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-03-18T20:20:24.540Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 35 — external-actors
+**Current focus:** Phase 36 complete — edge-rendering done
 
 ## Current Position
 
-Phase: 35 (external-actors) — COMPLETE
-Plan: 2 of 2
+Phase: 36 (edge-rendering) — COMPLETE
+Plan: 1 of 1 (all complete)
 
 ## Performance Metrics
 
@@ -55,6 +55,8 @@ Plan: 2 of 2
 - [Phase 35-01]: Actor detection uses conn.target as actorName — external target service name becomes actor name, consistent with migration 008
 - [Phase 35-02]: Synthetic negative IDs (-actor.id) for actor nodes to avoid collision with service IDs
 - [Phase 35-02]: Pointy-top hexagon for actors, _isActor flag for fast type detection
+- [Phase 36-edge-rendering]: PROTOCOL_LINE_DASH values are logical pixels; caller divides by transform.scale at render time
+- [Phase 36-edge-rendering]: sdk/import map to [] (solid) — corrects prior incorrect [4,4] dashed pattern
 
 ### Pending Todos
 
@@ -68,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:17:24.974Z
-Stopped at: Completed 35-02-PLAN.md
+Last session: 2026-03-18T20:20:24.536Z
+Stopped at: Completed 36-01-PLAN.md
 Resume file: None

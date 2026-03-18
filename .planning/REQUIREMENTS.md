@@ -55,11 +55,11 @@ Requirements for milestone v3.0 Layered Graph & Intelligence. Each maps to roadm
 
 ### Edge Rendering
 
-- [ ] **EDGE-01**: REST connections render as solid lines
-- [ ] **EDGE-02**: gRPC connections render as dashed lines
-- [ ] **EDGE-03**: Event/messaging connections render as dotted lines
-- [ ] **EDGE-04**: SDK/import connections render as solid arrows
-- [ ] **EDGE-05**: Mismatch edges highlighted in red
+- [x] **EDGE-01**: REST connections render as solid lines
+- [x] **EDGE-02**: gRPC connections render as dashed lines
+- [x] **EDGE-03**: Event/messaging connections render as dotted lines
+- [x] **EDGE-04**: SDK/import connections render as solid arrows
+- [x] **EDGE-05**: Mismatch edges highlighted in red
 
 ## Future Requirements
 
@@ -119,11 +119,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACTOR-03 | Phase 35 | Complete |
 | ACTOR-04 | Phase 35 | Complete |
 | NODE-04 | Phase 35 | Complete |
-| EDGE-01 | Phase 36 | Pending |
-| EDGE-02 | Phase 36 | Pending |
-| EDGE-03 | Phase 36 | Pending |
-| EDGE-04 | Phase 36 | Pending |
-| EDGE-05 | Phase 36 | Pending |
+| EDGE-01 | Phase 36 | Complete |
+| EDGE-02 | Phase 36 | Complete |
+| EDGE-03 | Phase 36 | Complete |
+| EDGE-04 | Phase 36 | Complete |
+| EDGE-05 | Phase 36 | Complete |
 | CTRL-01 | Phase 37 | Pending |
 | CTRL-02 | Phase 37 | Pending |
 | CTRL-03 | Phase 37 | Pending |

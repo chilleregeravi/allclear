@@ -65,7 +65,7 @@ Full details: `.planning/milestones/v2.3-ROADMAP.md`
 - [x] **Phase 33: Data Model** — actors table, actor_connections table, node_metadata table, migration from existing external connections (completed 2026-03-18)
 - [x] **Phase 34: Layout Engine & Node Rendering** — deterministic layered layout replacing force simulation, node shapes per type, boundary boxes (completed 2026-03-18)
 - [x] **Phase 35: External Actors** — external actor detection, storage, rendering as hexagons, detail panel (completed 2026-03-18)
-- [ ] **Phase 36: Edge Rendering** — protocol-differentiated edge styles (solid, dashed, dotted), mismatch highlighting
+- [x] **Phase 36: Edge Rendering** — protocol-differentiated edge styles (solid, dashed, dotted), mismatch highlighting (completed 2026-03-18)
 - [ ] **Phase 37: Controls & Filters** — minimal top bar, collapsible filter panel with all toggles
 - [ ] **Phase 38: Intelligence** — enriched ChromaDB embeddings, boundary-aware and actor-aware MCP responses
 
@@ -121,7 +121,7 @@ Plans:
   1. REST edges render as solid lines; gRPC edges render as dashed lines; event/messaging edges render as dotted lines
   2. SDK/import edges render as solid lines with arrowheads indicating direction
   3. Edges flagged as mismatches render in red, visually distinct from healthy edges
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 36-01-PLAN.md — Protocol line styles (solid/dashed/dotted) and mismatch red highlight
 
@@ -167,6 +167,6 @@ Plans:
 | 33. Data Model | 1/1 | Complete    | 2026-03-18 | - |
 | 34. Layout Engine & Node Rendering | 2/2 | Complete    | 2026-03-18 | - |
 | 35. External Actors | 2/2 | Complete   | 2026-03-18 | - |
-| 36. Edge Rendering | v3.0 | 0/1 | Not started | - |
+| 36. Edge Rendering | 1/1 | Complete   | 2026-03-18 | - |
 | 37. Controls & Filters | v3.0 | 0/3 | Not started | - |
 | 38. Intelligence | v3.0 | 0/2 | Not started | - |
