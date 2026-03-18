@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Layered Graph & Intelligence
 status: unknown
-stopped_at: Completed 34-layout-engine-02 — boundary boxes, node shapes, connection count tooltip
-last_updated: "2026-03-18T20:06:16.188Z"
+stopped_at: Completed 35-01 — actor persistence in persistFindings, actors in getGraph
+last_updated: "2026-03-18T20:12:41.419Z"
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 11
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 34 — layout-engine
+**Current focus:** Phase 35 — external-actors
 
 ## Current Position
 
-Phase: 34 (layout-engine) — EXECUTING
-Plan: 2 of 2
+Phase: 35 (external-actors) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -51,6 +51,8 @@ Plan: 2 of 2
 - [Phase 34]: HTTP handler reads boundaries from allclear.config.json directly — avoids QueryEngine change
 - [34-02]: Outline diamond for library/SDK uses dark background fill to prevent edge bleed-through, then nodeColor stroke
 - [34-02]: NODE-03 test slice uses 400 chars (ctx.fill() is 308 chars past infra match point)
+- [Phase 35-01]: Wrap _stmtUpsertConnection in try/catch for crossing column backward compat — pre-migration-008 DBs fall back to old statement
+- [Phase 35-01]: Actor detection uses conn.target as actorName — external target service name becomes actor name, consistent with migration 008
 
 ### Pending Todos
 
@@ -64,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:04:00Z
-Stopped at: Completed 34-layout-engine-02 — boundary boxes, node shapes, connection count tooltip
+Last session: 2026-03-18T20:12:41.416Z
+Stopped at: Completed 35-01 — actor persistence in persistFindings, actors in getGraph
 Resume file: None

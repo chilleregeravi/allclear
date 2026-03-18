@@ -25,7 +25,7 @@ Requirements for milestone v3.0 Layered Graph & Intelligence. Each maps to roadm
 
 ### External Actors
 
-- [ ] **ACTOR-01**: Outbound external connections from scan are stored as external actor nodes (separate `actors` table)
+- [x] **ACTOR-01**: Outbound external connections from scan are stored as external actor nodes (separate `actors` table)
 - [ ] **ACTOR-02**: External actors display in a dedicated column to the right of the system boundary
 - [ ] **ACTOR-03**: Edges from services to external actors cross the system boundary visually
 - [ ] **ACTOR-04**: Detail panel for external actors shows which services connect to them and via what protocol
@@ -114,7 +114,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NODE-02 | Phase 34 | Complete |
 | NODE-03 | Phase 34 | Complete |
 | NODE-05 | Phase 34 | Complete |
-| ACTOR-01 | Phase 35 | Pending |
+| ACTOR-01 | Phase 35 | Complete |
 | ACTOR-02 | Phase 35 | Pending |
 | ACTOR-03 | Phase 35 | Pending |
 | ACTOR-04 | Phase 35 | Pending |
