@@ -200,32 +200,17 @@ async function buildTestDb() {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: seed a repo + two services (payment-api, auth-api)
-// Returns { db, repoId, paymentId, authId }
+// Helper: seed a repo (no services — let persistFindings create them to avoid
+// ON CONFLICT lastInsertRowid issues with pre-existing rows)
+// Returns { repoId }
 // ---------------------------------------------------------------------------
 
-function seedRepo(db, qe) {
+function seedRepo(db) {
   const repoId = db
     .prepare("INSERT INTO repos(path, name, type) VALUES(?,?,?)")
     .run("/tmp/test-repo-" + Date.now(), "test-repo", "single").lastInsertRowid;
 
-  const paymentId = qe.upsertService({
-    repo_id: repoId,
-    name: "payment-api",
-    root_path: ".",
-    language: "typescript",
-    type: "service",
-  });
-
-  const authId = qe.upsertService({
-    repo_id: repoId,
-    name: "auth-api",
-    root_path: ".",
-    language: "typescript",
-    type: "service",
-  });
-
-  return { repoId, paymentId, authId };
+  return { repoId };
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +229,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     // payment-api calls stripe (external)
     qe.persistFindings(repoId, {
@@ -288,7 +273,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     qe.persistFindings(repoId, {
       services: [
@@ -333,7 +318,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     qe.persistFindings(repoId, {
       services: [
@@ -388,7 +373,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     qe.persistFindings(repoId, {
       services: [
@@ -430,7 +415,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     const findings = {
       services: [
@@ -476,7 +461,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     qe.persistFindings(repoId, {
       services: [
@@ -520,7 +505,7 @@ async function runTests() {
     const db = await buildTestDb();
     const { QueryEngine } = await import("./query-engine.js");
     const qe = new QueryEngine(db);
-    const { repoId } = seedRepo(db, qe);
+    const { repoId } = seedRepo(db);
 
     qe.persistFindings(repoId, {
       services: [

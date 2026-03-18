@@ -276,10 +276,20 @@ export class QueryEngine {
         scan_version_id = excluded.scan_version_id
     `);
 
-    this._stmtUpsertConnection = db.prepare(`
-      INSERT OR REPLACE INTO connections (source_service_id, target_service_id, protocol, method, path, source_file, target_file, scan_version_id)
-      VALUES (@source_service_id, @target_service_id, @protocol, @method, @path, @source_file, @target_file, @scan_version_id)
-    `);
+    // Try to include the crossing column (migration 008). Fall back to the
+    // pre-migration statement for backward compatibility with older databases.
+    try {
+      this._stmtUpsertConnection = db.prepare(`
+        INSERT OR REPLACE INTO connections (source_service_id, target_service_id, protocol, method, path, source_file, target_file, scan_version_id, crossing)
+        VALUES (@source_service_id, @target_service_id, @protocol, @method, @path, @source_file, @target_file, @scan_version_id, @crossing)
+      `);
+    } catch {
+      // crossing column not present (pre-migration-008 database)
+      this._stmtUpsertConnection = db.prepare(`
+        INSERT OR REPLACE INTO connections (source_service_id, target_service_id, protocol, method, path, source_file, target_file, scan_version_id)
+        VALUES (@source_service_id, @target_service_id, @protocol, @method, @path, @source_file, @target_file, @scan_version_id)
+      `);
+    }
 
     this._stmtBeginScan = db.prepare(
       "INSERT INTO scan_versions (repo_id, started_at) VALUES (?, ?)"
@@ -325,6 +335,35 @@ export class QueryEngine {
     this._stmtInsertMapVersion = db.prepare(`
       INSERT INTO map_versions (label, snapshot_path) VALUES (?, ?)
     `);
+
+    // --- Actor statements (migration 008) ---
+    // Wrapped in try/catch for backward compatibility with pre-migration-008 databases.
+    this._stmtUpsertActor = null;
+    this._stmtUpsertActorConnection = null;
+    this._stmtGetActorByName = null;
+    try {
+      this._stmtUpsertActor = db.prepare(`
+        INSERT INTO actors (name, kind, direction, source)
+        VALUES (@name, @kind, @direction, @source)
+        ON CONFLICT(name) DO UPDATE SET
+          kind = excluded.kind,
+          source = excluded.source
+      `);
+
+      this._stmtUpsertActorConnection = db.prepare(`
+        INSERT OR REPLACE INTO actor_connections (actor_id, service_id, direction, protocol, path)
+        VALUES (@actor_id, @service_id, @direction, @protocol, @path)
+      `);
+
+      this._stmtGetActorByName = db.prepare(`
+        SELECT id FROM actors WHERE name = ?
+      `);
+    } catch {
+      // actors table doesn't exist yet — migration 008 not applied
+      this._stmtUpsertActor = null;
+      this._stmtUpsertActorConnection = null;
+      this._stmtGetActorByName = null;
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -493,6 +532,7 @@ export class QueryEngine {
       source_file: null,
       target_file: null,
       scan_version_id: null,
+      crossing: null,
       ...connData,
     });
     return result.lastInsertRowid;
@@ -588,6 +628,14 @@ export class QueryEngine {
     // Delete stale connections before stale services — no CASCADE on FK
     this._stmtDeleteStaleConnections.run(repoId, scanVersionId, repoId, scanVersionId);
     this._stmtDeleteStaleServices.run(repoId, scanVersionId);
+    // Clean up actor_connections for deleted services
+    // (no CASCADE on the stale-service DELETE since it goes through scan_version_id filtering)
+    try {
+      this._db.prepare(`
+        DELETE FROM actor_connections
+        WHERE service_id NOT IN (SELECT id FROM services)
+      `).run();
+    } catch { /* actors table may not exist — migration 008 not applied */ }
   }
 
   /**
@@ -660,7 +708,29 @@ export class QueryEngine {
 
     const mismatches = this.detectMismatches();
 
-    return { services, connections, repos, mismatches };
+    // Fetch actors and their connected services (graceful if migration 008 not applied)
+    let actors = [];
+    try {
+      const actorRows = this._db
+        .prepare("SELECT id, name, kind, direction, source FROM actors")
+        .all();
+
+      const actorConnStmt = this._db.prepare(`
+        SELECT ac.protocol, ac.path, ac.direction, s.name as service_name, s.id as service_id
+        FROM actor_connections ac
+        JOIN services s ON s.id = ac.service_id
+        WHERE ac.actor_id = ?
+      `);
+
+      actors = actorRows.map((a) => ({
+        ...a,
+        connected_services: actorConnStmt.all(a.id),
+      }));
+    } catch {
+      // actors table doesn't exist yet (migration 008 not applied)
+    }
+
+    return { services, connections, repos, mismatches, actors };
   }
 
   /**
@@ -789,7 +859,31 @@ export class QueryEngine {
         source_file: conn.source_file || null,
         target_file: conn.target_file || null,
         scan_version_id: scanVersionId ?? null,
+        crossing: conn.crossing || null,
       });
+
+      // Detect external actors: when crossing='external', the target is an
+      // external system. Create/upsert an actor for it and link to the source
+      // service via actor_connections.
+      if (conn.crossing === "external" && this._stmtUpsertActor) {
+        const actorName = conn.target; // target service name = actor name
+        this._stmtUpsertActor.run({
+          name: actorName,
+          kind: "system",
+          direction: "outbound",
+          source: "scan",
+        });
+        const actorRow = this._stmtGetActorByName.get(actorName);
+        if (actorRow) {
+          this._stmtUpsertActorConnection.run({
+            actor_id: actorRow.id,
+            service_id: sourceId,
+            direction: "outbound",
+            protocol: conn.protocol || null,
+            path: conn.path || null,
+          });
+        }
+      }
 
       // 3. Upsert schemas for this connection
       // Find schemas that belong to this connection path
