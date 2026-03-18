@@ -1,209 +1,651 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-03-16
+**Analysis Date:** 2026-03-18
 
 ## Tech Debt
 
-**Silent Failures in Per-Project Query Resolution:**
-- Issue: `getQueryEngineByHash()` and `getQueryEngine()` return `null` on DB not found or errors, with callers silently handling nulls
-- Files: `worker/db-pool.js` (lines 44-70, 158-213), `worker/query-engine.js` (line 142), `worker/mcp-server.js` (lines 35-45)
-- Impact: Silent failures cascade — requests that should surface "no map data yet" errors get lost in translation, making it hard to debug missing projects
-- Fix approach: Add explicit logging to DB resolution failures; consider returning a Result<QueryEngine|Error> type instead of null; surface errors in HTTP layer with 503 status codes
+### Scan Data Integrity — Duplicate Services on Re-scan
 
-**Inconsistent Null Return Patterns:**
-- Issue: Multiple functions return `null` when resources unavailable (DB not found, ChromaDB not available) without distinguishing between "not yet initialized" vs "failed to initialize"
-- Files: `worker/db-pool.js`, `worker/mcp-server.js`, `worker/query-engine.js`, `worker/chroma-sync.js`
-- Impact: Callers cannot differentiate between "waiting for first scan" and "genuine error"; reduces observability
-- Fix approach: Create explicit error codes or enums: `{ status: 'NOT_INITIALIZED' | 'ERROR' | 'UNAVAILABLE', data: ... }`
+**Issue:** Re-scanning a repository appends duplicate service rows instead of updating them. The database enforces UNIQUE(repo_id, name) via migration 004, but the upsert logic does not guarantee safe idempotency across multiple scan cycles.
 
-**Shell Script Path Resolution Fragility:**
-- Issue: Scripts in `scripts/*.sh` use multiple fallback patterns for locating libraries (`detect.sh`, `worker-client.sh`), creating brittle path logic
-- Files: `scripts/session-start.sh` (lines 40-74), `scripts/format.sh` (lines 18-22), `scripts/lint.sh` (lines 41-46)
-- Impact: If `CLAUDE_PLUGIN_ROOT` env var is unset, scripts search relative paths that may not exist in all execution contexts, causing silent failures
-- Fix approach: Document the plugin root resolution order; add debug logging when library is not found; create a single shared function for library path resolution
+**Files:**
+- `worker/db/migrations/004_dedup_constraints.js` — Adds UNIQUE constraint to services
+- `worker/db/query-engine.js` — upsertService() method uses INSERT OR IGNORE conflicting with constraint semantics
+- `worker/scan/manager.js` — Triggers re-scans without explicit deduplication on client side
 
-**Lint Output Truncation Without Warning:**
-- Issue: Lint output truncated to 30 lines with a summary appended; no explicit "output was large" flag sent to caller
-- Files: `scripts/lint.sh` (lines 148-155)
-- Impact: Users may not realize they're seeing incomplete linter output, potentially missing critical issues in large files
-- Fix approach: Include `"truncated": true` in JSON output; provide a count of omitted lines; link to full output via a stable file location
+**Impact:**
+- Graph shows flattened service state with no version history
+- Cross-repo scanning of same service name from different repos creates duplicate nodes
+- Potential for inconsistent graph state if scan is interrupted mid-flight
 
-## Known Issues
+**Fix approach:**
+- Enforce scan versioning: each scan creates a versioned snapshot (migration 005 + Phase 28 work)
+- Update QueryEngine.upsertService() to use INSERT OR REPLACE instead of INSERT OR IGNORE
+- Add explicit transaction boundaries around scan writes to prevent partial updates
 
-**MCP Server stdout Pollution Guard:**
-- Issue: `scripts/lint.sh` lines 19-27 checks for `console.log()` in `worker/mcp-server.js` on every lint run; this is a runtime guard for a pattern that should be caught at code review
-- Files: `scripts/lint.sh`, `worker/mcp-server.js`
-- Trigger: Any `console.log()` statement in mcp-server.js
-- Workaround: None — all logging must use `console.error()` instead
-- Better fix: Add ESLint rule to forbid `console.log` in MCP server; document in CONVENTIONS.md
-
-**Hardcoded Throttle Duration for Rust Linting:**
-- Issue: Cargo clippy is throttled to 30 seconds per project (configurable via `ALLCLEAR_LINT_THROTTLE`)
-- Files: `scripts/lint.sh` (lines 74-100)
-- Trigger: Multiple rapid Rust file edits will only run clippy once per 30 seconds
-- Workaround: Set `ALLCLEAR_LINT_THROTTLE=0` to disable throttling, but impacts performance
-- Impact: Users might miss recent clippy warnings if they edit quickly; throttle value lacks data on what's "right"
-- Fix approach: Make throttle duration per-workspace and configurable via config file; provide feedback when lint is throttled
-
-**Database Initialization Race on First Access:**
-- Issue: Multiple processes opening the same project DB for the first time may attempt migrations simultaneously
-- Files: `worker/db.js` (migration preloading), `worker/db-pool.js` (line 58-63)
-- Trigger: Two scan requests for same project within seconds, before migrations complete
-- Impact: WAL journal contention, potential "database is locked" errors; migrations may run twice
-- Workaround: Use `PRAGMA busy_timeout = 5000` (currently set in db-pool.js line 176)
-- Fix approach: Add migration lock file; document busy_timeout setting in README
-
-## Security Considerations
-
-**Shell Command Injection in git Operations:**
-- Risk: `scan-manager.js` uses `execSync()` with shell argument concatenation via `JSON.stringify(repoPath)`
-- Files: `worker/scan-manager.js` (lines 60-72)
-- Current mitigation: Arguments are JSON-stringified before insertion, preventing most shell escapes
-- Recommendations: Audit all `execSync()` calls; prefer `execFile()` where possible; document the JSON.stringify() safety pattern in code comments
-
-**SQLite VACUUM Path Injection:**
-- Risk: `VACUUM INTO '${snapshotPath}'` uses string interpolation without quoting
-- Files: `worker/query-engine.js` (line 780), `worker/db.js` (line 258)
-- Current mitigation: Snapshot paths are constructed from project hash and timestamps, not user input
-- Recommendations: Add `.replace(/'/g, "''")` for SQL escaping (already done in query-engine.js line 780); verify snapshot paths never accept user input
-
-**Process.argv Parsing in Worker:**
-- Risk: `worker/index.js` (lines 10-18) parses CLI args directly without validation
-- Files: `worker/index.js`, `worker/db.js` (lines 286-287)
-- Current mitigation: Only two expected args (`--port`, `--data-dir`); no shell execution from values
-- Recommendations: Use a validated argument parser (yargs, minimist) instead of manual parsing; add upper/lower bounds on port number
-
-**Environment Variable Leakage in Logs:**
-- Risk: Structured logs to `worker.log` may contain sensitive env var values if application code passes them as extra fields
-- Files: `worker/index.js` (lines 52-65)
-- Current mitigation: Only standard fields logged (ts, level, msg, pid, port); no automatic env inspection
-- Recommendations: Add log sanitization function to strip env var patterns (API_KEY, SECRET, TOKEN); document what not to log
-
-## Performance Bottlenecks
-
-**Synchronous File I/O in Session Start Hook:**
-- Problem: `scripts/session-start.sh` reads `allclear.config.json` synchronously on every session start
-- Files: `scripts/session-start.sh` (line 54)
-- Cause: Hook must complete quickly; async would require non-blocking pattern
-- Current: File is small and cached by OS, so minimal impact observed
-- Improvement path: Consider caching file mtime hash in `/tmp` to skip re-read if unchanged
-
-**Chroma Vector Search Fallback Chain Overhead:**
-- Problem: 3-tier search (ChromaDB → FTS5 → SQL LIKE) creates latency on each search; failures are sequential, not parallel
-- Files: `worker/query-engine.js` (lines 59-142)
-- Cause: Each tier falls through on failure; network latency to ChromaDB (if remote) blocks FTS5 attempt
-- Improvement path: Parallelize ChromaDB and FTS5 queries with a timeout; implement per-query result caching; make ChromaDB health check async and cache availability flag
-
-**Graph Rendering Performance in UI:**
-- Problem: Canvas rendering of large graphs (100+ nodes) may stutter with complex force simulation
-- Files: `worker/ui/graph.js` (1000+ lines of rendering logic)
-- Cause: Force simulation runs in Web Worker, but rendering loop is single-threaded canvas 2D context
-- Improvement path: Implement level-of-detail rendering; cache rendered labels; use OffscreenCanvas for future browsers
-
-## Fragile Areas
-
-**Worker Lifecycle Management:**
-- Files: `worker/index.js`, `scripts/worker-start.sh`, `scripts/worker-stop.sh`
-- Why fragile: PID file is source of truth; if process crashes without cleanup, PID file remains, causing "already running" detection. Port file similarly fragile.
-- Safe modification: Always use `pkill` with `-f` flag to terminate by process name; implement health check endpoint to verify process is actually running before trusting PID file
-- Test coverage: Basic lifecycle tests exist in `tests/worker-lifecycle.bats`; edge cases around concurrent start attempts not covered
-
-**Query Engine Transitive Impact Traversal:**
-- Files: `worker/query-engine.js` (lines 200-300+)
-- Why fragile: Complex recursive CTE with cycle detection using path concatenation; depth limit of 10 is hardcoded; circular dependencies can cause exponential path inflation
-- Safe modification: Add comprehensive unit tests for cyclic graphs; validate depth limit is appropriate for real-world graphs; log CTE query results for debugging
-- Test coverage: Unit tests exist but limited circular dependency scenarios tested
-
-**Config File Merging (allclear.config.json):**
-- Files: `scripts/session-start.sh` (line 54), `commands/map.md`, `commands/cross-impact.md`
-- Why fragile: Config file parsing is scattered; no schema validation; defaults are implicit in each command
-- Safe modification: Centralize config parsing with Zod schema; provide default config factory function; add `allclear.config.json.example` to repo
-- Test coverage: No dedicated config parsing tests; relies on integration tests
-
-**Confirmation Flow for Impact:**
-- Files: `worker/confirmation-flow.js`
-- Why fragile: Filters connected findings by presence of connections; nulls out findings with no connections, creating confusing output
-- Safe modification: Add clear "no changes needed" message when all findings filtered out; preserve full finding chain for debugging
-- Test coverage: Basic tests exist; edge case of "found service but no connections" may not be fully covered
-
-## Scaling Limits
-
-**SQLite Single-Writer Bottleneck:**
-- Current capacity: Single project DB can handle ~1000 services, ~5000 connections before query performance degrades
-- Limit: WAL mode mitigates but SQLite is fundamentally single-writer; concurrent scans on same project serialize via busy_timeout
-- Scaling path: Migrate to PostgreSQL for high-concurrency scenarios; add read replicas; implement result caching layer
-
-**Chroma Vector Store Memory:**
-- Current capacity: In-memory Chroma (embedded mode) holds full dataset in RAM; 10k+ service vectors may cause OOM
-- Limit: No pagination/streaming of vector search results
-- Scaling path: Use Chroma server mode (separate process); implement result batching; add pruning of old snapshots
-
-**MCP Server Single Instance:**
-- Current capacity: Worker process runs one HTTP server on single port (37888 default); all requests queue on Fastify
-- Limit: No load balancing; long-running queries block other clients
-- Scaling path: Implement worker clustering (multiple processes); add request timeout limits; offload heavy queries to background jobs
-
-## Dependencies at Risk
-
-**@fastify/cors (10.1.0 → 11.2.0):**
-- Risk: Major version bump available; may have breaking changes to CORS origin matching
-- Impact: Current hardcoded origin regex for localhost dev (line 44 in http-server.js) may break on upgrade
-- Migration plan: Review 11.2.0 changelog before upgrade; test with both localhost patterns and production URLs
-
-**@fastify/static (8.3.0 → 9.0.0):**
-- Risk: Major version bump; may change how static file routing works
-- Impact: UI serving at `/` may break if route registration changes
-- Migration plan: Test upgrade locally; verify `/` and `/graph` routes both serve correctly
-
-**zod (3.25.76 → 4.3.6):**
-- Risk: Major version bump; API changes expected
-- Impact: Schema validation in `worker/findings-schema.js` may need rewrite
-- Migration plan: Review Zod v4 migration guide; test all schema validation paths; ensure error messages are still user-friendly
-
-**better-sqlite3 (12.8.0):**
-- Risk: Native C++ binding; version mismatches between node versions can cause crashes
-- Impact: Worker may fail to start if npm install runs on incompatible Node version
-- Mitigation: Current: `"engines": { "node": ">=20.0.0" }` in package.json
-- Recommendations: Pin better-sqlite3 to exact version in package-lock.json; document Node version requirements clearly
-
-**chromadb (3.3.3) - Optional Dependency:**
-- Risk: Python-based service; no version pinning; installation can fail silently
-- Impact: If Chroma install fails, search tier 1 is unavailable but query continues (by design)
-- Current mitigation: Fire-and-forget sync; graceful fallback to FTS5
-- Recommendations: Document ChromaDB installation separately; provide easy on/off toggle in config
-
-## Test Coverage Gaps
-
-**Shell Script Integration:**
-- Untested area: Lint and format hooks under edge cases (very large files, files with special characters, missing linters)
-- Files: `scripts/lint.sh`, `scripts/format.sh`
-- Risk: Silent failures if linter output exceeds buffer limits or contains binary characters
-- Priority: Medium — affects user experience but fallback behavior is safe (exit 0)
-
-**Worker Multi-Project Concurrent Requests:**
-- Untested area: Two projects requesting the same DB hash simultaneously via `/impact` endpoint
-- Files: `worker/http-server.js`, `worker/db-pool.js`
-- Risk: Race condition in pool initialization; both threads may try to migrate simultaneously
-- Priority: High — can cause 500 errors on scale
-
-**Graph UI with Large Networks (200+ nodes):**
-- Untested area: Rendering performance and interaction responsiveness with realistic 200+ node graphs
-- Files: `worker/ui/graph.js`
-- Risk: Canvas rendering may stutter; force simulation may timeout; browser may OOM
-- Priority: Medium — affects usability but data integrity is safe
-
-**Chroma Initialization Failure Cascade:**
-- Untested area: ChromaDB network failure during startup; subsequent search queries should fallback gracefully
-- Files: `worker/chroma-sync.js`, `worker/query-engine.js` (search function)
-- Risk: If Chroma heartbeat fails at startup, subsequent queries might block or timeout
-- Priority: Medium — affects search performance but not data persistence
-
-**Config File Parsing with Invalid JSON:**
-- Untested area: `allclear.config.json` exists but contains invalid JSON or malformed impact-map section
-- Files: `scripts/session-start.sh` (line 54)
-- Risk: jq will silently return empty string; session start continues but config is ignored
-- Priority: Low — easy to debug; file can be validated with `jq .` before running
+**Tracked as:** SCAN-01 through SCAN-04 in requirements
 
 ---
 
-*Concerns audit: 2026-03-16*
+### Inline Migration Workaround in pool.js
+
+**Issue:** `getQueryEngineByHash()` contains an inline migration fallback (lines 173-188 in `worker/db/pool.js`) that manually runs migrations when opening a DB by hash instead of using the standard `openDb()` path. This workaround was necessary before migrations 004 and 005 existed.
+
+**Files:** `worker/db/pool.js` lines 173-188
+
+**Impact:**
+- Code duplication: migrations logic appears in two places (database.js and pool.js)
+- Risk: if migrations are updated in database.js, pool.js inline version may become stale
+- Technical debt: adds conditional complexity to getQueryEngineByHash
+
+**Fix approach:**
+- Verification: After migrations 004 (dedup_constraints.js) and 005 (scan_versions.js) are confirmed to exist, remove the inline block (lines 173-188) and replace with standard `openDb()` invocation
+- Status: Phase 29 plan includes conditional removal with TODO comment if migrations not present
+
+---
+
+### Fire-and-Forget ChromaDB Sync Without Observability
+
+**Issue:** `writeScan()` in `worker/db/database.js` calls `syncFindings()` as fire-and-forget via `.catch()` handler. Errors in ChromaDB sync are logged to stderr but never bubble up to the caller. If ChromaDB is unavailable, the semantic search index silently diverges from SQLite state.
+
+**Files:**
+- `worker/db/database.js` line 214 — `.catch()` handler suppresses ChromaDB errors
+- `worker/server/chroma.js` — syncFindings() design explicitly never rejects
+
+**Impact:**
+- Silent failures: admin cannot determine why semantic search returns empty results
+- Index divergence: SQLite has data but ChromaDB is stale/missing
+- Debugging difficulty: fire-and-forget pattern means no way to track sync status per scan
+
+**Fix approach:**
+- Add a background sync queue with retry logic and exponential backoff
+- Emit sync status events (pending, completed, failed) via worker log sink
+- Track last_successful_chroma_sync timestamp in database for diagnostics
+- Option: make ChromaDB sync blocking for first scan (critical for initial semantic index)
+
+---
+
+## Known Bugs
+
+### Module-Level Singleton Database Instance
+
+**Bug:** `worker/db/database.js` exports a module-level singleton `_db` instance initialized once and reused for all callers. ESM module caching means the same `_db` is shared across tests and runtime, preventing test isolation.
+
+**Symptoms:**
+- Tests that modify `_db` state pollute subsequent tests
+- Cannot reset database between test suites without restarting the process
+- Thread-safety assumptions baked into architecture
+
+**Files:**
+- `worker/db/database.js` lines 27-28 — Module singleton pattern
+- `worker/db/snapshot.test.js` lines 17-34 — Comments noting singleton isolation issues
+- `worker/db/database.test.js` line 14 — Cannot reset module state in single import
+
+**Trigger:**
+1. Run `node --test worker/db/snapshot.test.js` followed by another DB test
+2. Second test sees residual state from first test
+3. Tests pass/fail inconsistently depending on execution order
+
+**Workaround:**
+- Use separate temp directories for each test
+- Rely on database path hashing to isolate projects
+- Cannot fully reset module — only isolation available is via different project roots
+
+**Better Fix:**
+- Remove module-level singleton; require callers to pass DB instance
+- Use dependency injection for database handle instead of module export
+- Refactor QueryEngine constructor to accept a DB instance parameter
+
+---
+
+### Concurrent Read Access and WAL Mode Contention
+
+**Bug:** Multiple processes/workers reading the same SQLite database in WAL mode can create contentious checkpoint operations. `busy_timeout = 5000` (5 seconds) may not be sufficient for long-running graph traversals under load.
+
+**Symptoms:**
+- SQLITE_BUSY errors on concurrent impact queries
+- Log lines showing fallback to FTS5/SQL when database is locked
+- High latency on cross-project queries when multiple workers read simultaneously
+
+**Files:**
+- `worker/db/database.js` line 104 — busy_timeout pragma
+- `worker/db/pool.js` — Multiple QueryEngine instances may hold readers
+
+**Impact:**
+- Agents in different repos querying MCP server can timeout
+- Graph queries incomplete when database is locked
+- User-facing latency spikes under concurrent access
+
+**Fix approach:**
+- Increase busy_timeout to 30000 (30 seconds) for graph traversal workloads
+- Add retry logic with exponential backoff for SQLITE_BUSY
+- Implement reader pool to reuse connections and reduce contention
+- Consider using PRAGMA optimize at startup to improve checkpoint efficiency
+
+---
+
+### MCP Server Per-Call Database Resolution Has No Caching
+
+**Bug:** Phase 29 refactors MCP server to call `resolveDb(project)` per-tool-invocation. Each call to `getQueryEngineByRepo()` scans all project directories and opens temporary read-only DBs, even if the result is already in the pool cache.
+
+**Symptoms:**
+- High latency on first query for a new repo name (reads all ~/. allclear/projects/*/impact-map.db)
+- Repeated queries to same repo bypass cache due to per-call resolution
+- Unnecessary disk I/O for repo name lookups
+
+**Files:**
+- `worker/db/pool.js` lines 202-269 — getQueryEngineByRepo scans all projects on each call
+- `worker/mcp/server.js` — resolveDb() called per tool invocation
+
+**Impact:**
+- MCP tools slow down as more projects accumulate in ~/.allclear
+- User perceives latency spike when querying unfamiliar repos
+- Scales poorly: O(num_projects) per query
+
+**Fix approach:**
+- Implement project directory cache with filesystem watch for new projects
+- Cache repo name → project hash mapping in memory
+- Invalidate cache only on filesystem changes or periodic refresh
+- Add metrics to track cache hit/miss ratio
+
+---
+
+## Security Considerations
+
+### Path Traversal in resolveDb() Project Parameter
+
+**Risk:** `worker/mcp/server.js` `resolveDb()` function accepts absolute paths via `project` parameter. Line 78 checks for `..` pattern but this is a string-based check vulnerable to encoded variants.
+
+**Files:** `worker/mcp/server.js` lines 76-79
+
+**Current mitigation:** Basic string check for `..` substring
+
+**Recommendations:**
+- Use `path.normalize()` and verify result is within expected directory
+- Reject paths outside `~/.allclear/projects/` directory tree
+- Use `path.resolve()` and validate against canonicalized base path
+- Pattern: `if (!path.resolve(project).startsWith(path.resolve(allowedBase))) return null;`
+
+---
+
+### Database Readonly Mode Not Enforced on All Paths
+
+**Risk:** MCP server opens databases in `readonly: true` mode, but the inline migration in `getQueryEngineByHash()` opens with `new Database(dbPath)` without readonly flag. This allows writes through the MCP server path if migrations need to run.
+
+**Files:** `worker/db/pool.js` lines 173 — Opens database without readonly flag
+
+**Impact:**
+- If migrations are pending, MCP handler can modify the database
+- Violates the contract that MCP server never writes
+- Allows unintended side effects through tool handlers
+
+**Fix approach:**
+- After migrations 004+005 exist (Phase 27/28), remove the inline migration workaround (addresses this risk)
+- Until then: explicitly validate readonly mode cannot trigger writes in that code path
+- Document assumption: all projects must reach schema v5 before MCP server can read them
+
+---
+
+## Performance Bottlenecks
+
+### Graph Traversal Recursion Depth Causes Full Scan
+
+**Slow operation:** `transitiveImpact()` with `maxDepth: 10` on large graphs executes a recursive CTE that visits all transitive nodes. For a service with 100+ transitive dependencies, this traverses entire subgraph.
+
+**Files:** `worker/db/query-engine.js` lines 190-211 — Recursive SQL CTE
+
+**Cause:**
+- The CTE `WITH RECURSIVE impacted AS ...` visits every edge in the dependency graph
+- No early termination when target service found
+- Graph grows unbounded as new services are discovered
+
+**Improvement path:**
+- Add optional `targetServiceId` parameter to stop traversal early
+- Implement breadth-first search instead of recursive CTE for large graphs
+- Cache transitive closure snapshots periodically
+- Add query timeout to prevent runaway queries
+
+---
+
+### FTS5 Search Falls Back to SQL Tier Unnecessarily
+
+**Slow operation:** If FTS5 table has no matches, search falls through to SQL full-table scan. No index on service names or connection paths for SQL tier.
+
+**Files:** `worker/db/query-engine.js` lines 84-142 — Search tier fallback chain
+
+**Cause:**
+- SQL tier query `SELECT * FROM services WHERE name LIKE ?` scans entire table
+- No index on services.name or connections.path
+- FTS5 table may be stale if index not synchronized
+
+**Improvement path:**
+- Add index on `services(name)` for faster SQL fallback
+- Implement FTS5 sync on every scan to keep index current
+- Add query planner analysis to detect missing indexes
+- Consider materializing frequently-searched fields
+
+---
+
+### List Projects Enumerates All Directories on Each Call
+
+**Slow operation:** `listProjects()` in `worker/db/pool.js` enumerates all hashes in `~/.allclear/projects/` and opens each database to query repos table.
+
+**Files:** `worker/db/pool.js` lines 77-132
+
+**Cause:**
+- Filesystem enumeration O(num_projects)
+- Opens readonly connection to each database
+- Queries repos table and aggregates stats for display
+
+**Impact:**
+- Project switcher dropdown loads slowly as project count grows
+- HTTP /api/projects endpoint has high latency
+
+**Improvement path:**
+- Cache listProjects result with TTL (5-10 seconds)
+- Watch `~/.allclear/projects/` for filesystem changes to invalidate cache
+- Implement lazy-load in UI dropdown (load on click, not on page load)
+
+---
+
+## Fragile Areas
+
+### Detail Panel Type Dispatch Routing
+
+**Files:** `worker/ui/modules/detail-panel.js` lines 1-40 (showDetailPanel function)
+
+**Why fragile:**
+- Three branches: service, library, infra
+- Fallback silently goes to service rendering if type unknown
+- Adding new node type (e.g., "container") means finding and updating dispatch in multiple files
+
+**Safe modification:**
+- Always check `getNodeType()` return value before dispatch
+- Add type guard at top of showDetailPanel: `if (!['service', 'library', 'infra'].includes(nodeType)) { return; }`
+- Keep type enum in single place (utils.js)
+- Test coverage: each branch tested with explicit type value
+
+**Test coverage gaps:**
+- Missing: infra type node doesn't crash when detail panel renders
+- Missing: unknown type gracefully handled (no silent service fallthrough)
+
+---
+
+### Scan Manager Error Isolation
+
+**Files:** `worker/scan/manager.js` lines 293-320 (scanRepos loop)
+
+**Why fragile:**
+- Error in one repo should not stop scanning others
+- Current pattern: `try...catch` wraps individual repo, but incomplete findings not persisted
+- Agent invocation failures logged but not communicated back to user
+
+**Safe modification:**
+- Always wrap each repo scan in try-catch with error logging
+- Persist partial findings even if agent output incomplete
+- Return array of `{ repoPath, status, error?, findings? }` instead of flat array
+- Never allow one bad repo to poison results of subsequent repos
+
+**Test coverage gaps:**
+- Missing: bad agent output for repo 1 does not affect repo 2 scan completion
+- Missing: partial findings from incomplete scan are persisted
+- Missing: error messages include repo path for debugging
+
+---
+
+### Repo Type Detection Heuristics
+
+**Files:** `worker/scan/manager.js` lines 52-103 (detectRepoType function)
+
+**Why fragile:**
+- Relies on file presence heuristics (Chart.yaml for infra, package.json for library vs service)
+- False positives: library with start script detected as service
+- False negatives: monorepo with Chart.yaml but multiple service packages
+
+**Safe modification:**
+- Document assumptions about each heuristic in comments
+- Add debug logging to show which indicator matched
+- Provide override via `.allclear/config.json` (repoType field)
+- Test with monorepo that has multiple indicators
+
+**Test coverage gaps:**
+- Missing: Python monorepo with both [project] and [project.scripts]
+- Missing: service that exports types but has no start script (incorrectly detected as library)
+
+---
+
+## Scaling Limits
+
+### SQLite Connection Pool Has No Limits
+
+**Resource:** In-memory Map of project root → QueryEngine in `worker/db/pool.js` lines 21
+
+**Current capacity:** Unbounded — adds one entry per unique project root queried
+
+**Limit:**
+- Each QueryEngine holds one better-sqlite3 Database instance
+- Each Database instance holds connection memory, prepared statement cache, file handles
+- On 32-bit system: ~500-1000 concurrent connections before resource exhaustion
+- On 64-bit system with 8GB RAM: ~10,000 connections before memory pressure
+
+**Scaling path:**
+- Implement LRU cache with max 100 active QueryEngines
+- Close least-recently-used connections when pool exceeds limit
+- Add pool.size() and pool.stats() for monitoring
+- Track connection age and memory usage per project
+
+---
+
+### Worker Process Single-Threaded Event Loop
+
+**Resource:** Node.js event loop processes all HTTP requests, MCP tool calls, and database queries sequentially
+
+**Current capacity:**
+- ~100 concurrent agents querying impact graph
+- Long-running graph traversal blocks all other requests
+- Agents in different repos experience head-of-line blocking
+
+**Limit:**
+- Graph traversal with maxDepth: 10 on 500-service graph takes ~500ms
+- 100 concurrent queries = 50-second latency for last query
+- User-perceived slow graph loads when many agents active
+
+**Scaling path:**
+- Implement query queue with priority (impact > search > project list)
+- Use Worker threads for graph traversal (CPU-bound) separate from I/O
+- Add query timeout and cancellation support
+- Implement pagination for large result sets
+
+---
+
+### Chroma Vector Index Not Bounded
+
+**Resource:** ChromaDB collection stores all discovered services in embedding vector space
+
+**Current capacity:**
+- Default Chroma in-process instance uses SQLite backend
+- Vector storage grows linearly with number of (service, repo) pairs
+- Unlimited growth as scans discover new services
+
+**Limit:**
+- ~500 services: typical multi-repo environment
+- ~50,000 services: large monorepo or 100+ microservice org
+- Beyond 50k: vector database search becomes memory-bound
+
+**Scaling path:**
+- Archive old scan versions to secondary storage
+- Implement retention policy (keep last 10 scans per repo)
+- Use external Chroma server with persistent storage
+- Implement periodic vector index optimization
+
+---
+
+## Dependencies at Risk
+
+### better-sqlite3 Native Module Dependency
+
+**Risk:** `better-sqlite3` is a native Node addon compiled for specific OS/CPU/Node version. Version mismatch causes runtime failures.
+
+**Impact:**
+- Upgrading Node.js version requires rebuild
+- Installation failures on CI systems without build tools
+- Binary incompatibility on cross-platform development
+
+**Migration plan:**
+- Alternative: `sqlite3` (pure JS fallback) — slower but more portable
+- Alternative: `@databases/sqlite` — compatibility layer with async API
+- Current: better-sqlite3 is required for synchronous writes in scan path
+- Action: document Node version constraint (>=20.0.0) and build tool requirement
+
+---
+
+### @modelcontextprotocol/sdk Dependency
+
+**Risk:** MCP SDK is experimental; backward compatibility not guaranteed between versions. Current version pinned to 1.27.1.
+
+**Impact:**
+- Breaking API changes may require tool handler rewrites
+- SDK versioning not coordinated with Claude releases
+- Long-term support unclear
+
+**Migration plan:**
+- Monitor SDK release notes for breaking changes
+- Pin version and test before upgrades
+- Alternative: implement MCP protocol directly (higher maintenance cost)
+- Action: subscribe to SDK repository releases
+
+---
+
+### chromadb Python Package Optional Dependency
+
+**Risk:** Chroma requires Python runtime and embedding model. Optional dependency may be missing in production deployments.
+
+**Impact:**
+- Missing embedding model silently degrades search to FTS5
+- No error in worker startup if Chroma unavailable
+- User surprise when semantic search doesn't work
+
+**Migration plan:**
+- Make Chroma availability check explicit at startup
+- Emit WARNING log if Chroma unavailable
+- Document installation: `npm install @chroma-core/default-embed`
+- Alternative: Bundle embedding model in Node.js (larger package size)
+
+---
+
+## Missing Critical Features
+
+### Scan Versioning and History
+
+**Problem:** Graph shows only latest scan state. No way to browse previous scans or understand when a service was added/removed.
+
+**Blocks:**
+- Impact analysis across time (service outages)
+- Debugging sudden graph changes
+- Understanding scan progression
+
+**Feature:** Implement scan versioning (tracked as SCAN-03 in v2.1 requirements)
+- Each scan creates a snapshot with version ID
+- UI can browse historical snapshots
+- Queries can target specific version or latest
+
+---
+
+### Service Naming Consistency Enforcement
+
+**Problem:** Agent may discover service as "event-journal" in one scan and "event_journal" in the next, creating duplicate nodes in graph.
+
+**Blocks:**
+- Accurate impact analysis (same service has two nodes)
+- Graph convergence (drift grows with each scan)
+- Semantic search precision
+
+**Feature:** Add naming constraint to agent prompt (tracked as SCAN-04)
+- Enforce snake_case or camelCase consistently
+- Provide service registry as context to agent
+- Validate agent findings against naming rules
+
+---
+
+### Cross-Repo Service Identity
+
+**Problem:** "auth-service" in repo-A and "auth-service" in repo-B are separate nodes in graph, even though they represent the same business service.
+
+**Blocks:**
+- Unified impact analysis across repos
+- Discovering that repo-B auth-service breaks all downstream consumers
+
+**Feature:** Add cross-repo service identity mapping
+- Define "same service across repos" relationship
+- Merge duplicate nodes in graph
+- Query builder uses identity mapping for correct results
+
+---
+
+## Test Coverage Gaps
+
+### Edge Cases in Scan Input Validation
+
+**Untested area:** `worker/scan/manager.js` buildScanContext() — handling of malformed scan options
+
+**Files:** `worker/scan/manager.js` lines 206-270
+
+**What's not tested:**
+- repoPath is absolute path requirement (no relative paths)
+- Empty findings array handling
+- scanRepos with null or undefined array
+- Non-git directories (no .git folder)
+
+**Risk:** Malformed input silently succeeds or crashes with unclear error
+- "repo is not a git repository" error message could be clearer
+- Null repoPath not validated at function entry
+
+**Priority:** Medium — these are edge cases but no input validation guards
+
+---
+
+### Pool Eviction and Connection Lifecycle
+
+**Untested area:** `worker/db/pool.js` — what happens when same projectRoot opened by two simultaneous callers
+
+**Files:** `worker/db/pool.js` lines 44-70
+
+**What's not tested:**
+- Race condition: two threads call getQueryEngine(same projectRoot) simultaneously
+- Pool entry is created twice (lost write to Map)
+- Database opens twice (better-sqlite3 handles this but creates overhead)
+
+**Risk:** Under load, pool becomes inconsistent
+- Memory leaks: duplicate QueryEngine instances not garbage collected
+- Unpredictable behavior when pool size exceeds memory budget
+
+**Priority:** High — potential memory/resource leak under concurrent load
+
+---
+
+### Error Path in ChromaDB Sync
+
+**Untested area:** `worker/server/chroma.js` and `worker/db/database.js` integration
+
+**Files:**
+- `worker/server/chroma.js` line 10-20
+- `worker/db/database.js` line 214
+
+**What's not tested:**
+- Chroma connection lost mid-sync (partial upsert)
+- Chroma returns 500 error
+- Network timeout during vector embedding
+- Findings larger than Chroma batch size
+
+**Risk:**
+- Index becomes partially updated, diverges from SQLite
+- No visibility into sync failures
+- Fire-and-forget pattern means caller never sees error
+
+**Priority:** Medium — failures are logged but not alarmed
+
+---
+
+### Graph Traversal Cycle Detection
+
+**Untested area:** `worker/db/query-engine.js` transitiveImpact() recursive CTE
+
+**Files:** `worker/db/query-engine.js` lines 190-211
+
+**What's not tested:**
+- Circular dependency: service A → service B → service A
+- Self-loop: service A → service A
+- Traversal halts correctly when cycle detected
+
+**Risk:**
+- Infinite loop if cycle present in connections graph
+- CTE with cycle can cause SQLITE_LIMIT_COMPOUND_SELECT exceeded
+- User request hangs or crashes worker
+
+**Priority:** High — data integrity issue that can crash worker
+
+---
+
+## Design Friction Points
+
+### Module Caching vs Test Isolation
+
+**Friction:** ESM modules cached at import time make test isolation difficult. Tests cannot reset database state between suites.
+
+**Evidence:**
+- `worker/db/snapshot.test.js` lines 17-34 comments acknowledging singleton isolation issues
+- `worker/db/database.test.js` line 14 states "since we can't reset module state in a single import"
+- Tests use workarounds: different project roots, temp directories
+
+**Impact:**
+- Test execution order matters (non-deterministic failures)
+- Cannot test error recovery (database state pollution)
+- New tests must work around singleton constraints
+
+---
+
+### Fire-and-Forget Pattern vs Error Observability
+
+**Friction:** ChromaDB sync designed as fire-and-forget to prevent SQLite persistence from blocking on ChromaDB. But this sacrifices error visibility and creates divergence risk.
+
+**Evidence:** `worker/db/database.js` line 214: `.catch(err => process.stderr.write(...))`
+
+**Trade-off:**
+- Pro: SQLite writes never blocked by ChromaDB availability
+- Con: Silent failures, index divergence, no sync status visibility
+
+**Better approach:**
+- Sync in background with persistent queue
+- Expose sync status in `/api/sync-status` endpoint
+- Alert user if index and database diverge
+
+---
+
+### Heuristic-Based Repository Type Detection
+
+**Friction:** Repo type detection relies on file presence heuristics that are error-prone and fragile.
+
+**Evidence:** `worker/scan/manager.js` lines 52-103
+
+**Failures:**
+- Monorepo with Chart.yaml but multiple service packages incorrectly typed as infra
+- Service that exports types but has no start script incorrectly typed as library
+- False positives increase as codebases become more complex
+
+**Better approach:**
+- Config-driven classification via `.allclear/config.json`
+- Agent-provided hints in scan findings
+- Explicit registry of service/library/infra types
+- Fallback to heuristics only when config absent
+
+---
+
+## Summary
+
+| Category | Count | Severity |
+|----------|-------|----------|
+| Tech Debt | 3 | Medium |
+| Known Bugs | 3 | High |
+| Security | 2 | Medium |
+| Performance | 3 | Medium |
+| Fragile Areas | 3 | Medium |
+| Scaling Limits | 3 | Low |
+| Dependencies at Risk | 3 | Low |
+| Missing Features | 3 | High |
+| Test Gaps | 3 | Medium |
+| Design Friction | 3 | Low |
+
+**Total: 32 concerns identified**
+
+**Critical Path Issues:** Module singleton, circular dependency detection, cross-project query caching
+
+**Recommended Next Steps:**
+1. Fix graph traversal cycle detection (HIGH priority, risk of worker crash)
+2. Implement scan versioning (blocks future features, resolves 3 bugs)
+3. Refactor database singleton with dependency injection (improves testability)
+4. Add connection pool limits and LRU eviction (prevents resource leaks)
+
+---
+
+*Codebase concerns audit: 2026-03-18*
+*AllClear v2.3 — Impact Graph & MCP Server*

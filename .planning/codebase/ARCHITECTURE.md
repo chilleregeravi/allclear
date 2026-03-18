@@ -1,288 +1,214 @@
 # Architecture
 
-**Analysis Date:** 2026-03-16
+**Analysis Date:** 2026-03-18
 
 ## Pattern Overview
 
-**Overall:** Event-driven plugin with worker backend and hook-based CLI entry points.
+**Overall:** Distributed multi-tier agent-driven scanning system with persistent storage and web visualization.
 
 **Key Characteristics:**
-- Plugin system: Hooks execute scripts on Claude Code events (PreToolUse, PostToolUse, SessionStart)
-- Worker process: Long-running Node.js server managing shared SQLite database and query engine
-- Multi-project support: Per-project databases indexed by hashed project root path
-- Multi-layer search: ChromaDB (semantic) → FTS5 (keyword) → SQL (direct) fallback chain
-- Lazy initialization: Hooks and scripts are lightweight; heavy lifting deferred to worker or on-demand commands
+- **Project-agnostic worker:** Single long-lived worker service handles multiple projects via per-project databases
+- **Agent-driven scanning:** Claude agents analyze code to extract services and connections; findings are validated and persisted
+- **Layered storage:** SQLite database with migration system; optional ChromaDB semantic search overlay; FTS5 keyword fallback
+- **Stateless HTTP layer:** Fastify REST API for graph queries, project listing, and UI serving
+- **MCP protocol server:** Exposes tools for agents to search impact data and trigger scans
+- **Interactive web UI:** Canvas-based force-directed graph visualization with detail panels
 
 ## Layers
 
-**Plugin Layer (Hooks):**
-- Purpose: Intercept and route Claude Code events to shell scripts
-- Location: `hooks/hooks.json`, `hooks/lint.json`
-- Contains: Hook configurations with event matchers and command routes
-- Depends on: Nothing (entry point only)
-- Used by: Claude Code plugin system
+**CLI Entry Point:**
+- Purpose: Parse command arguments, start services, orchestrate scans
+- Location: `bin/allclear-init.js`, `/commands/` documentation
+- Contains: Command handlers for quality-gate, map, drift, impact, pulse, deploy-verify
+- Depends on: Shell utilities (`lib/*.sh`), agent invocation
+- Used by: User via Claude Code plugin or direct shell invocation
 
-**Hook Scripts (Entry Points):**
-- Purpose: Execute lightweight checks/guards on write/edit events
-- Location: `scripts/format.sh`, `scripts/lint.sh`, `scripts/file-guard.sh`, `scripts/session-start.sh`
-- Contains: Event handling, language detection, tool dispatch
-- Depends on: `lib/config.sh`, `lib/detect.sh`, `lib/linked-repos.sh`
-- Used by: Plugin hook system
+**Worker Process:**
+- Purpose: Long-running HTTP server + MCP service for all projects
+- Location: `worker/index.js`
+- Contains: HTTP server initialization, database pool, logger setup, graceful shutdown
+- Depends on: `worker/server/http.js`, `worker/db/pool.js`, `worker/mcp/server.js`
+- Used by: All requests from UI, agents, and external tools
 
-**Skill/Command Scripts (Execution Layer):**
-- Purpose: Implement on-demand commands like quality-gate, impact, drift, map, pulse
-- Location: `scripts/impact.sh`, `scripts/drift-*.sh`, `scripts/pulse-check.sh`
-- Contains: Business logic for cross-repo scanning, version checking, dependency analysis
-- Depends on: `lib/config.sh`, `lib/linked-repos.sh`, `lib/worker-client.sh`, HTTP calls to worker
-- Used by: Claude Code slash commands (via `/gsd:execute-phase`)
+**HTTP Server Layer:**
+- Purpose: REST API and static file serving
+- Location: `worker/server/http.js`
+- Contains: Fastify routes for readiness checks, project listing, graph queries, FTS search, impact queries
+- Depends on: Database pool, query engine, logger
+- Used by: UI frontend, external HTTP clients
 
-**Shared Libraries:**
-- Purpose: Utility functions shared across scripts
-- Location: `lib/config.sh`, `lib/detect.sh`, `lib/linked-repos.sh`, `lib/worker-client.sh`
-- Contains: Configuration loading, language detection, repo enumeration, worker communication
-- Depends on: jq, bash builtins
-- Used by: All hook scripts and command scripts
+**Scanning & Agent Invocation:**
+- Purpose: Orchestrate multi-repo scanning, validate findings, persist results
+- Location: `worker/scan/manager.js`, `worker/scan/findings.js`, `worker/scan/confirmation.js`
+- Contains: Repo type detection, scan context building, agent runner injection, findings schema validation
+- Depends on: Git operations, query engine, findings parser
+- Used by: `/allclear:map` command, agent-invoked repeatedly for each repo
 
-**Worker Process (Data & Query Layer):**
-- Purpose: Long-running HTTP/MCP server managing databases and executing complex queries
-- Location: `worker/index.js` (entry point)
-- Contains: HTTP server, MCP server, database pool, query engine, migration system
-- Depends on: Node.js (≥20), better-sqlite3, @modelcontextprotocol/sdk, fastify, zod
-- Used by: HTTP requests from scripts, MCP protocol from Claude Code
+**Database & Query Layer:**
+- Purpose: Store and retrieve service graph, handle migrations, provide search
+- Location: `worker/db/` (database.js, pool.js, query-engine.js, migrations/)
+- Contains: SQLite initialization, per-project DB pooling, transitive impact calculation, FTS5/ChromaDB search
+- Depends on: better-sqlite3, ChromaDB client (optional), zod for validation
+- Used by: HTTP routes, agent confirmation, UI graph rendering
 
-**HTTP Server (REST API):**
-- Purpose: REST interface for graph queries, service lookups, impact analysis
-- Location: `worker/http-server.js`
-- Routes: `/api/readiness`, `/projects`, `/graph`, `/impact`, `/service/:name`, `/scan`, `/versions`
-- Depends on: fastify, query-engine, db-pool
-- Used by: Command scripts via HTTP calls
+**MCP Server:**
+- Purpose: Protocol channel for agents to call tools
+- Location: `worker/mcp/server.js`
+- Contains: Tool registration, input validation, project resolution, agent runner injection
+- Depends on: MCP SDK, query engine, scan manager
+- Used by: Agents running in Claude Code context
 
-**MCP Server (Claude Integration):**
-- Purpose: Model Context Protocol server for Claude Code slash commands
-- Location: `worker/mcp-server.js`
-- Contains: Tools for querying impact, changes, graph, search, and scan results
-- Depends on: @modelcontextprotocol/sdk, database, query engine
-- Used by: Claude Code directly (via JSON-RPC over stdio)
+**UI Layer:**
+- Purpose: Interactive visualization of service dependency graph
+- Location: `worker/ui/` (index.html, graph.js, modules/*)
+- Contains: Canvas-based force simulation, project picker, detail panels, log terminal
+- Depends on: Force simulation worker, server REST API
+- Used by: User interaction in browser
 
-**Database Pool (Project Management):**
-- Purpose: Cache per-project databases and query engines
-- Location: `worker/db-pool.js`
-- Caching strategy: `projectRoot → QueryEngine` (Map cache)
-- Lazy loading: DB opened on first request, cached for worker lifetime
-- Project isolation: Each project has hash-based directory at `~/.allclear/projects/<hash>/impact-map.db`
-- Used by: HTTP server, MCP server
-
-**Database Lifecycle (Migration & Initialization):**
-- Purpose: Create/migrate SQLite database with schema
-- Location: `worker/db.js`
-- Top-level await: Migrations preloaded at module load time
-- Migrations: Versioned modules in `worker/migrations/` applied sequentially
-- Database path: `~/.allclear/projects/<sha256(projectRoot).slice(0,12)>/impact-map.db`
-- Used by: DB pool on first project access
-
-**Query Engine (Business Logic):**
-- Purpose: Execute transitive impact queries, search, and upsert operations
-- Location: `worker/query-engine.js`
-- Query types: Transitive impact (recursive CTE), direct impact, FTS5 search, ChromaDB semantic search
-- State management: Per-instance DB handle, cycle detection in transitive walks
-- Used by: HTTP server, MCP server
-
-**Schema & Findings:**
-- Purpose: Type validation and persistence of scan results
-- Location: `worker/findings-schema.js` (Zod schemas), `worker/migrations/001_initial_schema.js`
-- Tables: repos, services, connections, schemas, fields, map_versions, repo_state
-- Used by: Scan manager, query engine
-
-**ChromaDB Integration (Vector Search):**
-- Purpose: Optional semantic search tier for finding services by description
-- Location: `worker/chroma-sync.js`
-- Fallback: Disabled if ChromaDB unavailable or connection fails
-- Used by: Query engine search layer
-
-**Scan Manager (Repository Discovery):**
-- Purpose: Discover services in repos and persist findings to database
-- Location: `worker/scan-manager.js`
-- Process: Git traversal, file pattern matching, OpenAPI/Dockerfile parsing, upsert to DB
-- Used by: Commands (e.g., `/allclear:map`) via HTTP POST `/scan`
+**Persistence & State:**
+- Purpose: Manage per-project databases and settings
+- Location: `~/.allclear/` (projects/, settings.json, logs/, worker.pid, worker.port)
+- Contains: SQLite DBs per project, logs, configuration
+- Depends on: Worker process, migration system
+- Used by: All layers for reading/writing project state
 
 ## Data Flow
 
-**Hook Execution (PreToolUse):**
+**Scan Workflow:**
 
-1. Claude Code fires PreToolUse event (Write/Edit/MultiEdit)
-2. Hook system invokes `scripts/file-guard.sh`
-3. Script reads stdin (JSON event), extracts file path
-4. Guard checks against blocked patterns (`.env`, `*.lock`, credentials)
-5. Exits 0 (pass) or 1 (fail)
+1. User invokes `/allclear:map` → command handler reads linked-repos.config or parent directory discovery
+2. Command handler invokes agent runner with list of repos
+3. Agent analyzes each repo code (services, endpoints, connections) → outputs fenced JSON findings
+4. `worker/scan/findings.js` validates output against schema
+5. `worker/scan/confirmation.js` presents findings to user for approval
+6. Approved findings passed to `worker/db/database.js::writeScan()` → upserts into services, connections, schemas tables
+7. Scan version recorded for incremental updates
+8. Worker logs events to `~/.allclear/logs/`
 
-**Hook Execution (PostToolUse):**
+**Graph Query Workflow:**
 
-1. Claude Code fires PostToolUse event (Write/Edit/MultiEdit)
-2. Hook system invokes `scripts/format.sh`, then `scripts/lint.sh`
-3. Format script dispatches to `prettier`, `ruff`, `rustfmt`, `gofmt` by language
-4. Lint script language-detects, runs appropriate linter (`eslint`, `pylint`, etc.)
-5. Both exit 0 (always pass; errors logged, not blocked)
+1. UI loads at `http://localhost:PORT`
+2. GET `/projects` → list all project DBs from `~/.allclear/projects/`
+3. User picks project hash
+4. GET `/graph?hash=<hash>` → `query-engine.js` fetches services, connections, mismatches
+5. UI receives JSON, maps to nodes/edges, starts force simulation in Web Worker
+6. User clicks node → detail panel loads via `detail-panel.js`
+7. GET `/endpoint-schema?service_id=...` → query engine returns schema fields
 
-**Hook Execution (SessionStart/UserPromptSubmit):**
+**Impact Query Workflow:**
 
-1. Claude Code fires SessionStart or UserPromptSubmit event
-2. Hook system invokes `scripts/session-start.sh`
-3. Script detects project type (Python, Node, Go, Rust, etc.) via dependency files
-4. Outputs formatted context string for Claude
-5. Context passed to Claude in session prompt
+1. Agent or external tool calls MCP tool: `impact(service, direction, transitive)`
+2. MCP server resolves project via env or parameter
+3. `query-engine.js::queryImpact()` traverses connections with cycle detection
+4. Returns downstream/upstream services and breaking change classifications
+5. Tool output returned to caller
 
-**On-Demand Command Flow (e.g., `/allclear:quality-gate`):**
+**Search Workflow (3-tier fallback):**
 
-1. User invokes `/allclear:quality-gate` in Claude Code
-2. Claude invokes bash script `scripts/quality-gate.sh` (via phase execution)
-3. Script loads config, detects language, runs linters, formatters, tests, typechecks
-4. Output summarized for Claude
-
-**On-Demand Command Flow (e.g., `/allclear:map`):**
-
-1. User invokes `/allclear:map`
-2. Phase execution runs bash script with bash flags and options
-3. Script loads linked repos from config, spawns scan-manager on each
-4. Scan manager walks repository, discovers services, sends POST to `worker:37888/scan`
-5. Worker (HTTP server) routes to query engine, which upserts repos/services/connections into DB
-6. Results returned to Claude
-
-**Impact Query Flow:**
-
-1. User asks Claude: "What breaks if I change the auth endpoint?"
-2. Claude invokes `/allclear:cross-impact` with changed service/endpoint
-3. Script queries `worker:37888/impact?change=auth.login` via HTTP
-4. HTTP server resolves query engine for project via `db-pool.getQueryEngine(project)`
-5. Query engine executes transitive CTE to find all downstream consumers
-6. Results classified (CRITICAL/WARN/INFO) and returned
-7. Claude summarizes findings for user
-
-**Graph Visualization Flow:**
-
-1. User opens service map or dependency graph UI
-2. Frontend (React) requests `worker:37888/graph?project=/path`
-3. HTTP server resolves query engine, calls `qe.getGraph()`
-4. Query engine returns serialized graph (nodes: services, edges: connections)
-5. Frontend renders with D3 or similar
+1. UI or MCP tool calls search endpoint
+2. Tier 1: If ChromaDB available → semantic search via embeddings
+3. Tier 2: If ChromaDB unavailable → FTS5 keyword search on services, connections, schemas
+4. Tier 3: If FTS5 fails → simple SQL LIKE queries
+5. Results ranked by score and type
 
 **State Management:**
 
-- **Plugin state:** None (stateless hooks)
-- **Script state:** Config file (`allclear.config.json`) parsed per invocation
-- **Worker state:** In-memory database pool + SQLite databases on disk
-- **Database state:** Persistent SQLite with WAL mode (Write-Ahead Logging)
-- **Session state:** ChromaDB optional; if unavailable, search falls back to FTS5
+- **Current project:** Stored in `state.currentProject` (UI module/state.js)
+- **Graph positions:** Computed in-memory by force-worker.js, never persisted
+- **Scan status:** Stored in `scan_versions` table with repo ID and timestamp
+- **Settings:** Read from `~/.allclear/settings.json` at worker startup
+- **Logs:** Streamed to per-day files in `~/.allclear/logs/`
 
 ## Key Abstractions
 
 **QueryEngine:**
-- Purpose: Encapsulates all query patterns against SQLite
-- Examples: `worker/query-engine.js`
-- Pattern: Class wrapping better-sqlite3 Database, exposes query methods (getGraph, getImpact, getService, search)
-- Key methods:
-  - `getGraph()`: Return all services and connections
-  - `getImpact(change, options)`: Find impacted services (transitive or direct)
-  - `getService(name)`: Lookup single service details
-  - `search(query)`: 3-tier search (ChromaDB → FTS5 → SQL)
-  - `upsertRepo/Service/Connection()`: Persist scan findings
+- Purpose: Encapsulates all database queries behind a clean API
+- Examples: `worker/db/query-engine.js` (class definition ~900 lines)
+- Pattern: Class with methods for impact, search, upsert; uses prepared statements for efficiency
 
-**ScanManager:**
-- Purpose: Discover services and persist findings to database
-- Examples: `worker/scan-manager.js`
-- Pattern: Walk filesystem, parse manifests, generate findings, POST to worker HTTP API
-- Process: Executes on each linked repo, called by command scripts
+**Findings Schema:**
+- Purpose: Validate agent output against expected structure
+- Examples: `worker/scan/findings.js` (exports validateFindings, parseAgentOutput)
+- Pattern: Declarative field lists (service_name, services[], connections[]) with confidence and evidence requirements
 
-**RepoDiscovery:**
-- Purpose: Enumerate repositories and find service dependencies
-- Examples: `worker/repo-discovery.js`
-- Pattern: Git traversal with glob patterns, OpenAPI/Dockerfile detection, manifest parsing
+**Project Pool:**
+- Purpose: Cache QueryEngine instances per project root
+- Examples: `worker/db/pool.js` (Map<projectRoot, QueryEngine>)
+- Pattern: Lazy initialization on first access; null if DB doesn't exist; hashes long paths for directory names
 
-**Shared Library Pattern:**
-- Purpose: Sourceable bash utilities with guard against double-source
-- Examples: `lib/config.sh`, `lib/linked-repos.sh`
-- Pattern: Guard variable (e.g., `_ALLCLEAR_CONFIG_LOADED`), populate global arrays/vars
-- Safety: Return 0 on second source to maintain idempotency
+**MCP Tool Resolver:**
+- Purpose: Map project identifiers (path/hash/name) to QueryEngine
+- Examples: `worker/mcp/server.js::resolveDb()`
+- Pattern: Multi-branch dispatch (absolute path → hash → repo name); uses same pool as HTTP layer
+
+**Force Simulation Worker:**
+- Purpose: Offload physics computation from main thread
+- Examples: `worker/ui/force-worker.js`
+- Pattern: Web Worker running independent d3-force simulation; sends tick events with updated positions
 
 ## Entry Points
 
-**Plugin Hook (format.sh):**
-- Location: `scripts/format.sh`
-- Triggers: PostToolUse(Write|Edit|MultiEdit)
-- Responsibilities: Read stdin JSON, extract file path, dispatch to language-specific formatter, silently pass
-- Exit behavior: Always exits 0
+**HTTP Server:**
+- Location: `worker/index.js` (lines 1-103)
+- Triggers: `node worker/index.js --port 37888 --data-dir ~/.allclear`
+- Responsibilities: Parse CLI args, setup logging, initialize ChromaDB, create Fastify server, listen on port, cleanup on SIGTERM/SIGINT
 
-**Plugin Hook (lint.sh):**
-- Location: `scripts/lint.sh`
-- Triggers: PostToolUse(Write|Edit|MultiEdit)
-- Responsibilities: Read stdin JSON, extract file path, detect language, run appropriate linter, report findings to stderr
-- Exit behavior: Always exits 0
+**MCP Server:**
+- Location: `worker/mcp/server.js` (shebang: `#!/usr/bin/env node`)
+- Triggers: Spawned by Claude Code when plugin initializes; inherits stdio transport
+- Responsibilities: Register tools, handle stdin, route tool calls to handlers, write responses to stdout
 
-**Plugin Hook (file-guard.sh):**
-- Location: `scripts/file-guard.sh`
-- Triggers: PreToolUse(Write|Edit|MultiEdit)
-- Responsibilities: Block writes to `.env`, `*.lock`, credentials, keys
-- Exit behavior: Exits 1 if blocked, 0 if allowed
+**Scan Manager:**
+- Location: `worker/scan/manager.js::scanRepos(repoPaths, options, queryEngine)`
+- Triggers: Called from `/allclear:map` command handler after user confirms repos
+- Responsibilities: Detect repo types, build scan context (changed files / full), invoke agents, validate findings, upsert to DB
 
-**Plugin Hook (session-start.sh):**
-- Location: `scripts/session-start.sh`
-- Triggers: SessionStart, UserPromptSubmit
-- Responsibilities: Detect project type, output context for Claude
-- Exit behavior: Always exits 0
-
-**Worker Process (index.js):**
-- Location: `worker/index.js`
-- Triggers: Manual invocation via `node worker/index.js` or lifecycle script
-- Responsibilities: Initialize HTTP server, MCP server, database pool, handle signals (SIGTERM, SIGINT)
-- Configuration: Reads `~/.allclear/settings.json` for port, log level, data directory
-- Output: Writes PID file and logs to `~/.allclear/logs/worker.log`
-
-**Command Scripts:**
-- Location: `scripts/quality-gate.sh`, `scripts/impact.sh`, `scripts/drift-versions.sh`, etc.
-- Triggers: Claude Code slash commands
-- Responsibilities: Implement on-demand scanning, querying, comparison
-- Coordination: Call worker HTTP API or execute local checks
+**UI Initialization:**
+- Location: `worker/ui/graph.js::loadProject(hash, canvas)`
+- Triggers: User selects project from picker or switches via switcher
+- Responsibilities: Fetch graph data, map to UI shape, initialize force worker, setup interaction handlers
 
 ## Error Handling
 
-**Strategy:** Defensive scripting with silent fallbacks and stderr logging.
+**Strategy:** Multi-level fallback with logged errors; graceful degradation prioritized over failure.
 
 **Patterns:**
 
-- **Config missing:** Use defaults (e.g., `ALLCLEAR_CONFIG_LINKED_REPOS=()` if no config file)
-- **Language detection failure:** Fall back to extension-based heuristic
-- **Formatter not installed:** Skip silently (tools are optional dependencies)
-- **Worker unavailable:** Skip operations that depend on worker, return empty results
-- **Database missing:** Return null from `getQueryEngine()`, HTTP routes respond with 503
-- **ChromaDB unavailable:** Seamlessly fall back to FTS5, then SQL
-- **Migration failure:** Log to stderr, exit process (data integrity failure)
-- **Linter errors:** Report to stderr but exit 0 (non-blocking feedback)
+- **Database fallback:** If DB doesn't exist, return null; HTTP returns 503 with guidance
+- **ChromaDB fallback:** If unavailable at startup, log and continue; search downgrades to FTS5
+- **FTS5 fallback:** If FTS5 fails, query engine downgrades to SQL LIKE
+- **Migration errors:** Logged to stderr and file; scan continues but may fail later
+- **Agent timeout:** Parent command waits N seconds; timeout triggers user prompt for retry
+- **Invalid findings:** Validator logs specific errors (missing fields, invalid protocols); findings rejected but scan continues
+- **Network errors:** HTTP layer returns 500 with error message; UI shows "Cannot reach server"
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Hooks: Silent or stderr-only (preserve stdout for MCP)
-- Worker: Structured JSON logging to `~/.allclear/logs/worker.log` and stderr
-- Scripts: Tab-separated or JSON output to stdout for machine consumption
-- Debug: ALLCLEAR_LOG_LEVEL env var (DEBUG, INFO, WARN, ERROR)
+- Framework: Custom structured logger in `worker/lib/logger.js` (exports createLogger)
+- Usage: Injected into worker, HTTP server, scan manager, MCP server; writes to `~/.allclear/logs/<date>_<component>.log`
+- Format: JSON lines (timestamp, level, message, component, extra fields)
 
 **Validation:**
-- Configuration: jq for JSON schema validation (warn on malformed, use defaults)
-- HTTP requests: Zod schemas for request bodies (POST /scan)
-- Database: Foreign key constraints, migrations ensure schema correctness
-- Query parameters: HTTP routes validate required params, respond 400 on missing
+- Schema validation: `worker/scan/findings.js` for agent output; `worker/db/query-engine.js` for upsert operations
+- Framework: Zod in package.json (optional but used in MCP tool schemas)
+- Pattern: Parse/validate/reject with detailed error messages; never silently drop invalid data
 
 **Authentication:**
-- None: AllClear assumes single-machine, trusted environment
-- Isolation: Project databases isolated by file system permissions
-- Security: File guard blocks sensitive file writes
+- Strategy: None at worker/HTTP layer; assumes localhost-only or VPN access
+- CORS: Restricted to `http://localhost:5173`, `127.0.0.1:*` (for dev)
+- MCP: No auth; runs in Claude Code process with user's privileges
 
-**Performance:**
-- Database pool caches per-project QueryEngine instances
-- FTS5 full-text search (inverted index on services_fts virtual table)
-- ChromaDB optional for higher-latency semantic search
-- WAL mode enables concurrent reads while writes proceed
-- Transitive impact queries use recursive CTE with cycle detection (max depth 10)
+**Transactions:**
+- Pattern: Individual prepared statements for reads; batch upserts in writeScan use SQLite transactions
+- Example: `worker/db/database.js::writeScan()` wraps multiple INSERT/UPDATE in transaction
+
+**Concurrency:**
+- SQLite WAL mode enabled (`pragma journal_mode = WAL`)
+- Per-project pools prevent concurrent access to same DB
+- UI force simulation runs in Web Worker (separate thread)
+- Worker process is single-threaded Node.js; handles requests sequentially
 
 ---
 
-*Architecture analysis: 2026-03-16*
+*Architecture analysis: 2026-03-18*
