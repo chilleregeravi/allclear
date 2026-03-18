@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Layered Graph & Intelligence
 status: unknown
-stopped_at: Completed 37-01-PLAN.md
-last_updated: "2026-03-18T20:52:18.587Z"
+stopped_at: Completed 37-02-PLAN.md
+last_updated: "2026-03-18T20:56:30Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 37 (controls-filters) — EXECUTING
-Plan: 1 of 3
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -59,6 +59,8 @@ Plan: 1 of 3
 - [Phase 36-edge-rendering]: sdk/import map to [] (solid) — corrects prior incorrect [4,4] dashed pattern
 - [Phase 37-01]: Keep #fit-btn in toolbar between project-select and filters-btn — zoom utility separate from filters
 - [Phase 37-01]: Filter panel HTML shell in index.html now, wired by filter-panel.js in plan 02 — avoids JS-create-DOM pattern
+- [Phase 37-02]: Protocol checkbox handling moved into filter-panel.js — setupControls() now only owns search input
+- [Phase 37-02]: populateFilterDropdowns() called after mismatches assignment — services node array complete at that point
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:52:18.584Z
-Stopped at: Completed 37-01-PLAN.md
+Last session: 2026-03-18T20:56:30Z
+Stopped at: Completed 37-02-PLAN.md
 Resume file: None
