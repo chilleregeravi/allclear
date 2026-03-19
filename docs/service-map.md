@@ -1,10 +1,10 @@
 # Service Dependency Map
 
-AllClear scans your linked repositories with Claude agents to build an interactive service dependency graph.
+Ligamen scans your linked repositories with Claude agents to build an interactive service dependency graph.
 
 ## How It Works
 
-1. `/allclear:map` discovers your linked repos (from config or parent directory)
+1. `/ligamen:map` discovers your linked repos (from config or parent directory)
 2. You confirm the repo list
 3. Claude agents scan each repo — extracting services, endpoints, connections, schemas
 4. You confirm the findings (high-confidence as a batch, low-confidence individually)
@@ -27,7 +27,7 @@ AllClear scans your linked repositories with Claude agents to build an interacti
 
 ## Graph UI
 
-Open with `/allclear:map view` or navigate to `http://localhost:37888`.
+Open with `/ligamen:map view` or navigate to `http://localhost:37888`.
 
 **Node colors:**
 
@@ -51,19 +51,19 @@ Open with `/allclear:map view` or navigate to `http://localhost:37888`.
 
 ## Incremental Scanning
 
-After the first full scan, `/allclear:map` only re-scans repos with new commits. Use `/allclear:map full` to force a complete re-scan.
+After the first full scan, `/ligamen:map` only re-scans repos with new commits. Use `/ligamen:map full` to force a complete re-scan.
 
 ## MCP Server
 
-After building your first map, add the AllClear MCP server so all Claude agents can check impact before making changes:
+After building your first map, add the Ligamen MCP server so all Claude agents can check impact before making changes:
 
 ```json
 {
   "mcpServers": {
-    "allclear-impact": {
+    "ligamen-impact": {
       "type": "stdio",
       "command": "node",
-      "args": ["<path-to-allclear>/worker/mcp/server.js"]
+      "args": ["<path-to-ligamen>/worker/mcp/server.js"]
     }
   }
 }

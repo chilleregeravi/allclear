@@ -3,7 +3,7 @@
 ## Project Structure
 
 ```
-allclear/
+ligamen/
   .claude-plugin/
     plugin.json              # plugin manifest
   commands/                  # user-invoked slash commands (auto-namespaced)
@@ -69,7 +69,7 @@ allclear/
 
 ## Commands vs Skills
 
-- **`commands/`** — user types `/allclear:<name>`. Auto-namespaced with `(plugin:allclear)`.
+- **`commands/`** — user types `/ligamen:<name>`. Auto-namespaced with `(plugin:ligamen)`.
 - **`skills/`** — Claude auto-loads based on context. Not user-invoked.
 
 ## Worker Process

@@ -1,8 +1,8 @@
 # Configuration
 
-AllClear works with zero configuration. All features auto-detect project types and tools.
+Ligamen works with zero configuration. All features auto-detect project types and tools.
 
-## Project Config: `allclear.config.json`
+## Project Config: `ligamen.config.json`
 
 Lives in your project root. Committed to git.
 
@@ -34,7 +34,7 @@ Lives in your project root. Committed to git.
 | Key | Purpose |
 |-----|---------|
 | `linked-repos` | Explicit list of connected repos. Auto-discovered from parent dir if absent. |
-| `impact-map` | Created automatically after first `/allclear:map`. Presence triggers worker auto-start. |
+| `impact-map` | Created automatically after first `/ligamen:map`. Presence triggers worker auto-start. |
 | `boundaries` | Optional service grouping for the graph UI. Each boundary draws a labeled box around its member services. |
 
 ### Boundaries
@@ -47,31 +47,31 @@ Boundaries group services visually in the graph UI. Each boundary needs:
 
 Services not assigned to any boundary appear ungrouped in the services row. A service can only belong to one boundary.
 
-## Machine Settings: `~/.allclear/settings.json` {#machine-settings}
+## Machine Settings: `~/.ligamen/settings.json` {#machine-settings}
 
 Machine-specific settings. Never committed.
 
 ```json
 {
-  "ALLCLEAR_WORKER_PORT": "37888",
-  "ALLCLEAR_WORKER_HOST": "127.0.0.1",
-  "ALLCLEAR_DATA_DIR": "/Users/you/.allclear",
-  "ALLCLEAR_LOG_LEVEL": "INFO"
+  "LIGAMEN_WORKER_PORT": "37888",
+  "LIGAMEN_WORKER_HOST": "127.0.0.1",
+  "LIGAMEN_DATA_DIR": "/Users/you/.ligamen",
+  "LIGAMEN_LOG_LEVEL": "INFO"
 }
 ```
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `ALLCLEAR_WORKER_PORT` | `37888` | Worker daemon HTTP port |
-| `ALLCLEAR_WORKER_HOST` | `127.0.0.1` | Worker bind address |
-| `ALLCLEAR_DATA_DIR` | `~/.allclear` | Data directory for DBs, logs, settings |
-| `ALLCLEAR_LOG_LEVEL` | `INFO` | Log verbosity (`INFO` or `DEBUG`) |
+| `LIGAMEN_WORKER_PORT` | `37888` | Worker daemon HTTP port |
+| `LIGAMEN_WORKER_HOST` | `127.0.0.1` | Worker bind address |
+| `LIGAMEN_DATA_DIR` | `~/.ligamen` | Data directory for DBs, logs, settings |
+| `LIGAMEN_LOG_LEVEL` | `INFO` | Log verbosity (`INFO` or `DEBUG`) |
 
 ## ChromaDB (optional) {#chromadb}
 
-AllClear can sync service graph data to [ChromaDB](https://www.trychroma.com/) for semantic vector search. This enhances MCP tool responses and `/allclear:cross-impact` results with richer, context-aware matches.
+Ligamen can sync service graph data to [ChromaDB](https://www.trychroma.com/) for semantic vector search. This enhances MCP tool responses and `/ligamen:cross-impact` results with richer, context-aware matches.
 
-Without ChromaDB, AllClear falls back to SQLite FTS5 full-text search — still functional, but keyword-based rather than semantic.
+Without ChromaDB, Ligamen falls back to SQLite FTS5 full-text search — still functional, but keyword-based rather than semantic.
 
 ### Setup
 
@@ -86,37 +86,37 @@ pip install chromadb
 chroma run --host localhost --port 8000
 ```
 
-**2. Enable in `~/.allclear/settings.json`:**
+**2. Enable in `~/.ligamen/settings.json`:**
 
 ```json
 {
-  "ALLCLEAR_CHROMA_MODE": "local",
-  "ALLCLEAR_CHROMA_HOST": "localhost",
-  "ALLCLEAR_CHROMA_PORT": "8000"
+  "LIGAMEN_CHROMA_MODE": "local",
+  "LIGAMEN_CHROMA_HOST": "localhost",
+  "LIGAMEN_CHROMA_PORT": "8000"
 }
 ```
 
 **3. Re-scan your project:**
 
 ```
-/allclear:map
+/ligamen:map
 ```
 
 After scanning, service data is synced to ChromaDB automatically. Subsequent MCP queries and impact checks use ChromaDB for semantic search when available.
 
 ### ChromaDB Settings
 
-Add these to `~/.allclear/settings.json`:
+Add these to `~/.ligamen/settings.json`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `ALLCLEAR_CHROMA_MODE` | _(empty)_ | Set to `"local"` to enable ChromaDB sync |
-| `ALLCLEAR_CHROMA_HOST` | `localhost` | ChromaDB server hostname |
-| `ALLCLEAR_CHROMA_PORT` | `8000` | ChromaDB server port |
-| `ALLCLEAR_CHROMA_SSL` | `false` | Enable HTTPS for ChromaDB connection |
-| `ALLCLEAR_CHROMA_API_KEY` | _(empty)_ | API key for authenticated ChromaDB instances |
-| `ALLCLEAR_CHROMA_TENANT` | `default_tenant` | ChromaDB tenant ID |
-| `ALLCLEAR_CHROMA_DATABASE` | `default_database` | ChromaDB database name |
+| `LIGAMEN_CHROMA_MODE` | _(empty)_ | Set to `"local"` to enable ChromaDB sync |
+| `LIGAMEN_CHROMA_HOST` | `localhost` | ChromaDB server hostname |
+| `LIGAMEN_CHROMA_PORT` | `8000` | ChromaDB server port |
+| `LIGAMEN_CHROMA_SSL` | `false` | Enable HTTPS for ChromaDB connection |
+| `LIGAMEN_CHROMA_API_KEY` | _(empty)_ | API key for authenticated ChromaDB instances |
+| `LIGAMEN_CHROMA_TENANT` | `default_tenant` | ChromaDB tenant ID |
+| `LIGAMEN_CHROMA_DATABASE` | `default_database` | ChromaDB database name |
 
 ### What Gets Synced
 
@@ -130,25 +130,25 @@ This enables queries like "what services handle payments" to return results even
 
 ### Troubleshooting
 
-- **ChromaDB not running:** AllClear logs a warning and falls back to FTS5. No scan data is lost.
-- **Connection refused:** Check `ALLCLEAR_CHROMA_HOST` and `ALLCLEAR_CHROMA_PORT` match your ChromaDB instance.
-- **Stale data:** Re-run `/allclear:map` to resync. ChromaDB collections are replaced on each scan.
+- **ChromaDB not running:** Ligamen logs a warning and falls back to FTS5. No scan data is lost.
+- **Connection refused:** Check `LIGAMEN_CHROMA_HOST` and `LIGAMEN_CHROMA_PORT` match your ChromaDB instance.
+- **Stale data:** Re-run `/ligamen:map` to resync. ChromaDB collections are replaced on each scan.
 
 ## Environment Variables {#environment-variables}
 
 | Variable | Effect |
 |----------|--------|
-| `ALLCLEAR_DISABLE_FORMAT=1` | Skip auto-formatting |
-| `ALLCLEAR_DISABLE_LINT=1` | Skip auto-linting |
-| `ALLCLEAR_DISABLE_GUARD=1` | Skip file guard |
-| `ALLCLEAR_DISABLE_SESSION_START=1` | Skip session context |
-| `ALLCLEAR_LINT_THROTTLE=<seconds>` | Cargo clippy throttle (default: 30) |
-| `ALLCLEAR_EXTRA_BLOCKED=<patterns>` | Colon-separated glob patterns to block |
+| `LIGAMEN_DISABLE_FORMAT=1` | Skip auto-formatting |
+| `LIGAMEN_DISABLE_LINT=1` | Skip auto-linting |
+| `LIGAMEN_DISABLE_GUARD=1` | Skip file guard |
+| `LIGAMEN_DISABLE_SESSION_START=1` | Skip session context |
+| `LIGAMEN_LINT_THROTTLE=<seconds>` | Cargo clippy throttle (default: 30) |
+| `LIGAMEN_EXTRA_BLOCKED=<patterns>` | Colon-separated glob patterns to block |
 
-## Data Directory: `~/.allclear/`
+## Data Directory: `~/.ligamen/`
 
 ```
-~/.allclear/
+~/.ligamen/
 ├── settings.json              # machine settings
 ├── worker.pid                 # daemon PID
 ├── worker.port                # actual bound port

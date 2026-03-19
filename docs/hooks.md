@@ -1,10 +1,10 @@
 # Hooks
 
-AllClear hooks run automatically in the background with zero configuration.
+Ligamen hooks run automatically in the background with zero configuration.
 
 ## Auto-Format (PostToolUse)
 
-Every time Claude writes or edits a file, AllClear runs the appropriate formatter:
+Every time Claude writes or edits a file, Ligamen runs the appropriate formatter:
 
 | Extension | Formatter |
 |-----------|-----------|
@@ -20,7 +20,7 @@ Every time Claude writes or edits a file, AllClear runs the appropriate formatte
 
 ## Auto-Lint (PostToolUse)
 
-After every write/edit, AllClear runs your linter and surfaces issues as a system message:
+After every write/edit, Ligamen runs your linter and surfaces issues as a system message:
 
 | Language | Linter |
 |----------|--------|
@@ -47,13 +47,13 @@ Blocks writes to sensitive files before they happen:
 
 ## Session Context (SessionStart)
 
-On session start, AllClear detects your project type and injects available commands. Also auto-starts the dependency map worker if configured.
+On session start, Ligamen detects your project type and injects available commands. Also auto-starts the dependency map worker if configured.
 
 ## Disabling Hooks
 
 | Variable | Effect |
 |----------|--------|
-| `ALLCLEAR_DISABLE_FORMAT=1` | Skip auto-formatting |
-| `ALLCLEAR_DISABLE_LINT=1` | Skip auto-linting |
-| `ALLCLEAR_DISABLE_GUARD=1` | Skip file guard |
-| `ALLCLEAR_DISABLE_SESSION_START=1` | Skip session context |
+| `LIGAMEN_DISABLE_FORMAT=1` | Skip auto-formatting |
+| `LIGAMEN_DISABLE_LINT=1` | Skip auto-linting |
+| `LIGAMEN_DISABLE_GUARD=1` | Skip file guard |
+| `LIGAMEN_DISABLE_SESSION_START=1` | Skip session context |

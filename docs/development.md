@@ -9,8 +9,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/chilleregeravi/allclear.git
-cd allclear
+git clone https://github.com/chilleregeravi/ligamen.git
+cd ligamen
 git submodule update --init --recursive
 npm install
 ```
@@ -39,7 +39,7 @@ npm run test:storage         # query engine unit tests (node:test)
 ## Quick Test (no install)
 
 ```bash
-claude --plugin-dir /path/to/allclear
+claude --plugin-dir /path/to/ligamen
 ```
 
 ## Quality Gate
@@ -50,4 +50,4 @@ Run all checks before committing:
 make lint && make check && make test
 ```
 
-Or use AllClear itself: `/allclear:quality-gate`
+Or use Ligamen itself: `/ligamen:quality-gate`

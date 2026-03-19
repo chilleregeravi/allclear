@@ -1,4 +1,4 @@
-# AllClear
+# Ligamen
 
 ## What This Is
 
@@ -12,22 +12,22 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Validated
 
-- ✓ Universal quality gate command (`/allclear:quality-gate`) with auto-detection of project type — v1.0
-- ✓ Cross-repo impact scanning (`/allclear:cross-impact`) — v1.0
-- ✓ Cross-repo consistency checking (`/allclear:drift`) — v1.0
-- ✓ Live service health checking (`/allclear:pulse`) — v1.0
-- ✓ Deploy state verification (`/allclear:deploy-verify`) — v1.0
+- ✓ Universal quality gate command (`/ligamen:quality-gate`) with auto-detection of project type — v1.0
+- ✓ Cross-repo impact scanning (`/ligamen:cross-impact`) — v1.0
+- ✓ Cross-repo consistency checking (`/ligamen:drift`) — v1.0
+- ✓ Live service health checking (`/ligamen:pulse`) — v1.0
+- ✓ Deploy state verification (`/ligamen:deploy-verify`) — v1.0
 - ✓ Auto-format hook on edit (PostToolUse) — v1.0
 - ✓ Auto-lint hook on edit (PostToolUse) — v1.0
 - ✓ Sensitive file guard hook (PreToolUse) — v1.0
 - ✓ Session start context hook (SessionStart) — v1.0
 - ✓ Git clone + symlink installation path — v1.0
 - ✓ Bats test suite (150 tests) — v1.0
-- ✓ Plugin commands use `(plugin:allclear)` namespacing via commands/ directory — v1.0
+- ✓ Plugin commands use `(plugin:ligamen)` namespacing via commands/ directory — v1.0
 - ✓ Quality gate skill for auto-invocation by agents — v1.0
 
-- ✓ Service dependency map via `/allclear:map` with two-phase agent scanning — v2.0
-- ✓ Redesigned `/allclear:cross-impact` with graph-based transitive impact analysis — v2.0
+- ✓ Service dependency map via `/ligamen:map` with two-phase agent scanning — v2.0
+- ✓ Redesigned `/ligamen:cross-impact` with graph-based transitive impact analysis — v2.0
 - ✓ Node.js worker daemon with auto-restart on version mismatch — v2.0
 - ✓ MCP server with 5 impact tools for agent-autonomous checking — v2.0
 - ✓ Interactive D3 Canvas graph UI with node coloring, mismatch indicators, detail panel — v2.0
@@ -53,7 +53,7 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ XSS-safe detail panel rendering with `escapeHtml()` on scan-derived strings — v2.3
 
 - ✓ Deterministic layered layout replacing force simulation (services/libraries/infra rows with row wrapping) — v3.0
-- ✓ Boundary grouping via `allclear.config.json` with dashed rounded rectangle rendering — v3.0
+- ✓ Boundary grouping via `ligamen.config.json` with dashed rounded rectangle rendering — v3.0
 - ✓ External actor detection from scan `crossing` field, hexagon nodes in right column — v3.0
 - ✓ Node shapes per type: circles (services), outline diamonds (libraries), filled diamonds (infra), hexagons (actors) — v3.0
 - ✓ Protocol-differentiated edge styles: solid (REST), dashed (gRPC), dotted (events), red (mismatch) — v3.0
@@ -74,7 +74,7 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 - Linear issue enrichment — other plugins cover this; no external service dependencies
 - GitHub Issues integration — same reasoning
-- Any issue tracker integration — keep AllClear focused on code and infrastructure
+- Any issue tracker integration — keep Ligamen focused on code and infrastructure
 - RamaEdge-specific logic — plugin must remain generic and framework-agnostic
 - Auto-fix for test/typecheck failures — unsafe, may silently alter code semantics
 - xterm.js interactive terminal — log viewer uses styled div, not a full terminal emulator
@@ -94,7 +94,7 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 - **No external service deps**: Every command must work with only local files, git, and optionally kubectl
 - **License**: Apache 2.0
 - **Testing**: Bats-core for hook shell scripts, node:test for worker JS
-- **Detect, don't configure**: Infer everything from project files; zero-config by default with optional overrides via allclear.config.json
+- **Detect, don't configure**: Infer everything from project files; zero-config by default with optional overrides via ligamen.config.json
 - **Non-blocking hooks**: Format/lint hooks must not block edits on failure — warn and continue
 - **Cross-repo discovery**: Auto-detect linked repos from parent directory, override with config file
 
@@ -103,7 +103,7 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Dedicated repo (not part of claude-code) | Clean separation between private orchestration and open-source plugin | ✓ Good |
-| Drop /allclear scope | Other plugins handle issue enrichment; keeps AllClear zero external deps | ✓ Good |
+| Drop /allclear scope (renamed to /ligamen) | Other plugins handle issue enrichment; keeps Ligamen zero external deps | ✓ Good |
 | Apache 2.0 license | Permissive with patent protection, standard for dev tools | ✓ Good |
 | Auto-detect + config override for linked repos | Parent dir scan works for flat layouts, config.json for custom setups | ✓ Good |
 | Canvas not SVG for graph UI | SVG degrades at 30+ nodes, Canvas scales to 100+ | ✓ Good |
@@ -129,7 +129,7 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | Services top, libraries middle, infra bottom | Infra is the foundation services run on — matches mental model | ✓ Good |
 | Minimal top bar with collapsible filter panel | Keeps UI clean; all power behind one button | ✓ Good |
 | Layered scanning approach | Core scan unchanged; future views get their own optional scan passes | ✓ Good |
-| Boundary config in allclear.config.json | User-defined grouping avoids hallucination from auto-inference | ✓ Good |
+| Boundary config in ligamen.config.json | User-defined grouping avoids hallucination from auto-inference | ✓ Good |
 
 ---
 *Last updated: 2026-03-19 after v4.0 milestone start*

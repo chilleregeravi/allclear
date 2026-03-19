@@ -8,7 +8,7 @@
 
 - Migration 008 adds `actors`, `actor_connections`, and `node_metadata` tables for external system tracking and extensible metadata
 - Deterministic layered layout engine replaces D3 force simulation — services/libraries/infra in stable rows with row wrapping
-- Boundary grouping via `allclear.config.json` — dashed rounded rectangles with labels around service clusters
+- Boundary grouping via `ligamen.config.json` — dashed rounded rectangles with labels around service clusters
 - External actor detection from scan `crossing` field — hexagon nodes in dedicated right column with detail panel
 - Protocol-differentiated edge styles: solid (REST), dashed (gRPC), dotted (events), arrowed (SDK), red (mismatch)
 - Minimal top bar with collapsible filter panel — protocol, layer, boundary, language, mismatch-only, hide-isolated filters
