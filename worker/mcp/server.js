@@ -13,18 +13,18 @@ import { getQueryEngine, getQueryEngineByHash, getQueryEngineByRepo } from '../d
 import { enrichImpactResult, enrichSearchResult } from '../db/query-engine.js';
 
 const dataDir =
-  process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), ".allclear");
+  process.env.LIGAMEN_DATA_DIR || path.join(os.homedir(), ".ligamen");
 
 let _mcpLogLevel = 'INFO';
 try {
   const _settings = JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8'));
-  if (_settings.ALLCLEAR_LOG_LEVEL) _mcpLogLevel = _settings.ALLCLEAR_LOG_LEVEL;
+  if (_settings.LIGAMEN_LOG_LEVEL) _mcpLogLevel = _settings.LIGAMEN_LOG_LEVEL;
 } catch { /* settings absent — use default */ }
 
 const logger = createLogger({ dataDir, logLevel: _mcpLogLevel, component: 'mcp' });
 
 /**
- * Resolve the per-project DB path: ~/.allclear/projects/<hash>/impact-map.db
+ * Resolve the per-project DB path: ~/.ligamen/projects/<hash>/impact-map.db
  * Uses the same hashing logic as worker/db.js projectHashDir().
  */
 function resolveDbPath(projectRoot = process.cwd()) {
@@ -675,7 +675,7 @@ server.tool(
 // ── impact_scan ──────────────────────────────────────────────
 server.tool(
   "impact_scan",
-  "Trigger a dependency scan via the AllClear HTTP worker. Returns unavailable when the worker is not running.",
+  "Trigger a dependency scan via the Ligamen HTTP worker. Returns unavailable when the worker is not running.",
   {
     repo: z
       .string()

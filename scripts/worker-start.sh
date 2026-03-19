@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# AllClear — worker-start.sh
-# Starts the AllClear background worker process as a daemon.
+# Ligamen — worker-start.sh
+# Starts the Ligamen background worker process as a daemon.
 # Writes PID and port files to DATA_DIR, then returns immediately.
 # Readiness polling is handled by lib/worker-client.sh wait_for_worker().
 set -euo pipefail
@@ -15,8 +15,8 @@ else
   PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
-# Determine data directory (machine-wide: ~/.allclear or override)
-DATA_DIR="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+# Determine data directory (machine-wide: ~/.ligamen or override)
+DATA_DIR="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
 mkdir -p "$DATA_DIR"
 
 PID_FILE="${DATA_DIR}/worker.pid"
@@ -58,19 +58,19 @@ fi
 PORT=""
 
 # 1. Environment variable
-if [[ -n "${ALLCLEAR_WORKER_PORT:-}" ]]; then
-  PORT="${ALLCLEAR_WORKER_PORT}"
+if [[ -n "${LIGAMEN_WORKER_PORT:-}" ]]; then
+  PORT="${LIGAMEN_WORKER_PORT}"
 fi
 
-# 2. ~/.allclear/settings.json key "ALLCLEAR_WORKER_PORT"
+# 2. ~/.ligamen/settings.json key "LIGAMEN_WORKER_PORT"
 if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1 && [[ -f "${DATA_DIR}/settings.json" ]]; then
-  _port=$(jq -r '.ALLCLEAR_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
+  _port=$(jq -r '.LIGAMEN_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
   [[ -n "$_port" ]] && PORT="$_port"
 fi
 
-# 3. allclear.config.json in CWD key ."impact-map".port
-if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1 && [[ -f "${PWD}/allclear.config.json" ]]; then
-  _port=$(jq -r '.["impact-map"].port // empty' "${PWD}/allclear.config.json" 2>/dev/null || true)
+# 3. ligamen.config.json in CWD key ."impact-map".port
+if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1 && [[ -f "${PWD}/ligamen.config.json" ]]; then
+  _port=$(jq -r '.["impact-map"].port // empty' "${PWD}/ligamen.config.json" 2>/dev/null || true)
   [[ -n "$_port" ]] && PORT="$_port"
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # drift-versions.sh — Cross-repo dependency version drift checker
-# Part of the AllClear drift skill (Phase 10, DRFT-01, DRFT-05, DRFT-06)
+# Part of the Ligamen drift skill (Phase 10, DRFT-01, DRFT-05, DRFT-06)
 # Usage: drift-versions.sh [--all] [--test-only]
 #   --all        Show INFO-level findings (suppressed by default)
 #   --test-only  Source-safe: define functions but do not execute main loop

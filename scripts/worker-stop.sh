@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# AllClear — worker-stop.sh
-# Gracefully stops the AllClear background worker process.
+# Ligamen — worker-stop.sh
+# Gracefully stops the Ligamen background worker process.
 # Sends SIGTERM and waits up to 5 seconds, then falls back to SIGKILL.
 # Cleans up PID and port files on exit.
 set -euo pipefail
@@ -8,8 +8,8 @@ set -euo pipefail
 # Non-blocking trap: unexpected errors exit 0 silently
 trap 'exit 0' ERR
 
-# Determine data directory (machine-wide: ~/.allclear or override)
-DATA_DIR="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+# Determine data directory (machine-wide: ~/.ligamen or override)
+DATA_DIR="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
 
 PID_FILE="${DATA_DIR}/worker.pid"
 PORT_FILE="${DATA_DIR}/worker.port"

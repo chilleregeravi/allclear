@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/impact.sh — Cross-repo reference scanner for AllClear
+# scripts/impact.sh — Cross-repo reference scanner for Ligamen
 # Usage: bash scripts/impact.sh [symbol...] [--changed] [--exclude <repo>]
 # Scans linked repositories for references to specified symbols.
 # Classifies matches as code, config, docs, or test based on file path.

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# lib/worker-client.sh — AllClear worker HTTP client helpers
+# lib/worker-client.sh — Ligamen worker HTTP client helpers
 # Source this file; do not execute it directly.
 # Functions: worker_running(), worker_call(), wait_for_worker(),
 #            worker_start_background(), worker_status_line()
 
 worker_running() {
-  local data_dir="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+  local data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
   local port_file="${data_dir}/worker.port"
   [[ -f "$port_file" ]] || return 1
   local port; port=$(cat "$port_file")
@@ -15,7 +15,7 @@ worker_running() {
 
 worker_call() {
   local endpoint="$1"; shift
-  local data_dir="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+  local data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
   local port_file="${data_dir}/worker.port"
   [[ -f "$port_file" ]] || { echo "worker-client: no port file at $port_file" >&2; return 1; }
   local port; port=$(cat "$port_file")
@@ -26,7 +26,7 @@ worker_call() {
 wait_for_worker() {
   local max_attempts="${1:-20}"
   local interval_ms="${2:-250}"
-  local data_dir="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+  local data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
   local port_file="${data_dir}/worker.port"
   local i=0
   while [[ $i -lt $max_attempts ]]; do
@@ -61,7 +61,7 @@ worker_start_background() {
 
 worker_status_line() {
   # Returns a human-readable status line if worker is running, empty string otherwise.
-  local data_dir="${ALLCLEAR_DATA_DIR:-$HOME/.allclear}"
+  local data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
   local port_file="${data_dir}/worker.port"
   if ! worker_running 2>/dev/null; then
     return 0
@@ -69,8 +69,8 @@ worker_status_line() {
   local port=""
   [[ -f "$port_file" ]] && port=$(cat "$port_file")
   if [[ -n "$port" ]]; then
-    echo "AllClear worker: running (port ${port})"
+    echo "Ligamen worker: running (port ${port})"
   else
-    echo "AllClear worker: running"
+    echo "Ligamen worker: running"
   fi
 }

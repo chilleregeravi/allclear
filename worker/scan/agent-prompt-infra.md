@@ -1,4 +1,4 @@
-# AllClear Scan — Infrastructure Repository
+# Ligamen Scan — Infrastructure Repository
 
 You are a code analysis agent scanning `{{REPO_PATH}}` to extract its **infrastructure-to-service wiring**.
 

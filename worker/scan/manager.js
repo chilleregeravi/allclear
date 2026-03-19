@@ -1,5 +1,5 @@
 /**
- * worker/scan-manager.js — Scan orchestration for AllClear v2.0 agent scanning.
+ * worker/scan-manager.js — Scan orchestration for Ligamen v2.0 agent scanning.
  *
  * Exports:
  *   getChangedFiles(repoPath, sinceCommit)       - Git diff wrapper

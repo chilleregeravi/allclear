@@ -1,5 +1,5 @@
 /**
- * worker/query-engine.js — Read/write query layer over the AllClear SQLite schema.
+ * worker/query-engine.js — Read/write query layer over the Ligamen SQLite schema.
  *
  * QueryEngine wraps a better-sqlite3 Database instance and provides:
  *   - Transitive impact traversal (downstream and upstream) with cycle detection

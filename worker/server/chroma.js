@@ -1,5 +1,5 @@
 /**
- * worker/chroma-sync.js — ChromaDB async sync module for AllClear v2.0
+ * worker/chroma-sync.js — ChromaDB async sync module for Ligamen v2.0
  *
  * Provides optional ChromaDB vector search as a non-blocking enhancement
  * over the SQLite/FTS5 search stack. A ChromaDB outage never prevents

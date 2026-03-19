@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# AllClear — session-start.sh
+# Ligamen — session-start.sh
 # Fires on SessionStart and UserPromptSubmit (UserPromptSubmit fallback for upstream bug #10373).
-# Injects project type and available allclear commands into session context exactly once.
+# Injects project type and available ligamen commands into session context exactly once.
 # Non-blocking: always exits 0.
 set -euo pipefail
 
@@ -9,7 +9,7 @@ set -euo pipefail
 trap 'exit 0' ERR
 
 # SSTH-04: Disable guard — if set to any non-empty value, exit silently
-[[ -n "${ALLCLEAR_DISABLE_SESSION_START:-}" ]] && exit 0
+[[ -n "${LIGAMEN_DISABLE_SESSION_START:-}" ]] && exit 0
 
 # SSTH-03: Require jq for JSON parsing; if unavailable, exit 0 silently (never block)
 if ! command -v jq >/dev/null 2>&1; then
@@ -29,7 +29,7 @@ EVENT=$(printf '%s\n' "$INPUT" | jq -r '.hook_event_name // empty')
 
 # SSTH-05: Deduplication — only inject context once per session
 if [[ -n "$SESSION_ID" ]]; then
-  FLAG_FILE="/tmp/allclear_session_${SESSION_ID}.initialized"
+  FLAG_FILE="/tmp/ligamen_session_${SESSION_ID}.initialized"
   if [[ -f "$FLAG_FILE" ]]; then
     exit 0  # already ran for this session
   fi
@@ -85,9 +85,9 @@ if [[ -n "$DETECT_LIB" ]]; then
 fi
 
 # SSTH-02: Build context message
-CONTEXT="AllClear active."
+CONTEXT="Ligamen active."
 if [[ -n "$PROJECT_TYPES" ]]; then
-  CONTEXT="AllClear active. Detected: ${PROJECT_TYPES}."
+  CONTEXT="Ligamen active. Detected: ${PROJECT_TYPES}."
 fi
 CONTEXT="${CONTEXT} Commands: /allclear:quality-gate, /allclear:cross-impact, /allclear:drift, /allclear:pulse, /allclear:deploy-verify."
 [[ -n "$WORKER_STATUS" ]] && CONTEXT="${CONTEXT} ${WORKER_STATUS}"

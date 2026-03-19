@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AllClear Pulse Skill — service health check helper
+# Ligamen Pulse Skill — service health check helper
 # Sourced by SKILL.md — not intended for direct execution
 
 set -euo pipefail

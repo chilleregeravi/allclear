@@ -7,14 +7,14 @@
 #   2 = hard block (deny tool call); block message goes to stderr
 #
 # Environment:
-#   ALLCLEAR_DISABLE_GUARD=1   -- bypass guard entirely (CONF-02)
-#   ALLCLEAR_EXTRA_BLOCKED     -- colon-separated glob patterns to add to hard-block list (CONF-04)
+#   LIGAMEN_DISABLE_GUARD=1   -- bypass guard entirely (CONF-02)
+#   LIGAMEN_EXTRA_BLOCKED     -- colon-separated glob patterns to add to hard-block list (CONF-04)
 #
 # NOTE: No `set -e` -- realpath can fail on files that don't exist yet;
 #       all exit codes must be explicit.
 
 # --- Disable guard entirely (CONF-02) ---
-if [[ "${ALLCLEAR_DISABLE_GUARD:-0}" == "1" ]]; then
+if [[ "${LIGAMEN_DISABLE_GUARD:-0}" == "1" ]]; then
   exit 0
 fi
 
@@ -50,32 +50,32 @@ block_file() {
   local basename
   basename=$(basename "$file")
   # Human-readable message on stderr
-  printf 'AllClear: blocked write to %s -- %s\n' "$basename" "$reason" >&2
+  printf 'Ligamen: blocked write to %s -- %s\n' "$basename" "$reason" >&2
   # hookSpecificOutput JSON on stdout — required for Claude Code PreToolUse deny schema
   # Source: validate-write.sh + hookify rule_engine.py (TEST-08 contract)
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"AllClear: blocked write to %s -- %s"}}\n' \
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Ligamen: blocked write to %s -- %s"}}\n' \
     "$basename" "$reason"
   exit 2
 }
 
 warn_file() {
   local file="$1" message="$2"
-  printf '{"systemMessage": "AllClear: %s -- %s"}\n' "$(basename "$file")" "$message"
+  printf '{"systemMessage": "Ligamen: %s -- %s"}\n' "$(basename "$file")" "$message"
   exit 0
 }
 
 # ---------------------------------------------------------------------------
-# ALLCLEAR_EXTRA_BLOCKED -- user-defined colon-separated patterns (CONF-04)
+# LIGAMEN_EXTRA_BLOCKED -- user-defined colon-separated patterns (CONF-04)
 # Checked first so user overrides take precedence over soft-warn rules below.
 # ---------------------------------------------------------------------------
-if [[ -n "${ALLCLEAR_EXTRA_BLOCKED:-}" ]]; then
-  IFS=':' read -ra _extra_patterns <<< "$ALLCLEAR_EXTRA_BLOCKED"
+if [[ -n "${LIGAMEN_EXTRA_BLOCKED:-}" ]]; then
+  IFS=':' read -ra _extra_patterns <<< "$LIGAMEN_EXTRA_BLOCKED"
   for _pat in "${_extra_patterns[@]}"; do
     [[ -z "$_pat" ]] && continue
     # Match against basename and full path — unquoted for glob expansion (*.bak matches foo.bak)
     # shellcheck disable=SC2053
     if [[ "$BASENAME" == $_pat ]] || [[ "$FILE" == $_pat ]]; then
-      block_file "$FILE" "matches custom block pattern '$_pat' in ALLCLEAR_EXTRA_BLOCKED"
+      block_file "$FILE" "matches custom block pattern '$_pat' in LIGAMEN_EXTRA_BLOCKED"
     fi
   done
 fi

@@ -1,4 +1,4 @@
-# AllClear Scan — Service Repository
+# Ligamen Scan — Service Repository
 
 You are a code analysis agent scanning `{{REPO_PATH}}` to extract its **service dependency structure**.
 

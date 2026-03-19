@@ -4,7 +4,7 @@ set -euo pipefail
 # ── Header guards ──────────────────────────────────────────────────────────────
 
 # 1. Bail immediately if lint is disabled
-[[ -n "${ALLCLEAR_DISABLE_LINT:-}" ]] && exit 0
+[[ -n "${LIGAMEN_DISABLE_LINT:-}" ]] && exit 0
 
 # 2. Route ALL debug/error output to stderr sink so nothing contaminates stdout
 exec 2>/dev/null
@@ -79,8 +79,8 @@ case "$LANG" in
 
     # Throttle key: cksum is POSIX-available (unlike md5sum on macOS)
     THROTTLE_KEY=$(printf '%s' "$CARGO_ROOT" | cksum | cut -d' ' -f1)
-    THROTTLE_FILE="/tmp/allclear_clippy_${THROTTLE_KEY}"
-    THROTTLE_SECS="${ALLCLEAR_LINT_THROTTLE:-30}"
+    THROTTLE_FILE="/tmp/ligamen_clippy_${THROTTLE_KEY}"
+    THROTTLE_SECS="${LIGAMEN_LINT_THROTTLE:-30}"
 
     NOW=$(date +%s)
     LAST=0
@@ -154,7 +154,7 @@ if (( LINE_COUNT > 30 )); then
 ... ($(( LINE_COUNT - 30 )) more lines — run \`${LINTER_NAME} ${FILE}\` to see all)"
 fi
 
-MSG="AllClear lint [${LINTER_NAME}]: ${FILE}
+MSG="Ligamen lint [${LINTER_NAME}]: ${FILE}
 ${TRIMMED}"
 
 # Safe JSON emission via jq — handles quotes, backslashes, newlines (Pattern 4)

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# AllClear: Auto-format hook
+# Ligamen: Auto-format hook
 # Event: PostToolUse (Write|Edit|MultiEdit)
 # Non-blocking: always exits 0 (FMTH-10)
 
 # Disable toggle — forward compat with Phase 8 CONF-02
-[[ "${ALLCLEAR_DISABLE_FORMAT:-}" == "1" ]] && exit 0
+[[ "${LIGAMEN_DISABLE_FORMAT:-}" == "1" ]] && exit 0
 
 # Read stdin once (it's a stream — can only be read once)
 INPUT=$(cat)

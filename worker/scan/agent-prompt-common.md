@@ -1,4 +1,4 @@
-# AllClear Scan — Common Rules
+# Ligamen Scan — Common Rules
 
 ## Scope Rule
 

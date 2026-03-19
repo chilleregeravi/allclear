@@ -1,4 +1,4 @@
-# AllClear Deep Scan Agent — Phase 2
+# Ligamen Deep Scan Agent — Phase 2
 
 You are a code analysis agent. Your task is to do a **deep scan** of the repository at `{{REPO_PATH}}` and extract its service dependency structure.
 

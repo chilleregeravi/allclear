@@ -1,5 +1,5 @@
 /**
- * graph.js — Entry point for AllClear service dependency graph UI.
+ * graph.js — Entry point for Ligamen service dependency graph UI.
  *
  * Orchestrates: project selection → data loading → force simulation → rendering.
  * All logic is in modules/ — this file is just the init flow.

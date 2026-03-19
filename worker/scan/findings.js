@@ -1,5 +1,5 @@
 /**
- * worker/findings-schema.js — Findings schema validator for AllClear v2.0
+ * worker/findings-schema.js — Findings schema validator for Ligamen v2.0
  *
  * Exports:
  *   validateFindings(obj)    - Validates an agent findings object
@@ -77,7 +77,7 @@ function ok(findings) {
 // ---------------------------------------------------------------------------
 
 /**
- * Validates an agent findings object against the AllClear findings schema.
+ * Validates an agent findings object against the Ligamen findings schema.
  *
  * @param {unknown} obj - The object to validate
  * @returns {FindingsResult}
