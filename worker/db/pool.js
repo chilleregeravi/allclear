@@ -15,7 +15,7 @@ import { openDb, runMigrations } from "./database.js";
 import { QueryEngine } from "./query-engine.js";
 
 const dataDir =
-  process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), ".allclear");
+  process.env.LIGAMEN_DATA_DIR || path.join(os.homedir(), ".ligamen");
 
 /** Cache: projectRoot → QueryEngine */
 const pool = new Map();
@@ -71,7 +71,7 @@ export function getQueryEngine(projectRoot) {
 
 /**
  * List all projects that have a DB.
- * Scans ~/.allclear/projects/ for impact-map.db files.
+ * Scans ~/.ligamen/projects/ for impact-map.db files.
  * @returns {Array<{hash: string, dbPath: string, size: number}>}
  */
 export function listProjects() {

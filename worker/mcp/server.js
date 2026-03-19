@@ -37,8 +37,8 @@ function resolveDbPath(projectRoot = process.cwd()) {
 }
 
 const dbPath =
-  process.env.ALLCLEAR_DB_PATH ||
-  resolveDbPath(process.env.ALLCLEAR_PROJECT_ROOT || process.cwd());
+  process.env.LIGAMEN_DB_PATH ||
+  resolveDbPath(process.env.LIGAMEN_PROJECT_ROOT || process.cwd());
 
 /**
  * Open the SQLite database in read-only mode.
@@ -70,7 +70,7 @@ export function openDb() {
  */
 export function resolveDb(project) {
   if (!project) {
-    const root = process.env.ALLCLEAR_PROJECT_ROOT || process.cwd();
+    const root = process.env.LIGAMEN_PROJECT_ROOT || process.cwd();
     return getQueryEngine(root);
   }
   // Absolute path → look up by project root
@@ -548,7 +548,7 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
@@ -584,7 +584,7 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
@@ -620,7 +620,7 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
@@ -654,7 +654,7 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ALLCLEAR_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {

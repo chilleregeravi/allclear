@@ -53,21 +53,21 @@ export function isChromaAvailable() {
 /**
  * Initialize ChromaDB connection and set availability flag.
  *
- * If ALLCLEAR_CHROMA_MODE is empty/falsy, returns false immediately
+ * If LIGAMEN_CHROMA_MODE is empty/falsy, returns false immediately
  * without attempting any network connection.
  *
  * @param {object} settings - Settings object from worker config loader
- * @param {string} [settings.ALLCLEAR_CHROMA_MODE] - 'local' or empty string
- * @param {string} [settings.ALLCLEAR_CHROMA_HOST] - ChromaDB host (default: localhost)
- * @param {string} [settings.ALLCLEAR_CHROMA_PORT] - ChromaDB port (default: 8000)
- * @param {string} [settings.ALLCLEAR_CHROMA_SSL]  - 'true' to use HTTPS
+ * @param {string} [settings.LIGAMEN_CHROMA_MODE] - 'local' or empty string
+ * @param {string} [settings.LIGAMEN_CHROMA_HOST] - ChromaDB host (default: localhost)
+ * @param {string} [settings.LIGAMEN_CHROMA_PORT] - ChromaDB port (default: 8000)
+ * @param {string} [settings.LIGAMEN_CHROMA_SSL]  - 'true' to use HTTPS
  * @param {object} [mockClient] - Optional mock ChromaClient (for testing)
  * @returns {Promise<boolean>} true if ChromaDB is reachable and initialized
  */
 export async function initChromaSync(settings = {}, mockClient = null, logger = null) {
   _logger = logger;
   // Guard: no ChromaDB configured → skip immediately, no connection attempt
-  if (!settings.ALLCLEAR_CHROMA_MODE) {
+  if (!settings.LIGAMEN_CHROMA_MODE) {
     _chromaAvailable = false;
     return false;
   }
@@ -77,12 +77,12 @@ export async function initChromaSync(settings = {}, mockClient = null, logger = 
     if (mockClient) {
       client = mockClient;
     } else {
-      const host = settings.ALLCLEAR_CHROMA_HOST || "localhost";
-      const port = parseInt(settings.ALLCLEAR_CHROMA_PORT || "8000", 10);
-      const ssl = settings.ALLCLEAR_CHROMA_SSL === "true";
-      const apiKey = settings.ALLCLEAR_CHROMA_API_KEY || "";
-      const tenant = settings.ALLCLEAR_CHROMA_TENANT || "default_tenant";
-      const database = settings.ALLCLEAR_CHROMA_DATABASE || "default_database";
+      const host = settings.LIGAMEN_CHROMA_HOST || "localhost";
+      const port = parseInt(settings.LIGAMEN_CHROMA_PORT || "8000", 10);
+      const ssl = settings.LIGAMEN_CHROMA_SSL === "true";
+      const apiKey = settings.LIGAMEN_CHROMA_API_KEY || "";
+      const tenant = settings.LIGAMEN_CHROMA_TENANT || "default_tenant";
+      const database = settings.LIGAMEN_CHROMA_DATABASE || "default_database";
 
       const clientOpts = { host, port, ssl, tenant, database };
       if (apiKey) {

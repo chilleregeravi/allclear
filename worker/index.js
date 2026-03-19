@@ -13,7 +13,7 @@ import { setScanLogger } from "./scan/manager.js";
 const args = process.argv.slice(2);
 let port = 37888;
 let dataDir =
-  process.env.ALLCLEAR_DATA_DIR || path.join(os.homedir(), ".allclear");
+  process.env.LIGAMEN_DATA_DIR || path.join(os.homedir(), ".ligamen");
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--port") port = parseInt(args[i + 1], 10);
@@ -21,7 +21,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Read settings.json for ALLCLEAR_LOG_LEVEL and port override
+// 2. Read settings.json for LIGAMEN_LOG_LEVEL and port override
 // ---------------------------------------------------------------------------
 let logLevel = "INFO";
 let allSettings = {};
@@ -29,9 +29,9 @@ try {
   allSettings = JSON.parse(
     fs.readFileSync(path.join(dataDir, "settings.json"), "utf8"),
   );
-  if (allSettings.ALLCLEAR_LOG_LEVEL) logLevel = allSettings.ALLCLEAR_LOG_LEVEL;
-  if (allSettings.ALLCLEAR_WORKER_PORT)
-    port = parseInt(allSettings.ALLCLEAR_WORKER_PORT, 10);
+  if (allSettings.LIGAMEN_LOG_LEVEL) logLevel = allSettings.LIGAMEN_LOG_LEVEL;
+  if (allSettings.LIGAMEN_WORKER_PORT)
+    port = parseInt(allSettings.LIGAMEN_WORKER_PORT, 10);
 } catch {
   // Settings file absent or unreadable — use defaults
 }
@@ -57,7 +57,7 @@ setScanLogger(logger);
 // ---------------------------------------------------------------------------
 // 6. Initialize ChromaDB (optional — non-blocking)
 // ---------------------------------------------------------------------------
-if (allSettings.ALLCLEAR_CHROMA_MODE) {
+if (allSettings.LIGAMEN_CHROMA_MODE) {
   initChromaSync(allSettings, null, logger).then((ok) => {
     logger.log(
       "INFO",
