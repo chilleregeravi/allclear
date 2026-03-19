@@ -156,7 +156,9 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 **Success Criteria** (what must be TRUE):
   1. The graph UI page title and any visible header text reads "Ligamen" — no "AllClear" text appears in the browser tab or rendered UI
   2. The worker HTML response (index page, error pages, any static strings) shows "Ligamen" branding
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 45-01-PLAN.md — Rename AllClear to Ligamen in index.html title, toolbar h1, and project-picker empty-state message
 
 ## Progress
 
@@ -176,4 +178,4 @@ Full details: `.planning/milestones/v3.0-ROADMAP.md`
 | 42. Source Code | v4.0 | 0/TBD | Not started | - |
 | 43. Tests | v4.0 | 0/TBD | Not started | - |
 | 44. Documentation | v4.0 | 0/TBD | Not started | - |
-| 45. UI | v4.0 | 0/TBD | Not started | - |
+| 45. UI | v4.0 | 0/1 | Not started | - |
