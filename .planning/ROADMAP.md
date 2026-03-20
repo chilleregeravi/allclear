@@ -82,7 +82,7 @@ Full details: `.planning/milestones/v4.0-ROADMAP.md`
 
 - [x] **Phase 46: Command Removal** - Delete pulse and deploy-verify commands, scripts, and primary documentation (completed 2026-03-20)
 - [x] **Phase 47: Test and Doc Cleanup** - Remove pulse/deploy-verify test fixtures and sweep remaining doc references (completed 2026-03-20)
-- [ ] **Phase 48: MCP Drift Tools** - Add drift_versions, drift_types, and drift_openapi MCP query tools
+- [x] **Phase 48: MCP Drift Tools** - Add drift_versions, drift_types, and drift_openapi MCP query tools (completed 2026-03-20)
 
 ## Phase Details
 
@@ -143,4 +143,4 @@ Plans:
 | 39-45 | v4.0 | 14/14 | Complete | 2026-03-20 |
 | 46. Command Removal | 2/2 | Complete   | 2026-03-20 | - |
 | 47. Test and Doc Cleanup | 1/1 | Complete   | 2026-03-20 | - |
-| 48. MCP Drift Tools | 2/3 | In Progress|  | - |
+| 48. MCP Drift Tools | 3/3 | Complete   | 2026-03-20 | - |

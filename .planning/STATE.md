@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Command Cleanup
 status: unknown
-stopped_at: Completed 48-03-PLAN.md
-last_updated: "2026-03-20T19:46:25.819Z"
+stopped_at: Completed 48-02-PLAN.md
+last_updated: "2026-03-20T19:48:41.362Z"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -45,6 +45,7 @@ Plan: 1 of 1
 | Phase 48-mcp-drift-tools P01 | 12 | 2 tasks | 2 files |
 | Phase 47-test-doc-cleanup P01 | 5 | 2 tasks | 3 files |
 | Phase 48-mcp-drift-tools P03 | 17 | 2 tasks | 2 files |
+| Phase 48-mcp-drift-tools P02 | 21 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Plan: 1 of 1
 - [Phase 48-mcp-drift-tools]: Use hub-and-spoke for N>5 repos with OpenAPI specs — prevents O(N^2) oasdiff calls
 - [Phase 48-mcp-drift-tools]: drift_openapi: 5-second timeout on oasdiff execSync prevents MCP server hangs per research Pitfall 3
 - [Phase 48-mcp-drift-tools]: drift_openapi: tool_available boolean field enables agents to distinguish no-specs vs no-oasdiff scenarios
+- [Phase 48-mcp-drift-tools]: Port detect_repo_language from drift-types.sh exactly: package.json=ts, go.mod=go, pyproject.toml/setup.py=py, Cargo.toml=rs
+- [Phase 48-mcp-drift-tools]: extractTypeBody uses sorted lines for order-independent field comparison; single-line TS declarations require inline body extraction
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:46:25.815Z
-Stopped at: Completed 48-03-PLAN.md
+Last session: 2026-03-20T19:48:41.360Z
+Stopped at: Completed 48-02-PLAN.md
 Resume file: None
