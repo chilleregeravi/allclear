@@ -39,20 +39,20 @@ None deferred.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REM-01 | — | Pending |
-| REM-02 | — | Pending |
-| REM-03 | — | Pending |
-| MCP-01 | — | Pending |
-| MCP-02 | — | Pending |
-| MCP-03 | — | Pending |
-| CLN-01 | — | Pending |
-| CLN-02 | — | Pending |
+| REM-01 | Phase 46 | Pending |
+| REM-02 | Phase 46 | Pending |
+| REM-03 | Phase 46 | Pending |
+| MCP-01 | Phase 48 | Pending |
+| MCP-02 | Phase 48 | Pending |
+| MCP-03 | Phase 48 | Pending |
+| CLN-01 | Phase 47 | Pending |
+| CLN-02 | Phase 47 | Pending |
 
 **Coverage:**
 - v4.1 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 after roadmap creation*

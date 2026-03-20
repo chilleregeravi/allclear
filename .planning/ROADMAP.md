@@ -9,6 +9,7 @@
 - ✅ **v2.3 Type-Specific Detail Panels** — Phases 30-32 (shipped 2026-03-18)
 - ✅ **v3.0 Layered Graph & Intelligence** — Phases 33-38 (shipped 2026-03-18)
 - ✅ **v4.0 Ligamen Rebrand** — Phases 39-45 (shipped 2026-03-20)
+- 🚧 **v4.1 Command Cleanup** — Phases 46-48 (in progress)
 
 ## Phases
 
@@ -75,6 +76,60 @@ Full details: `.planning/milestones/v4.0-ROADMAP.md`
 
 </details>
 
+### 🚧 v4.1 Command Cleanup (In Progress)
+
+**Milestone Goal:** Remove Kubernetes-specific commands (pulse, deploy-verify) that don't fit the plugin's core focus, and add MCP drift query tools for cross-repo version/type/API mismatch intelligence.
+
+- [ ] **Phase 46: Command Removal** - Delete pulse and deploy-verify commands, scripts, and primary documentation
+- [ ] **Phase 47: Test and Doc Cleanup** - Remove pulse/deploy-verify test fixtures and sweep remaining doc references
+- [ ] **Phase 48: MCP Drift Tools** - Add drift_versions, drift_types, and drift_openapi MCP query tools
+
+## Phase Details
+
+### Phase 46: Command Removal
+**Goal**: The pulse and deploy-verify commands no longer exist in the plugin
+**Depends on**: Phase 45 (v4.0 complete)
+**Requirements**: REM-01, REM-02, REM-03
+**Success Criteria** (what must be TRUE):
+  1. Running `/ligamen:pulse` in Claude Code produces a "command not found" error — the command file is gone
+  2. Running `/ligamen:deploy-verify` in Claude Code produces a "command not found" error — the command file is gone
+  3. `scripts/pulse-check.sh` no longer exists in the repository
+  4. README and docs no longer mention pulse or deploy-verify in any capability list or usage section
+  5. The validated requirements list in PROJECT.md no longer includes pulse or deploy-verify entries
+**Plans**: TBD
+
+Plans:
+- [ ] 46-01: Remove pulse command, deploy-verify command, and pulse-check script
+- [ ] 46-02: Update README and docs to remove pulse/deploy-verify references
+
+### Phase 47: Test and Doc Cleanup
+**Goal**: No test fixtures or documentation references to the removed commands remain
+**Depends on**: Phase 46
+**Requirements**: CLN-01, CLN-02
+**Success Criteria** (what must be TRUE):
+  1. The bats test suite runs with zero failures and contains no test files or test cases referencing pulse or deploy-verify
+  2. A full-text search across the repository for "pulse" and "deploy-verify" returns zero results outside of git history
+**Plans**: TBD
+
+Plans:
+- [ ] 47-01: Remove pulse/deploy-verify test fixtures and sweep all remaining doc references
+
+### Phase 48: MCP Drift Tools
+**Goal**: Agents can query cross-repo dependency version, shared type, and OpenAPI spec mismatches via MCP
+**Depends on**: Phase 46
+**Requirements**: MCP-01, MCP-02, MCP-03
+**Success Criteria** (what must be TRUE):
+  1. An agent calling `drift_versions` via MCP receives a structured list of dependency version mismatches across scanned repos
+  2. An agent calling `drift_types` via MCP receives a structured list of shared type/struct/interface mismatches across repos
+  3. An agent calling `drift_openapi` via MCP receives a structured list of OpenAPI spec breaking changes across repos
+  4. All three tools are registered in the MCP server manifest and appear in `impact_tools` alongside existing tools
+**Plans**: TBD
+
+Plans:
+- [ ] 48-01: Implement drift_versions MCP tool with query logic and registration
+- [ ] 48-02: Implement drift_types MCP tool with query logic and registration
+- [ ] 48-03: Implement drift_openapi MCP tool with query logic and registration
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -86,3 +141,6 @@ Full details: `.planning/milestones/v4.0-ROADMAP.md`
 | 30-32 | v2.3 | 5/5 | Complete | 2026-03-18 |
 | 33-38 | v3.0 | 11/11 | Complete | 2026-03-18 |
 | 39-45 | v4.0 | 14/14 | Complete | 2026-03-20 |
+| 46. Command Removal | v4.1 | 0/2 | Not started | - |
+| 47. Test and Doc Cleanup | v4.1 | 0/1 | Not started | - |
+| 48. MCP Drift Tools | v4.1 | 0/3 | Not started | - |
