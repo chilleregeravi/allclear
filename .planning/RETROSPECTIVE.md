@@ -1,4 +1,4 @@
-# Retrospective: AllClear
+# Retrospective: Ligamen
 
 ## Milestone: v1.0 — Plugin Foundation
 
@@ -229,13 +229,49 @@
 
 ---
 
+## Milestone: v4.0 — Ligamen Rebrand
+
+**Shipped:** 2026-03-20
+**Phases:** 7 | **Plans:** 14
+
+### What Was Built
+- Full allclear → ligamen rename across 91 files (+605/-589 lines)
+- Package, manifests, Makefile, config file identity migrated
+- 20+ environment variables and all data/temp paths migrated
+- 6 slash commands, MCP server, ChromaDB collection renamed
+- All shell and JS source code headers, output messages, agent prompts updated
+- Full test suite (bats + JS) migrated with renamed env vars, paths, assertions, fixtures
+- All documentation and graph UI branding updated
+
+### What Worked
+- All 7 phases executed in parallel — rename operations are independent, no ordering needed
+- Clean break decision (no backwards compat) simplified the rename enormously — no dual-name logic
+- Milestone audit caught 3 pre-existing issues (not v4.0 regressions) — good signal-to-noise
+- 2-day turnaround for full rebrand of 91 files across the entire stack
+
+### What Was Inefficient
+- Initial parallel execution missed ~30 references — needed a cleanup pass with targeted grep
+- REQUIREMENTS.md traceability was not updated during execution (all marked "Pending" despite completion)
+- ROADMAP.md plan checkboxes not updated during execution (all show [ ] despite being done)
+
+### Patterns Established
+- Parallel execution works well for cross-cutting renames — phase ordering is unnecessary
+- Post-execution grep sweep is essential for rename operations — agents miss edge cases in comments, strings, and test data
+
+### Key Lessons
+- A rename milestone is a good stress test for codebase organization — if the rename is hard, the naming is inconsistent
+- Clean break > backwards compat for internal tools with small user base — avoids indefinite dual-name maintenance
+- Milestone audit is most valuable when it confirms no regressions vs finding new gaps
+
+---
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 |
-|--------|------|------|------|------|------|------|
-| Phases | 13 | 8 | 5 | 3 | 3 | 6 |
-| Plans | 17 | 19 | 11 | 5 | 5 | 11 |
-| Requirements | 79 | 8 | 13 | 5 | 9 | 33 |
-| Tests | 150 | ~50 | ~20 | ~30 | ~30 | ~60 |
-| LOC | 4,323 | ~7,000 | ~7,500 | ~8,000 | ~9,000 | ~12,000 |
-| Timeline | 1 day | 1 day | 1 day | 1 day | 1 day | 1 day |
+| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 | v4.0 |
+|--------|------|------|------|------|------|------|------|
+| Phases | 13 | 8 | 5 | 3 | 3 | 6 | 7 |
+| Plans | 17 | 19 | 11 | 5 | 5 | 11 | 14 |
+| Requirements | 79 | 8 | 13 | 5 | 9 | 33 | 22 |
+| Tests | 150 | ~50 | ~20 | ~30 | ~30 | ~60 | 0 (rename only) |
+| LOC | 4,323 | ~7,000 | ~7,500 | ~8,000 | ~9,000 | ~12,000 | ~41,600 |
+| Timeline | 1 day | 1 day | 1 day | 1 day | 1 day | 1 day | 2 days |

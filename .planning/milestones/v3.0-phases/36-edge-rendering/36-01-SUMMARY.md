@@ -96,6 +96,14 @@ None - no external service configuration required.
 - Phase 36 is complete — edge rendering fully differentiated by protocol
 - Canvas graph is ready for any subsequent visual enhancement phases
 
+## Self-Check: PASSED
+
+- `worker/ui/modules/state.js` — FOUND
+- `worker/ui/modules/renderer.js` — FOUND
+- `.planning/phases/36-edge-rendering/36-01-SUMMARY.md` — FOUND
+- Commit `a7f7443` — FOUND
+- Commit `8c5b96d` — FOUND
+
 ---
 *Phase: 36-edge-rendering*
 *Completed: 2026-03-18*

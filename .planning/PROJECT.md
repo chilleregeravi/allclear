@@ -62,13 +62,15 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ ChromaDB embeddings enriched with boundary + actor context — v3.0
 - ✓ MCP impact responses with type-aware summaries and actor relationship sentences — v3.0
 
+- ✓ Full rebrand from allclear to ligamen across 91 files (package, manifests, env vars, paths, commands, MCP, source, tests, docs, UI) — v4.0
+- ✓ All 20+ environment variables migrated from `ALLCLEAR_*` to `LIGAMEN_*` — v4.0
+- ✓ All 6 slash commands renamed to `/ligamen:*` — v4.0
+- ✓ MCP server and ChromaDB collection renamed to `ligamen-impact` — v4.0
+- ✓ Full test suite (bats + JS) migrated with zero regressions — v4.0
+
 ### Active
 
-(Defined per milestone — see current milestone below)
-
-## Current Milestone: v4.0 Ligamen Rebrand
-
-**Goal:** Rename the plugin from "allclear" to "ligamen" across all code, configuration, environment variables, data paths, documentation, UI, slash commands, MCP server, and tests — with backwards compatibility for existing `~/.allclear/` data directories.
+(Defined per milestone — see REQUIREMENTS.md when next milestone starts)
 
 ### Out of Scope
 
@@ -78,14 +80,15 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - RamaEdge-specific logic — plugin must remain generic and framework-agnostic
 - Auto-fix for test/typecheck failures — unsafe, may silently alter code semantics
 - xterm.js interactive terminal — log viewer uses styled div, not a full terminal emulator
+- Backwards compatibility with `~/.allclear/` or `ALLCLEAR_*` — clean break, no migration path
 
 ## Context
 
-Shipped v3.0 with ~12,000 LOC (Node.js worker, Canvas UI, shell scripts, bats tests). 38 phases across 6 milestones, 68 plans. Plugin installed via marketplace and operational.
+Shipped v4.0 with ~41,600 LOC (Node.js worker, Canvas UI, shell scripts, bats tests). 45 phases across 7 milestones, 82 plans. Plugin rebranded from AllClear to Ligamen and operational.
 
 Architecture: commands/ for user-invoked features, skills/ for auto-invoked knowledge, hooks/ for formatting/linting/guarding, worker/ for Node.js daemon (db/, server/, scan/, mcp/, ui/ subdirectories), lib/ for shared bash/JS libraries. Agent scan prompts modularized into type-specific variants (service, library, infra) with shared common component. Graph UI uses deterministic layered layout with boundary grouping, external actor hexagons, and protocol-differentiated edges. Filter panel provides protocol, layer, boundary, language, mismatch, and isolated-node toggles.
 
-Known tech debt: no log rotation, db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), query-engine-upsert.test.js pre-existing failure (test schema missing migrations 5-8).
+Known tech debt: no log rotation, db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), query-engine-upsert.test.js pre-existing failure (test schema missing migrations 5-8), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js.
 
 ## Constraints
 
@@ -130,6 +133,8 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | Minimal top bar with collapsible filter panel | Keeps UI clean; all power behind one button | ✓ Good |
 | Layered scanning approach | Core scan unchanged; future views get their own optional scan passes | ✓ Good |
 | Boundary config in ligamen.config.json | User-defined grouping avoids hallucination from auto-inference | ✓ Good |
+| Clean break rename (no backwards compat) | No dual-name confusion; simpler codebase; user chose no migration path | ✓ Good |
+| Parallel phase execution for rename | All 7 phases independent for string replacement; 2-day turnaround | ✓ Good |
 
 ---
-*Last updated: 2026-03-19 after v4.0 milestone start*
+*Last updated: 2026-03-20 after v4.0 milestone*

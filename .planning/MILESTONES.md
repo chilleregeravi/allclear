@@ -1,5 +1,20 @@
 # Milestones
 
+## v4.0 Ligamen Rebrand (Shipped: 2026-03-20)
+
+**Phases completed:** 7 phases, 14 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Renamed npm package, plugin manifests, Makefile, and config file from allclear to ligamen (91 files, +605/-589 lines)
+- Migrated 20+ environment variables from `ALLCLEAR_*` to `LIGAMEN_*` and all data/temp paths to `~/.ligamen/`
+- Renamed all 6 slash commands to `/ligamen:*`, MCP server to `ligamen-impact`, and ChromaDB collection
+- Updated all shell script and JavaScript source code headers, output messages, and agent prompts
+- Migrated full test suite (bats + JS) with renamed env vars, paths, assertions, and fixtures
+- Updated all documentation (README, docs/, planning) and graph UI branding to Ligamen
+
+---
+
 ## v3.0 Layered Graph & Intelligence (Shipped: 2026-03-18)
 
 **Phases completed:** 6 phases, 11 plans, 0 tasks
