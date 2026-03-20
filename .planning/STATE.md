@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Command Cleanup
 status: unknown
-stopped_at: Completed 46-01-PLAN.md — pulse, deploy-verify, pulse-check.sh deleted
-last_updated: "2026-03-20T19:13:30.425Z"
+stopped_at: Completed 46-02-PLAN.md — documentation cleanup, pulse/deploy-verify removed from all docs
+last_updated: "2026-03-20T19:13:38.963Z"
 progress:
   total_phases: 3
   completed_phases: 1
@@ -50,6 +50,7 @@ Plan: 1 of 3
 - Remove pulse and deploy-verify commands — Kubernetes-specific, doesn't fit core plugin focus on code quality and cross-repo intelligence
 - Add drift_versions, drift_types, drift_openapi MCP tools — closes the gap between the existing `/ligamen:drift` shell command and agent-queryable MCP tooling
 - [Phase 46-command-removal]: Removed pulse and deploy-verify commands — Kubernetes-specific, doesn't fit core plugin focus on code quality and cross-repo intelligence
+- [Phase 46-command-removal]: Documentation updated to remove pulse/deploy-verify references — README, commands.md, and PROJECT.md now reflect only 4 remaining on-demand commands
 
 ### Pending Todos
 
@@ -61,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:13:21.667Z
-Stopped at: Completed 46-01-PLAN.md — pulse, deploy-verify, pulse-check.sh deleted
+Last session: 2026-03-20T19:13:38.960Z
+Stopped at: Completed 46-02-PLAN.md — documentation cleanup, pulse/deploy-verify removed from all docs
 Resume file: None
