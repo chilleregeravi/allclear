@@ -44,7 +44,7 @@ ligamen/
         002_service_type.js
         003_exposed_endpoints.js
     mcp/
-      server.js              # MCP stdio server (5 tools)
+      server.js              # MCP stdio server (8 tools)
     scan/
       manager.js             # agent dispatch + incremental scanning
       findings.js            # findings validation
@@ -82,7 +82,7 @@ The worker is a Node.js background daemon that:
 
 ## MCP Server
 
-Separate stdio process (not part of the worker). Reads SQLite directly. Provides 5 tools for any Claude agent to query the impact map.
+Separate stdio process (not part of the worker). Reads SQLite directly. Provides 8 tools for any Claude agent to query the impact map.
 
 ## Storage
 
