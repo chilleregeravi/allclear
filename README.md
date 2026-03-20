@@ -6,34 +6,28 @@ Ligamen is a Claude Code **plugin** that auto-formats, auto-lints, guards sensit
 
 ## Installation
 
-### As a Plugin (recommended)
-
-Install Ligamen as a Claude Code plugin from any project directory:
-
 ```bash
-claude plugin install ligamen --repo chilleregeravi/ligamen --scope user
+claude plugin marketplace add https://github.com/chilleregeravi/ligamen
+claude plugin install ligamen@ligamen --scope user
 ```
 
 This registers Ligamen globally — all your Claude Code sessions will have access to the hooks and commands.
 
-### From Source (development)
-
-For contributing or local development:
+**Update:**
 
 ```bash
-git clone https://github.com/chilleregeravi/ligamen.git
-cd ligamen
-git submodule update --init --recursive
-npm install
-
-# Option A: Register as a local marketplace plugin
-make install
-
-# Option B: Quick test without installing (session only)
-claude --plugin-dir /path/to/ligamen
+claude plugin update ligamen@ligamen
 ```
 
-See [Development](docs/development.md) for testing and contributing.
+**Uninstall:**
+
+```bash
+claude plugin uninstall ligamen@ligamen
+```
+
+### Contributing
+
+See [Development](docs/development.md) for cloning the repo, running tests, and submitting changes.
 
 ## What It Does
 
@@ -48,8 +42,6 @@ See [Development](docs/development.md) for testing and contributing.
 - `/ligamen:map` — scan repos and build service dependency graph
 - `/ligamen:cross-impact` — find what breaks when you change something
 - `/ligamen:drift` — check dependency version alignment across repos
-- `/ligamen:pulse` — Kubernetes service health check
-- `/ligamen:deploy-verify` — compare expected vs actual cluster state
 
 **Graph UI (http://localhost:37888):**
 - Deterministic layered layout (services, libraries, infrastructure)
