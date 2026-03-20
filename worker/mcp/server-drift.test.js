@@ -17,7 +17,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 // Named imports from server.js — will fail (RED) until Task 2 adds the export.
-import { queryDriftVersions } from "./server.js";
+import { queryDriftVersions, queryDriftTypes } from "./server.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test DB helpers
@@ -69,8 +69,11 @@ function createTempRepo(name, manifestFiles = {}) {
   );
   fs.mkdirSync(repoPath, { recursive: true });
   for (const [filename, content] of Object.entries(manifestFiles)) {
+    const fullPath = path.join(repoPath, filename);
+    // Create parent directories for nested paths (e.g. 'src/types.ts')
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(
-      path.join(repoPath, filename),
+      fullPath,
       typeof content === "string" ? content : JSON.stringify(content, null, 2),
     );
   }
@@ -268,4 +271,134 @@ test("queryDriftVersions: repos with no manifest files produce no findings for t
   assert.equal(axiosFinding, undefined, "should not have a finding for a package in only one repo");
   // Both repos were scanned (paths exist on disk).
   assert.equal(result.repos_scanned, 2);
+});
+
+// ─────────────────────────────────────────────────────────────
+// queryDriftTypes — Plan 02 tests
+// ─────────────────────────────────────────────────────────────
+
+test("queryDriftTypes: null db returns empty findings and repos_scanned=0", async () => {
+  const result = await queryDriftTypes(null, {});
+  assert.deepEqual(result, { findings: [], repos_scanned: 0 });
+});
+
+test("queryDriftTypes: CRITICAL finding when same TS interface name has different fields", async (t) => {
+  const db = createDriftTestDb();
+
+  const repoA = createTempRepo("ts-a", {
+    "package.json": JSON.stringify({ name: "repo-a" }),
+    "src/types.ts": "export interface UserProfile { id: string; name: string; }\n",
+  });
+  const repoB = createTempRepo("ts-b", {
+    "package.json": JSON.stringify({ name: "repo-b" }),
+    "src/types.ts": "export interface UserProfile { id: string; email: string; role: string; }\n",
+  });
+  t.after(() => { repoA.cleanup(); repoB.cleanup(); db.close(); });
+
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(1, repoA.repoPath, "repo-a", null, null, null);
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(2, repoB.repoPath, "repo-b", null, null, null);
+
+  const result = await queryDriftTypes(db, {});
+  assert.ok(Array.isArray(result.findings), "findings should be an array");
+  const criticalFinding = result.findings.find(
+    (f) => f.level === "CRITICAL" && f.item.includes("UserProfile"),
+  );
+  assert.ok(criticalFinding, "should have a CRITICAL finding for UserProfile");
+  assert.ok(criticalFinding.item.includes("(ts)"), "item should include language tag (ts)");
+  assert.ok(Array.isArray(criticalFinding.repos), "repos should be an array");
+});
+
+test("queryDriftTypes: INFO finding when same TS interface name has identical fields", async (t) => {
+  const db = createDriftTestDb();
+
+  const identicalContent = "export interface SharedConfig { timeout: number; retries: number; }\n";
+  const repoA = createTempRepo("ts-same-a", {
+    "package.json": JSON.stringify({ name: "repo-same-a" }),
+    "src/types.ts": identicalContent,
+  });
+  const repoB = createTempRepo("ts-same-b", {
+    "package.json": JSON.stringify({ name: "repo-same-b" }),
+    "src/types.ts": identicalContent,
+  });
+  t.after(() => { repoA.cleanup(); repoB.cleanup(); db.close(); });
+
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(1, repoA.repoPath, "repo-same-a", null, null, null);
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(2, repoB.repoPath, "repo-same-b", null, null, null);
+
+  // Use severity="all" so INFO findings are included
+  const result = await queryDriftTypes(db, { severity: "all" });
+  const infoFinding = result.findings.find(
+    (f) => f.level === "INFO" && f.item.includes("SharedConfig"),
+  );
+  assert.ok(infoFinding, "should have an INFO finding for SharedConfig when fields are identical");
+});
+
+test("queryDriftTypes: no finding when TS repo and Go repo share same type name (cross-language suppressed)", async (t) => {
+  const db = createDriftTestDb();
+
+  const tsRepo = createTempRepo("ts-cross", {
+    "package.json": JSON.stringify({ name: "ts-repo" }),
+    "src/types.ts": "export interface Order { id: string; total: number; }\n",
+  });
+  const goRepo = createTempRepo("go-cross", {
+    "go.mod": "module go-repo\n\ngo 1.21\n",
+    "order.go": "package main\n\ntype Order struct {\n\tID string\n\tTotal float64\n}\n",
+  });
+  t.after(() => { tsRepo.cleanup(); goRepo.cleanup(); db.close(); });
+
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(1, tsRepo.repoPath, "ts-repo", null, null, null);
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(2, goRepo.repoPath, "go-repo", null, null, null);
+
+  const result = await queryDriftTypes(db, { severity: "all" });
+  // Order appears in both repos but in different languages — should produce no cross-language finding
+  const orderFinding = result.findings.find((f) => f.item.includes("Order"));
+  assert.equal(orderFinding, undefined, "should not compare types across different languages");
+});
+
+test("queryDriftTypes: repos_scanned reflects repos whose paths exist on disk", async (t) => {
+  const db = createDriftTestDb();
+
+  const realRepo = createTempRepo("ts-real", {
+    "package.json": JSON.stringify({ name: "real-ts-repo" }),
+    "src/types.ts": "export interface Config { debug: boolean; }\n",
+  });
+  t.after(() => { realRepo.cleanup(); db.close(); });
+
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(1, realRepo.repoPath, "real-ts-repo", null, null, null);
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(2, "/nonexistent/ghost-types-repo", "ghost-repo", null, null, null);
+
+  const result = await queryDriftTypes(db, {});
+  assert.equal(result.repos_scanned, 1, `expected repos_scanned=1, got ${result.repos_scanned}`);
+});
+
+test("queryDriftTypes: severity=CRITICAL suppresses INFO findings", async (t) => {
+  const db = createDriftTestDb();
+
+  // Two repos: one CRITICAL pair (UserEvent — different fields) and one INFO pair (AppConfig — same fields)
+  const content1 = [
+    "export interface UserEvent { userId: string; action: string; }\n",
+    "export interface AppConfig { timeout: number; }\n",
+  ].join("");
+  const content2 = [
+    "export interface UserEvent { userId: string; action: string; timestamp: number; }\n",
+    "export interface AppConfig { timeout: number; }\n",
+  ].join("");
+
+  const repoA = createTempRepo("ts-sev-a", {
+    "package.json": JSON.stringify({ name: "sev-repo-a" }),
+    "src/types.ts": content1,
+  });
+  const repoB = createTempRepo("ts-sev-b", {
+    "package.json": JSON.stringify({ name: "sev-repo-b" }),
+    "src/types.ts": content2,
+  });
+  t.after(() => { repoA.cleanup(); repoB.cleanup(); db.close(); });
+
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(1, repoA.repoPath, "sev-repo-a", null, null, null);
+  db.prepare("INSERT INTO repos VALUES (?, ?, ?, ?, ?, ?)").run(2, repoB.repoPath, "sev-repo-b", null, null, null);
+
+  const result = await queryDriftTypes(db, { severity: "CRITICAL" });
+  const levels = result.findings.map((f) => f.level);
+  assert.ok(levels.includes("CRITICAL"), "should include CRITICAL finding");
+  assert.ok(!levels.includes("INFO"), "should suppress INFO findings when severity=CRITICAL");
 });
