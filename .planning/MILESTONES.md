@@ -1,5 +1,20 @@
 # Milestones
 
+## v4.1 Command Cleanup (Shipped: 2026-03-20)
+
+**Phases completed:** 3 phases, 6 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Removed Kubernetes-specific commands (`/ligamen:pulse`, `/ligamen:deploy-verify`) and supporting `scripts/pulse-check.sh` — plugin now focused on code quality and cross-repo intelligence
+- Swept all pulse/deploy-verify references from tests, docs, README, PROJECT.md, session-start context
+- Added `drift_versions` MCP tool — query dependency version mismatches (CRITICAL/WARN/INFO severity) across scanned repos
+- Added `drift_types` MCP tool — language-grouped shared type/struct/interface mismatch detection with 50-type cap
+- Added `drift_openapi` MCP tool — OpenAPI spec breaking change detection with oasdiff graceful degradation
+- MCP server now exposes 8 tools (5 impact + 3 drift), all with 19 new tests passing
+
+---
+
 ## v4.0 Ligamen Rebrand (Shipped: 2026-03-20)
 
 **Phases completed:** 7 phases, 14 plans, 0 tasks

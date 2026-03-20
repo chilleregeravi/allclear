@@ -66,16 +66,16 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ MCP server and ChromaDB collection renamed to `ligamen-impact` — v4.0
 - ✓ Full test suite (bats + JS) migrated with zero regressions — v4.0
 
+- ✓ Removed Kubernetes-specific commands (`/ligamen:pulse`, `/ligamen:deploy-verify`) and `scripts/pulse-check.sh` — v4.1
+- ✓ Swept all pulse/deploy-verify references from tests, docs, README, session-start — v4.1
+- ✓ Added `drift_versions` MCP tool for dependency version mismatch detection — v4.1
+- ✓ Added `drift_types` MCP tool for shared type/struct/interface mismatch detection — v4.1
+- ✓ Added `drift_openapi` MCP tool for OpenAPI spec breaking change detection — v4.1
+- ✓ MCP server expanded from 5 to 8 tools with 19 new drift tests — v4.1
+
 ### Active
 
-## Current Milestone: v4.1 Command Cleanup
-
-**Goal:** Remove Kubernetes-specific commands that don't fit the plugin's core focus on code quality and cross-repo intelligence.
-
-**Target features:**
-- Remove Kubernetes cluster health and deploy-verification commands and supporting scripts
-- Update README and documentation to reflect removed commands
-- Clean up any related test fixtures
+(Defined per milestone — see REQUIREMENTS.md when next milestone starts)
 
 ### Out of Scope
 
@@ -89,7 +89,7 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ## Context
 
-Shipped v4.0 with ~41,600 LOC (Node.js worker, Canvas UI, shell scripts, bats tests). 45 phases across 7 milestones, 82 plans. Plugin rebranded from AllClear to Ligamen and operational.
+Shipped v4.1 with ~42,000 LOC (Node.js worker, Canvas UI, shell scripts, bats tests). 48 phases across 8 milestones, 88 plans. Kubernetes commands removed; MCP server expanded with drift query tools (8 tools total). Plugin focused on code quality, cross-repo intelligence, and agent-queryable drift detection.
 
 Architecture: commands/ for user-invoked features, skills/ for auto-invoked knowledge, hooks/ for formatting/linting/guarding, worker/ for Node.js daemon (db/, server/, scan/, mcp/, ui/ subdirectories), lib/ for shared bash/JS libraries. Agent scan prompts modularized into type-specific variants (service, library, infra) with shared common component. Graph UI uses deterministic layered layout with boundary grouping, external actor hexagons, and protocol-differentiated edges. Filter panel provides protocol, layer, boundary, language, mismatch, and isolated-node toggles.
 
@@ -99,7 +99,7 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 
 - **Plugin format**: Must follow Claude Code plugin conventions (commands/, skills/, hooks.json)
 - **Framework-agnostic**: Detect project type from files, never assume a specific framework
-- **No external service deps**: Every command must work with only local files, git, and optionally kubectl
+- **No external service deps**: Every command must work with only local files and git
 - **License**: Apache 2.0
 - **Testing**: Bats-core for hook shell scripts, node:test for worker JS
 - **Detect, don't configure**: Infer everything from project files; zero-config by default with optional overrides via ligamen.config.json
@@ -140,6 +140,9 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | Boundary config in ligamen.config.json | User-defined grouping avoids hallucination from auto-inference | ✓ Good |
 | Clean break rename (no backwards compat) | No dual-name confusion; simpler codebase; user chose no migration path | ✓ Good |
 | Parallel phase execution for rename | All 7 phases independent for string replacement; 2-day turnaround | ✓ Good |
+| Remove K8s commands (pulse, deploy-verify) | Kubernetes-specific, doesn't fit core focus on code quality and cross-repo intelligence | ✓ Good |
+| Port drift logic to JS for MCP (not shell out) | Clean testability, matches existing queryChanged pattern, no env var conflicts | ✓ Good |
+| Filesystem queries at call time (no new DB tables) | Drift data changes too frequently to persist; repos table has paths as anchors | ✓ Good |
 
 ---
-*Last updated: 2026-03-20 after v4.1 milestone started*
+*Last updated: 2026-03-20 after v4.1 milestone*
