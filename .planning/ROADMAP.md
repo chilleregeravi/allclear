@@ -141,6 +141,6 @@ Plans:
 | 30-32 | v2.3 | 5/5 | Complete | 2026-03-18 |
 | 33-38 | v3.0 | 11/11 | Complete | 2026-03-18 |
 | 39-45 | v4.0 | 14/14 | Complete | 2026-03-20 |
-| 46. Command Removal | 2/2 | Complete   | 2026-03-20 | - |
-| 47. Test and Doc Cleanup | 1/1 | Complete   | 2026-03-20 | - |
-| 48. MCP Drift Tools | 3/3 | Complete   | 2026-03-20 | - |
+| 46. Command Removal | 2/2 | Complete    | 2026-03-20 | - |
+| 47. Test and Doc Cleanup | 1/1 | Complete    | 2026-03-20 | - |
+| 48. MCP Drift Tools | 3/3 | Complete    | 2026-03-20 | - |
