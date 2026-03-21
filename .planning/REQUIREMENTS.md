@@ -18,7 +18,7 @@ Requirements for Graph Interactivity milestone. Each maps to roadmap phases.
 
 ### Graph Display
 
-- [ ] **GRAPH-01**: Parallel edges between the same source→target pair are bundled into a single thick edge with count badge
+- [x] **GRAPH-01**: Parallel edges between the same source→target pair are bundled into a single thick edge with count badge
 - [ ] **GRAPH-02**: User can click a bundled edge to expand individual connections in the detail panel
 - [x] **GRAPH-03**: Nodes and edges from the latest scan are visually highlighted (glow or "NEW" badge)
 - [x] **GRAPH-04**: /graph API endpoint includes scan_version_id per service and connection
@@ -70,7 +70,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-04 | Phase 53 | Complete |
 | NAV-05 | Phase 54 | Complete |
 | NAV-06 | Phase 54 | Complete |
-| GRAPH-01 | Phase 57 | Pending |
+| GRAPH-01 | Phase 57 | Complete |
 | GRAPH-02 | Phase 57 | Pending |
 | GRAPH-03 | Phase 56 | Complete |
 | GRAPH-04 | Phase 55 | Complete |
