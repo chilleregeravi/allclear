@@ -16,6 +16,8 @@
  *
  * Exports:
  *   MAX_LOW_CONFIDENCE       — integer cap (10)
+ *   NEEDS_REPROMPT           — sentinel returned by applyEdits for unrecognized instructions
+ *   AFFIRMATIVE_SYNONYMS     — frozen Set of natural-language affirmatives treated as "confirm"
  *   groupByConfidence        — split findings into high / low / lowOverflow
  *   formatHighConfidenceSummary — formatted string for batch high-confidence review
  *   formatLowConfidenceQuestions — array of per-finding clarifying question strings
@@ -25,6 +27,20 @@
 
 /** Maximum number of low-confidence findings shown per confirmation session. */
 export const MAX_LOW_CONFIDENCE = 10;
+
+/**
+ * Sentinel returned by applyEdits() when the instruction is not recognized.
+ * Callers can check: `result === NEEDS_REPROMPT` to detect and re-prompt the user.
+ */
+export const NEEDS_REPROMPT = Object.freeze({ __type: "NEEDS_REPROMPT" });
+
+/**
+ * Frozen Set of natural-language affirmatives that applyEdits() normalizes to "confirm".
+ * All values are lowercase — comparison is done via instruction.toLowerCase().
+ */
+export const AFFIRMATIVE_SYNONYMS = Object.freeze(
+  new Set(["sure", "yep", "ok", "accept", "looks good", "sounds good"]),
+);
 
 /**
  * Split a findings array by confidence level and cap the low bucket.
@@ -127,20 +143,26 @@ export function formatLowConfidenceQuestions(lowFindings) {
  *
  * Supported instructions:
  *   - "confirm" or "" (empty)           → no-op, return findings unchanged
+ *   - Any value in AFFIRMATIVE_SYNONYMS → treated as "confirm", return findings unchanged
  *   - "remove {serviceName}"            → remove findings where finding.service matches (case-insensitive)
  *   - "remove connection {src} -> {tgt}"→ remove matching connection objects within findings
  *
- * Unrecognized instructions: return findings unchanged, warn to stderr.
+ * Unrecognized instructions: return NEEDS_REPROMPT sentinel (callers re-prompt the user).
  *
  * @param {Array} findings - Current findings array.
  * @param {string} editInstructions - Free-text edit instruction from the user.
- * @returns {Array} Modified (or unchanged) findings array.
+ * @returns {Array|typeof NEEDS_REPROMPT} Modified (or unchanged) findings array, or NEEDS_REPROMPT.
  */
 export function applyEdits(findings, editInstructions) {
   const instruction = (editInstructions || "").trim();
 
-  // No-op cases
+  // No-op cases: empty string and explicit "confirm"
   if (instruction === "" || instruction.toLowerCase() === "confirm") {
+    return findings;
+  }
+
+  // Natural-language affirmatives treated as "confirm"
+  if (AFFIRMATIVE_SYNONYMS.has(instruction.toLowerCase())) {
     return findings;
   }
 
@@ -177,11 +199,8 @@ export function applyEdits(findings, editInstructions) {
     );
   }
 
-  // Unrecognized instruction
-  process.stderr.write(
-    "applyEdits: unrecognized instruction format — returning original findings\n",
-  );
-  return findings;
+  // Unrecognized instruction — return sentinel so callers can re-prompt the user
+  return NEEDS_REPROMPT;
 }
 
 /**

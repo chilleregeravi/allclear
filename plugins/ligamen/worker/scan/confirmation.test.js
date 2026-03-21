@@ -18,6 +18,8 @@ import {
   formatLowConfidenceQuestions,
   applyEdits,
   buildConfirmationPrompt,
+  NEEDS_REPROMPT,
+  AFFIRMATIVE_SYNONYMS,
 } from "./confirmation.js";
 
 // ---------------------------------------------------------------------------
@@ -238,10 +240,11 @@ describe("applyEdits", () => {
     assert.equal(result[0].service, "auth-service");
   });
 
-  test("unrecognized instruction returns findings unchanged", () => {
+  test("unrecognized instruction returns NEEDS_REPROMPT sentinel", () => {
     const findings = makeFindings(2, "high");
     const result = applyEdits(findings, "do something weird");
-    assert.deepEqual(result, findings);
+    assert.equal(result, NEEDS_REPROMPT);
+    assert.notEqual(Array.isArray(result), true);
   });
 });
 
@@ -301,5 +304,68 @@ describe("buildConfirmationPrompt", () => {
     };
     const result = buildConfirmationPrompt(grouped);
     assert.doesNotMatch(result, /additional low-confidence/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 1 (THE-934) Tests: applyEdits — synonym normalization and NEEDS_REPROMPT
+// ---------------------------------------------------------------------------
+
+describe("applyEdits — synonym normalization", () => {
+  test("AFFIRMATIVE_SYNONYMS is exported and is a Set", () => {
+    assert.ok(AFFIRMATIVE_SYNONYMS instanceof Set);
+  });
+
+  test("NEEDS_REPROMPT is exported and is not an array", () => {
+    assert.notEqual(Array.isArray(NEEDS_REPROMPT), true);
+  });
+
+  test('"sure" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "sure");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"yep" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "yep");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"ok" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "ok");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"accept" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "accept");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"looks good" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "looks good");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"sounds good" returns findings unchanged', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "sounds good");
+    assert.deepEqual(result, findings);
+  });
+
+  test('"OK" (uppercase) returns findings unchanged (case-insensitive)', () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "OK");
+    assert.deepEqual(result, findings);
+  });
+
+  test("unrecognized instruction returns NEEDS_REPROMPT sentinel (not findings array)", () => {
+    const findings = makeFindings(2, "high");
+    const result = applyEdits(findings, "do something weird");
+    assert.equal(result, NEEDS_REPROMPT);
+    assert.notEqual(Array.isArray(result), true);
   });
 });
