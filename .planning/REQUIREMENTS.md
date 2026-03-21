@@ -14,14 +14,14 @@ Requirements for v5.0 Marketplace Restructure. Each maps to roadmap phases.
 
 ### Paths
 
-- [ ] **PTH-01**: Update all internal path references in shell scripts (lib/, scripts/) to work from `plugins/ligamen/`
-- [ ] **PTH-02**: Update worker JS imports and paths to work from new location
-- [ ] **PTH-03**: Update hooks.json paths to reference `plugins/ligamen/` scripts
+- [x] **PTH-01**: Update all internal path references in shell scripts (lib/, scripts/) to work from `plugins/ligamen/`
+- [x] **PTH-02**: Update worker JS imports and paths to work from new location
+- [x] **PTH-03**: Update hooks.json paths to reference `plugins/ligamen/` scripts
 
 ### Install
 
-- [ ] **INS-01**: Update README installation instructions for marketplace-based install
-- [ ] **INS-02**: Update Makefile install/uninstall targets for new structure
+- [x] **INS-01**: Update README installation instructions for marketplace-based install
+- [x] **INS-02**: Update Makefile install/uninstall targets for new structure
 
 ### Verify
 
@@ -45,11 +45,11 @@ None deferred.
 |-------------|-------|--------|
 | STR-01 | Phase 49 | Complete |
 | STR-02 | Phase 49 | Complete |
-| PTH-01 | Phase 50 | Pending |
-| PTH-02 | Phase 50 | Pending |
-| PTH-03 | Phase 50 | Pending |
-| INS-01 | Phase 50 | Pending |
-| INS-02 | Phase 50 | Pending |
+| PTH-01 | Phase 50 | Complete |
+| PTH-02 | Phase 50 | Complete |
+| PTH-03 | Phase 50 | Complete |
+| INS-01 | Phase 50 | Complete |
+| INS-02 | Phase 50 | Complete |
 | VER-01 | Phase 51 | Pending |
 | VER-02 | Phase 51 | Pending |
 

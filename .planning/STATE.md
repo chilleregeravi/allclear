@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Marketplace Restructure
 status: unknown
-stopped_at: "49-01: checkpoint:human-verify — Task 1 complete, awaiting human verification of directory structure"
-last_updated: "2026-03-21T09:09:40.384Z"
+stopped_at: Completed 50-02-PLAN.md
+last_updated: "2026-03-21T09:32:31.187Z"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 49 — directory-restructure
+**Current focus:** Phase 50 — path-install-updates
 
 ## Current Position
 
-Phase: 49 (directory-restructure) — EXECUTING
-Plan: 1 of 1
+Phase: 50 (path-install-updates) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Plan: 1 of 1
 - v5.0: Phase 49 (file move) must complete before Phase 50 (path updates) — paths cannot be fixed until files exist in new location
 - v5.0: Path updates (PTH-*) and install updates (INS-*) are bundled into Phase 50 — they are independent of each other but both depend on Phase 49
 - [Phase 49]: Removed plugins/ from .gitignore before git mv — critical prerequisite so git tracks the destination directory
+- [Phase 50-01]: Only drift-common.sh needed path fix (/../.. → /..); hooks.json and worker JS confirmed correct with zero changes needed
+- [Phase 50]: PLUGIN_DIR now resolves to plugins/ligamen/ subdirectory; plugins/$(PLUGIN_NAME) prerequisite replaced symlink creation with existence guard
 
 ### Pending Todos
 
@@ -60,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T09:09:33.656Z
-Stopped at: 49-01: checkpoint:human-verify — Task 1 complete, awaiting human verification of directory structure
+Last session: 2026-03-21T09:32:31.183Z
+Stopped at: Completed 50-02-PLAN.md
 Resume file: None

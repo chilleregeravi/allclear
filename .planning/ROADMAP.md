@@ -91,7 +91,7 @@ Full details: `.planning/milestones/v4.1-ROADMAP.md`
 **Milestone Goal:** Restructure the repo as a proper Claude Code marketplace plugin so end users can install via `claude plugin marketplace add` + `claude plugin install` without cloning.
 
 - [x] **Phase 49: Directory Restructure** - Move all plugin files into `plugins/ligamen/`, leaving only repo-level files at root (completed 2026-03-21)
-- [ ] **Phase 50: Path and Install Updates** - Update all internal paths, imports, hooks references, README install instructions, and Makefile targets
+- [x] **Phase 50: Path and Install Updates** - Update all internal paths, imports, hooks references, README install instructions, and Makefile targets (completed 2026-03-21)
 - [ ] **Phase 51: Verification** - Confirm bats tests pass and marketplace install flow works end-to-end
 
 ## Phase Details
@@ -151,5 +151,5 @@ Plans:
 | 39-45 | v4.0 | 14/14 | Complete | 2026-03-20 |
 | 46-48 | v4.1 | 6/6 | Complete | 2026-03-20 |
 | 49. Directory Restructure | 1/1 | Complete   | 2026-03-21 | - |
-| 50. Path and Install Updates | v5.0 | 0/2 | Not started | - |
+| 50. Path and Install Updates | 2/2 | Complete   | 2026-03-21 | - |
 | 51. Verification | v5.0 | 0/2 | Not started | - |
