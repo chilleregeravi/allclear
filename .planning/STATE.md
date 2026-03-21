@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 53 — Clickable Detail Panel Targets (COMPLETE)
+**Current focus:** Phase 54 — Subgraph Isolation (In Progress)
 
 ## Current Position
 
-Phase: 53 (Clickable Detail Panel Targets) — COMPLETE
-Plan: 1 of 1 — COMPLETE
+Phase: 54 (Subgraph Isolation) — IN PROGRESS
+Plan: 1 of 2 — COMPLETE
 
 ## Performance Metrics
 
