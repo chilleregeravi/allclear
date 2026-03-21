@@ -253,10 +253,20 @@ Plans:
 Plans:
 - [ ] 61-01-PLAN.md — Bump all 5 manifests to 5.2.0 and verify root .mcp.json
 
+### Phase 62: Plugin cleanup — add README, LICENSE, .gitignore to plugin dir, remove vestigial lint.json, add source guard to worker-client.sh
+
+**Goal:** Plugin directory passes marketplace validation: metadata files present, vestigial hook config removed, all lib scripts consistently guarded against direct execution.
+**Requirements**: none (cleanup — no requirement IDs)
+**Depends on:** Phase 61
+**Plans:** 1 plan
+
+Plans:
+- [ ] 62-01-PLAN.md — Add README.md, LICENSE, .gitignore to plugins/ligamen/; delete hooks/lint.json; add source guard to lib/worker-client.sh
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 59 → 60 → 61
+Phases execute in numeric order: 59 → 60 → 61 → 62
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -273,3 +283,4 @@ Phases execute in numeric order: 59 → 60 → 61
 | 59. Runtime Dependency Installation | v5.2.0 | 0/2 | Not started | - |
 | 60. MCP Server Launch Verification | v5.2.0 | 1/1 | Complete | 2026-03-21 |
 | 61. Version Sync | v5.2.0 | 0/TBD | Not started | - |
+| 62. Plugin Cleanup | v5.2.0 | 0/1 | Not started | - |
