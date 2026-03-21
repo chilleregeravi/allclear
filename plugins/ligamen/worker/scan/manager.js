@@ -10,6 +10,16 @@
  * Agent invocation uses an injected runner to decouple from Claude's Task tool.
  * Background subagents cannot access MCP tools (Claude Code issue #13254) — all
  * agent invocations run in the foreground via the MCP server's agentRunner.
+ *
+ * SREL-01 (THE-933): Incremental scan constraint injection
+ *   When buildScanContext returns mode='incremental', a hard constraint block
+ *   (INCREMENTAL_CONSTRAINT) listing only the changed files is appended to the
+ *   prompt before it is passed to agentRunner. This ensures the agent focuses
+ *   exclusively on the diff rather than re-scanning the full repo.
+ *
+ *   When the incremental diff is empty (modified.length === 0), agentRunner is
+ *   NOT called and beginScan is NOT called. The result is pushed with
+ *   mode="incremental-noop" and findings=null.
  */
 
 import { execSync } from "node:child_process";
@@ -236,13 +246,41 @@ export function buildScanContext(repoPath, repoId, queryEngine, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// buildIncrementalConstraint (SREL-01 / THE-933)
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the INCREMENTAL_CONSTRAINT block appended to the agent prompt for
+ * incremental scans. Exported as a named constant for testability.
+ *
+ * @param {string[]} changedFiles - List of modified file paths
+ * @returns {string} Constraint text to append to the interpolated prompt
+ */
+export function buildIncrementalConstraint(changedFiles) {
+  const fileList = changedFiles.map((f) => `  - ${f}`).join("\n");
+  return [
+    "",
+    "---",
+    "## INCREMENTAL SCAN — CHANGED FILES ONLY",
+    "",
+    "This is an incremental scan. You MUST only examine the following changed files.",
+    "Do NOT read, analyze, or report connections from unchanged files.",
+    "Scanning unchanged files wastes time and produces stale duplicate findings.",
+    "",
+    "Changed files:",
+    fileList,
+    "---",
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // scanRepos
 // ---------------------------------------------------------------------------
 
 /**
  * @typedef {{
  *   repoPath: string,
- *   mode: 'full'|'incremental'|'skip',
+ *   mode: 'full'|'incremental'|'incremental-noop'|'skip',
  *   findings: import('./findings-schema.js').Findings | null,
  *   error?: string
  * }} ScanResult
@@ -252,11 +290,14 @@ export function buildScanContext(repoPath, repoId, queryEngine, options = {}) {
  * Scan one or more repos by dispatching agents sequentially in the foreground.
  * Background agents cannot access MCP tools (Claude Code issue #13254) — foreground only.
  *
- * Each non-skip repo is wrapped in a scan version bracket:
+ * Each non-skip, non-noop repo is wrapped in a scan version bracket:
  *   beginScan() is called before agent invocation.
  *   persistFindings() is called on success with the scan version ID.
  *   endScan() is called after persistFindings on the success path only.
  *   On parse failure, endScan is NOT called — prior scan data remains intact.
+ *
+ * SREL-01: Incremental scans inject a changed-files constraint into the prompt.
+ *   When modified.length === 0, the scan is a no-op (no agent, no bracket).
  *
  * @param {string[]} repoPaths - Absolute paths to repos to scan
  * @param {{ full?: boolean }} [options]
@@ -310,6 +351,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       continue;
     }
 
+    // 3b. Incremental no-op — diff returned empty modified list (SREL-01 / THE-933)
+    //     Check BEFORE beginScan — no bracket should be opened for a no-op.
+    if (ctx.mode === "incremental" && ctx.files !== null && ctx.files.modified.length === 0) {
+      slog('DEBUG', 'incremental-noop — no changed files', { repoPath });
+      results.push({ repoPath, mode: "incremental-noop", findings: null });
+      continue;
+    }
+
     // 4. Open scan version bracket — records scan start in scan_versions table
     const scanVersionId = queryEngine.beginScan(repo.id);
 
@@ -328,9 +377,16 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       .replaceAll("{{COMMON_RULES}}", commonRules.replaceAll("{{REPO_PATH}}", repoPath))
       .replaceAll("{{SCHEMA_JSON}}", schemaJson);
 
+    // 5b. Inject changed-files constraint for incremental scans (SREL-01 / THE-933)
+    //     The constraint is a hard directive — "You MUST only examine" — not advisory.
+    let finalPrompt = interpolatedPrompt;
+    if (ctx.mode === "incremental" && ctx.files !== null) {
+      finalPrompt = interpolatedPrompt + buildIncrementalConstraint(ctx.files.modified);
+    }
+
     // 6. Invoke agent (foreground — agentRunner injected by MCP server or test)
     slog('INFO', 'scan started', { repoPath, mode: ctx.mode });
-    const rawResponse = await agentRunner(interpolatedPrompt, repoPath);
+    const rawResponse = await agentRunner(finalPrompt, repoPath);
 
     // 7. Parse and validate agent output
     const result = parseAgentOutput(rawResponse);
