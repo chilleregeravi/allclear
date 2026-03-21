@@ -25,7 +25,7 @@ Requirements for v5.0 Marketplace Restructure. Each maps to roadmap phases.
 
 ### Verify
 
-- [ ] **VER-01**: Bats test suite passes with new directory layout
+- [x] **VER-01**: Bats test suite passes with new directory layout
 - [ ] **VER-02**: `claude plugin marketplace add` + `claude plugin install` works from a fresh clone
 
 ## Future Requirements
@@ -50,7 +50,7 @@ None deferred.
 | PTH-03 | Phase 50 | Complete |
 | INS-01 | Phase 50 | Complete |
 | INS-02 | Phase 50 | Complete |
-| VER-01 | Phase 51 | Pending |
+| VER-01 | Phase 51 | Complete |
 | VER-02 | Phase 51 | Pending |
 
 **Coverage:**

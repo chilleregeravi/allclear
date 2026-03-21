@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Marketplace Restructure
 status: unknown
-stopped_at: Completed 50-02-PLAN.md
-last_updated: "2026-03-21T09:32:31.187Z"
+stopped_at: Completed 51-01-PLAN.md — test path verification complete
+last_updated: "2026-03-21T09:35:03.078Z"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 50 — path-install-updates
+**Current focus:** Phase 51 — verification
 
 ## Current Position
 
-Phase: 50 (path-install-updates) — EXECUTING
-Plan: 2 of 2
+Phase: 51 (verification) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Plan: 2 of 2
 | v5.0 phases | TBD | - | - |
 
 *Updated after each plan completion*
+| Phase 51-verification P01 | 3 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -51,6 +52,8 @@ Plan: 2 of 2
 - [Phase 49]: Removed plugins/ from .gitignore before git mv — critical prerequisite so git tracks the destination directory
 - [Phase 50-01]: Only drift-common.sh needed path fix (/../.. → /..); hooks.json and worker JS confirmed correct with zero changes needed
 - [Phase 50]: PLUGIN_DIR now resolves to plugins/ligamen/ subdirectory; plugins/$(PLUGIN_NAME) prerequisite replaced symlink creation with existence guard
+- [Phase 51-verification]: All 12 bats test path updates were pre-completed in Phase 50; Phase 51-01 verified correctness
+- [Phase 51-verification]: worker-lifecycle.bats uses absolute $PLUGIN_ROOT/ prefix for script calls rather than cd in setup()
 
 ### Pending Todos
 
@@ -62,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T09:32:31.183Z
-Stopped at: Completed 50-02-PLAN.md
+Last session: 2026-03-21T09:35:03.075Z
+Stopped at: Completed 51-01-PLAN.md — test path verification complete
 Resume file: None

@@ -152,4 +152,4 @@ Plans:
 | 46-48 | v4.1 | 6/6 | Complete | 2026-03-20 |
 | 49. Directory Restructure | 1/1 | Complete   | 2026-03-21 | - |
 | 50. Path and Install Updates | 2/2 | Complete   | 2026-03-21 | - |
-| 51. Verification | v5.0 | 0/2 | Not started | - |
+| 51. Verification | 1/2 | In Progress|  | - |
