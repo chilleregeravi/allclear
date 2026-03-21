@@ -50,6 +50,23 @@ See [Development](docs/development.md) for cloning the repo, running tests, and 
 - Protocol-differentiated edges (solid/dashed/dotted)
 - Collapsible filter panel (protocol, layer, boundary, language)
 - Click-to-inspect detail panels per node type
+- Keyboard-driven navigation (fit, deselect, search focus, subgraph isolation)
+- Clickable service names in the detail panel connections list navigate directly to that node
+- Subgraph isolation (I key, expandable to 2/3 hops)
+- What-changed overlay (new/modified nodes and edges from the latest scan are visually highlighted)
+- Edge bundling (parallel edges between the same node pair collapse into a single edge with count badge)
+- One-click PNG export button to screenshot the current canvas view
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `F` | Fit all nodes to the visible canvas area |
+| `Esc` | Deselect the current node and close the detail panel |
+| `/` | Move keyboard focus to the search input |
+| `I` | Isolate the selected node's subgraph (1-hop neighborhood) |
+| `2` | Expand isolation to 2-hop depth |
+| `3` | Expand isolation to 3-hop depth |
 
 ## Configuration
 
