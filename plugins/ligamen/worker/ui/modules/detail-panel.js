@@ -4,10 +4,45 @@
 
 import { state } from "./state.js";
 import { getNodeType, getNodeColor } from "./utils.js";
+import { render } from "./renderer.js";
 
 function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function selectAndPanToNode(nodeId) {
+  const pos = state.positions[nodeId];
+  if (!pos) return;
+  const targetNode = state.graphData.nodes.find((n) => n.id === nodeId);
+  if (!targetNode) return;
+
+  const canvas = document.getElementById("graph-canvas");
+  if (canvas) {
+    const cssW = canvas.clientWidth;
+    const cssH = canvas.clientHeight;
+    state.transform.x = cssW / 2 - pos.x * state.transform.scale;
+    state.transform.y = cssH / 2 - pos.y * state.transform.scale;
+  }
+
+  state.selectedNodeId = nodeId;
+  showDetailPanel(targetNode);
+  render();
+}
+
+function _onConnTargetClick(e) {
+  const span = e.target.closest("[data-node-id]");
+  if (!span) return;
+  const nodeId = Number(span.dataset.nodeId);
+  if (!nodeId && nodeId !== 0) return;
+  selectAndPanToNode(nodeId);
+}
+
+function attachConnTargetListeners() {
+  const content = document.getElementById("detail-content");
+  if (!content) return;
+  content.removeEventListener("click", _onConnTargetClick);
+  content.addEventListener("click", _onConnTargetClick);
 }
 
 export function showDetailPanel(node) {
@@ -18,6 +53,7 @@ export function showDetailPanel(node) {
   if (node._isActor) {
     content.innerHTML = renderActorDetail(node);
     panel.style.display = "block";
+    attachConnTargetListeners();
     return;
   }
 
@@ -68,6 +104,7 @@ export function showDetailPanel(node) {
 
   content.innerHTML = html;
   panel.style.display = "block";
+  attachConnTargetListeners();
 }
 
 function renderLibraryConnections(node, outgoing, incoming, nameById) {
@@ -114,7 +151,7 @@ function renderLibraryConnections(node, outgoing, incoming, nameById) {
       if (!users.has(source)) {
         users.add(source);
         html += `<div class="connection-item">
-          <div><span class="conn-target">${escapeHtml(source)}</span></div>
+          <div><span class="conn-target" style="cursor:pointer" data-node-id="${e.source_service_id}">${escapeHtml(source)}</span></div>
           ${e.source_file ? `<div class="conn-file">${escapeHtml(e.source_file)}</div>` : ""}
         </div>`;
       }
@@ -163,7 +200,7 @@ function renderInfraConnections(node, outgoing, nameById) {
       const target = nameById[e.target_service_id] || "?";
       html += `<div class="connection-item">
         <div><span class="conn-method">${escapeHtml(e.method || e.protocol || '')}</span> <span class="conn-path">${escapeHtml(e.path || '')}</span></div>
-        <div class="conn-direction">→ <span class="conn-target">${escapeHtml(target)}</span></div>
+        <div class="conn-direction">→ <span class="conn-target" style="cursor:pointer" data-node-id="${e.target_service_id}">${escapeHtml(target)}</span></div>
         ${e.source_file ? `<div class="conn-file">${escapeHtml(e.source_file)}</div>` : ""}
       </div>`;
     }
@@ -185,9 +222,9 @@ function renderServiceConnections(outgoing, incoming, nameById) {
         ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified in target">✗</span>'
         : "";
       html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
-        <div class="conn-direction">→ <span class="conn-target">${target}</span></div>
-        ${e.source_file ? `<div class="conn-file">${e.source_file}</div>` : ""}
+        <div><span class="conn-method">${escapeHtml(e.method || e.protocol)}</span> <span class="conn-path">${escapeHtml(e.path || "")}</span>${mismatchFlag}</div>
+        <div class="conn-direction">→ <span class="conn-target" style="cursor:pointer" data-node-id="${e.target_service_id}">${escapeHtml(target)}</span></div>
+        ${e.source_file ? `<div class="conn-file">${escapeHtml(e.source_file)}</div>` : ""}
         ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
       </div>`;
     }
@@ -203,9 +240,9 @@ function renderServiceConnections(outgoing, incoming, nameById) {
         ? ' <span style="color:#fc8181;font-weight:bold" title="Endpoint not verified">✗</span>'
         : "";
       html += `<div class="connection-item" ${e.mismatch ? 'style="border-left:2px solid #fc8181"' : ""}>
-        <div><span class="conn-method">${e.method || e.protocol}</span> <span class="conn-path">${e.path || ""}</span>${mismatchFlag}</div>
-        <div class="conn-direction">← <span class="conn-target">${source}</span></div>
-        ${e.target_file ? `<div class="conn-file">${e.target_file}</div>` : ""}
+        <div><span class="conn-method">${escapeHtml(e.method || e.protocol)}</span> <span class="conn-path">${escapeHtml(e.path || "")}</span>${mismatchFlag}</div>
+        <div class="conn-direction">← <span class="conn-target" style="cursor:pointer" data-node-id="${e.source_service_id}">${escapeHtml(source)}</span></div>
+        ${e.target_file ? `<div class="conn-file">${escapeHtml(e.target_file)}</div>` : ""}
         ${e.mismatch ? '<div class="conn-file" style="color:#fc8181">⚠ Endpoint handler not found in target</div>' : ""}
       </div>`;
     }
@@ -237,9 +274,10 @@ function renderActorDetail(node) {
     html += `<div class="detail-section">
       <div class="detail-label">Connected Services (${services.length})</div>`;
     for (const cs of services) {
+      const nodeIdAttr = cs.service_id != null ? ` data-node-id="${cs.service_id}"` : '';
       html += `<div class="connection-item">
         <div><span class="conn-method">${escapeHtml(cs.protocol || '')}</span> <span class="conn-path">${escapeHtml(cs.path || '')}</span></div>
-        <div class="conn-direction">&larr; <span class="conn-target">${escapeHtml(cs.service_name)}</span></div>
+        <div class="conn-direction">&larr; <span class="conn-target" style="cursor:pointer"${nodeIdAttr}>${escapeHtml(cs.service_name)}</span></div>
       </div>`;
     }
     html += `</div>`;
