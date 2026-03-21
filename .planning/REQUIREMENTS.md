@@ -17,7 +17,7 @@ Requirements for Plugin Distribution Fix milestone. Each maps to roadmap phases.
 ### MCP Server Distribution
 
 - [ ] **MCP-01**: MCP server starts successfully from marketplace-installed plugin
-- [ ] **MCP-02**: Self-healing MCP wrapper installs deps if missing before server exec
+- [x] **MCP-02**: Self-healing MCP wrapper installs deps if missing before server exec
 - [ ] **MCP-03**: .mcp.json works without NODE_PATH (ESM-compatible resolution)
 
 ### Version Sync
@@ -67,7 +67,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPS-02 | Phase 59 | Pending |
 | DEPS-03 | Phase 59 | Pending |
 | DEPS-04 | Phase 59 | Pending |
-| MCP-02 | Phase 59 | Pending |
+| MCP-02 | Phase 59 | Complete |
 | MCP-01 | Phase 60 | Pending |
 | MCP-03 | Phase 60 | Pending |
 | VER-01 | Phase 61 | Pending |

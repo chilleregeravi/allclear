@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 59 context gathered
-last_updated: "2026-03-21T17:18:30.950Z"
-last_activity: 2026-03-21 — Roadmap created for v5.2.0
+status: unknown
+stopped_at: Completed 59-02-PLAN.md (mcp-wrapper.sh self-healing + bats tests)
+last_updated: "2026-03-21T17:47:35.913Z"
 progress:
-  total_phases: 10
-  completed_phases: 7
-  total_plans: 11
-  completed_plans: 11
-  percent: 0
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 2
 ---
 
 # Project State
@@ -25,12 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 ## Current Position
 
-Phase: 59 of 61 (Runtime Dependency Installation)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-21 — Roadmap created for v5.2.0
-
-Progress: [░░░░░░░░░░] 0% (v5.2.0)
+Phase: 59 (Runtime Dependency Installation) — COMPLETE
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -48,6 +42,8 @@ Progress: [░░░░░░░░░░] 0% (v5.2.0)
 - v5.2.0: Separate hooks.json entry with timeout: 300 for install hook; existing session-start.sh entry stays at timeout: 10
 - v5.2.0: Diff-based idempotency — compare runtime-deps.json to sentinel in ${CLAUDE_PLUGIN_DATA}; sentinel deleted on failed install so next session retries
 - v5.2.0: Self-healing MCP wrapper covers first-session race (MCP server starts before SessionStart hook finishes)
+- [Phase 059]: Use temp log file to capture npm exit code before pipe to head in mcp-wrapper.sh — preserves $? without set -o pipefail
+- [Phase 059]: Updated .mcp.json in Plan 02 (not Phase 60) — self-healing wrapper is useless unless .mcp.json invokes it
 
 ### Pending Todos
 
@@ -61,6 +57,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T17:18:30.939Z
-Stopped at: Phase 59 context gathered
-Resume file: .planning/phases/059-runtime-dependency-installation/59-CONTEXT.md
+Last session: 2026-03-21T17:47:18.762Z
+Stopped at: Completed 59-02-PLAN.md (mcp-wrapper.sh self-healing + bats tests)
+Resume file: None
