@@ -22,8 +22,8 @@ Requirements for Plugin Distribution Fix milestone. Each maps to roadmap phases.
 
 ### Version Sync
 
-- [ ] **VER-01**: All 5 manifest files bumped to 5.2.0 (root marketplace.json, plugin marketplace.json, plugin.json, package.json, runtime-deps.json)
-- [ ] **VER-02**: Root .mcp.json is empty (dev repo, not consumer)
+- [x] **VER-01**: All 5 manifest files bumped to 5.2.0 (root marketplace.json, plugin marketplace.json, plugin.json, package.json, runtime-deps.json)
+- [x] **VER-02**: Root .mcp.json is empty (dev repo, not consumer)
 
 ## Future Requirements
 
@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MCP-02 | Phase 59 | Complete |
 | MCP-01 | Phase 60 | Complete |
 | MCP-03 | Phase 60 | Complete |
-| VER-01 | Phase 61 | Pending |
-| VER-02 | Phase 61 | Pending |
+| VER-01 | Phase 61 | Complete |
+| VER-02 | Phase 61 | Complete |
 
 **Coverage:**
 - v5.2.0 requirements: 9 total
