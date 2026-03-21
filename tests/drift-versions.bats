@@ -3,7 +3,7 @@
 # Requirements: DRFT-01 (version extraction), DRFT-05 (report with repo details), DRFT-06 (severity filtering)
 
 TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
-PLUGIN_ROOT="$(cd "$TEST_DIR/.." && pwd)"
+PLUGIN_ROOT="$(cd "$TEST_DIR/../plugins/ligamen" && pwd)"
 DRIFT_VERSIONS="${PLUGIN_ROOT}/scripts/drift-versions.sh"
 FIXTURES="${TEST_DIR}/fixtures/drift"
 

@@ -6,9 +6,9 @@
 setup() {
   load 'test_helper/bats-support/load'
   load 'test_helper/bats-assert/load'
-  SCRIPT="${BATS_TEST_DIRNAME}/../scripts/format.sh"
+  SCRIPT="${BATS_TEST_DIRNAME}/../plugins/ligamen/scripts/format.sh"
   STUB_DIR="$(mktemp -d)"
-  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/.."
+  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/../plugins/ligamen"
 }
 
 teardown() {

@@ -5,7 +5,7 @@
 load 'test_helper/bats-support/load'
 load 'test_helper/bats-assert/load'
 
-PLUGIN_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+PLUGIN_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../plugins/ligamen" && pwd)"
 
 setup() {
   export LIGAMEN_DATA_DIR="$(mktemp -d)"
@@ -28,7 +28,7 @@ teardown() {
 # WRKR-01 + WRKR-02: worker-start.sh writes PID and port files
 # ---------------------------------------------------------------------------
 @test "WRKR-01 + WRKR-02: worker-start.sh writes PID and port files" {
-  run bash scripts/worker-start.sh
+  run bash "$PLUGIN_ROOT/scripts/worker-start.sh"
   assert_success
 
   # PID file must exist and contain a number
@@ -43,26 +43,26 @@ teardown() {
 
   # Wait for readiness using worker-client.sh
   # shellcheck source=lib/worker-client.sh
-  source lib/worker-client.sh
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
   wait_for_worker 20 250
 
   # Confirm /api/readiness returns 200
   run curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://localhost:37999/api/readiness"
   assert_output "200"
 
-  bash scripts/worker-stop.sh
+  bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
 }
 
 # ---------------------------------------------------------------------------
 # WRKR-05: duplicate start is prevented
 # ---------------------------------------------------------------------------
 @test "WRKR-05: duplicate start is prevented" {
-  bash scripts/worker-start.sh >/dev/null 2>&1
-  source lib/worker-client.sh
+  bash "$PLUGIN_ROOT/scripts/worker-start.sh" >/dev/null 2>&1
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
   wait_for_worker 20 250
 
   # Second start attempt
-  run bash scripts/worker-start.sh
+  run bash "$PLUGIN_ROOT/scripts/worker-start.sh"
   assert_success
   assert_output --partial "already running"
 
@@ -71,7 +71,7 @@ teardown() {
   local count; count=$(pgrep -f "worker/index.js" | wc -l | tr -d ' ')
   [[ "$count" -ge "1" ]] || { echo "No worker process found"; return 1; }
 
-  bash scripts/worker-stop.sh
+  bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
 }
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ teardown() {
   mkdir -p "${LIGAMEN_DATA_DIR}"
   echo "99999" > "${LIGAMEN_DATA_DIR}/worker.pid"
 
-  run bash scripts/worker-start.sh
+  run bash "$PLUGIN_ROOT/scripts/worker-start.sh"
   assert_success
 
   # Output should mention "stale"
@@ -93,14 +93,14 @@ teardown() {
   [[ "$new_pid" != "99999" ]] || { echo "PID file still contains stale PID 99999"; return 1; }
   [[ "$new_pid" =~ ^[0-9]+$ ]] || { echo "New PID not numeric: $new_pid"; return 1; }
 
-  bash scripts/worker-stop.sh
+  bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
 }
 
 # ---------------------------------------------------------------------------
 # WRKR-04: wait_for_worker() times out when no worker
 # ---------------------------------------------------------------------------
 @test "WRKR-04: wait_for_worker() times out when no worker is running" {
-  source lib/worker-client.sh
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
 
   # 3 attempts × 100ms = 300ms total — fast timeout
   run wait_for_worker 3 100
@@ -114,11 +114,11 @@ teardown() {
 # WRKR-03 + WRKR-01: worker-stop.sh sends SIGTERM and cleans up files
 # ---------------------------------------------------------------------------
 @test "WRKR-03 + WRKR-01: worker-stop.sh sends SIGTERM and cleans up files" {
-  bash scripts/worker-start.sh >/dev/null 2>&1
-  source lib/worker-client.sh
+  bash "$PLUGIN_ROOT/scripts/worker-start.sh" >/dev/null 2>&1
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
   wait_for_worker 20 250
 
-  run bash scripts/worker-stop.sh
+  run bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
   assert_success
 
   # Give the worker a moment to finish cleanup
@@ -132,22 +132,22 @@ teardown() {
 # WRKR-04: /api/readiness returns 200 after startup
 # ---------------------------------------------------------------------------
 @test "WRKR-04: /api/readiness returns 200 after startup" {
-  bash scripts/worker-start.sh >/dev/null 2>&1
-  source lib/worker-client.sh
+  bash "$PLUGIN_ROOT/scripts/worker-start.sh" >/dev/null 2>&1
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
   wait_for_worker 20 250
 
   run worker_running
   assert_success
 
-  bash scripts/worker-stop.sh
+  bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
 }
 
 # ---------------------------------------------------------------------------
 # WRKR-07: worker writes structured JSON log to logs/worker.log
 # ---------------------------------------------------------------------------
 @test "WRKR-07: worker writes structured JSON log to logs/worker.log" {
-  bash scripts/worker-start.sh >/dev/null 2>&1
-  source lib/worker-client.sh
+  bash "$PLUGIN_ROOT/scripts/worker-start.sh" >/dev/null 2>&1
+  source "$PLUGIN_ROOT/lib/worker-client.sh"
   wait_for_worker 20 250
 
   # Give the worker a moment to flush log
@@ -164,5 +164,5 @@ teardown() {
   echo "$first_line" | jq -e '.msg' >/dev/null 2>&1 || { echo "Missing 'msg' field in log"; return 1; }
   echo "$first_line" | jq -e '.level' >/dev/null 2>&1 || { echo "Missing 'level' field in log"; return 1; }
 
-  bash scripts/worker-stop.sh
+  bash "$PLUGIN_ROOT/scripts/worker-stop.sh"
 }

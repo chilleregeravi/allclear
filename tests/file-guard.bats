@@ -13,8 +13,8 @@
 setup() {
   load 'test_helper/bats-support/load'
   load 'test_helper/bats-assert/load'
-  SCRIPT="${BATS_TEST_DIRNAME}/../scripts/file-guard.sh"
-  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/.."
+  SCRIPT="${BATS_TEST_DIRNAME}/../plugins/ligamen/scripts/file-guard.sh"
+  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/../plugins/ligamen"
 }
 
 # ---------------------------------------------------------------------------

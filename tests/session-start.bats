@@ -14,7 +14,7 @@ setup() {
   mkdir -p "$MOCK_PLUGIN_ROOT/lib"
 
   # Copy the real hook script into the isolated root
-  cp "$PROJECT_ROOT/scripts/session-start.sh" "$MOCK_PLUGIN_ROOT/scripts/session-start.sh"
+  cp "$PROJECT_ROOT/plugins/ligamen/scripts/session-start.sh" "$MOCK_PLUGIN_ROOT/scripts/session-start.sh"
 
   # Write a mock lib/detect.sh that returns MOCK_PROJECT_TYPE
   cat > "$MOCK_PLUGIN_ROOT/lib/detect.sh" <<'MOCK'

@@ -7,7 +7,7 @@ setup() {
   load 'test_helper/bats-support/load'
   load 'test_helper/bats-assert/load'
   FIXTURES_DIR="$(mktemp -d)"
-  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/.."
+  export CLAUDE_PLUGIN_ROOT="${BATS_TEST_DIRNAME}/../plugins/ligamen"
 }
 
 teardown() {
@@ -23,7 +23,7 @@ teardown() {
   mkdir -p "${PARENT}/repo-a/.git"
   mkdir -p "${PARENT}/repo-b/.git"
   mkdir -p "${PARENT}/not-a-repo"  # no .git — should be excluded
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_linked_repos "${PARENT}/repo-a"
   assert_success
   assert_output --partial "repo-b"
@@ -34,7 +34,7 @@ teardown() {
   local PARENT="${FIXTURES_DIR}/workspace"
   mkdir -p "${PARENT}/repo-a/.git"
   mkdir -p "${PARENT}/repo-b/.git"
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   # Calling from repo-a: repo-a must not appear in output
   run list_linked_repos "${PARENT}/repo-a"
   assert_success
@@ -44,7 +44,7 @@ teardown() {
 @test "siblings.sh - returns empty when no siblings exist" {
   local PARENT="${FIXTURES_DIR}/workspace"
   mkdir -p "${PARENT}/only-repo/.git"
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_linked_repos "${PARENT}/only-repo"
   assert_success
   assert_output ""
@@ -54,7 +54,7 @@ teardown() {
   local PARENT="${FIXTURES_DIR}/empty-workspace"
   mkdir -p "${PARENT}/not-a-repo"   # only non-git directory
   mkdir -p "${PARENT}/calling-dir"  # the "current repo" with no .git
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_linked_repos "${PARENT}/calling-dir"
   # Must not crash — exit 0 with no output
   assert_success
@@ -66,7 +66,7 @@ teardown() {
   mkdir -p "${PARENT}/repo-a/.git"
   mkdir -p "${PARENT}/repo-b/.git"
   mkdir -p "${PARENT}/repo-c/.git"
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_linked_repos "${PARENT}/repo-a"
   assert_success
   assert_output --partial "repo-b"
@@ -79,7 +79,7 @@ teardown() {
   local PARENT="${FIXTURES_DIR}/workspace"
   mkdir -p "${PARENT}/src-repo/.git"
   mkdir -p "${PARENT}/another-repo/.git"
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_siblings "${PARENT}/src-repo"
   assert_success
   assert_output --partial "another-repo"
@@ -102,7 +102,7 @@ teardown() {
   ]
 }
 EOF
-  source "${BATS_TEST_DIRNAME}/../lib/linked-repos.sh"
+  source "${BATS_TEST_DIRNAME}/../plugins/ligamen/lib/linked-repos.sh"
   run list_linked_repos "${PARENT}/my-repo"
   assert_success
   assert_output --partial "configured-sibling"

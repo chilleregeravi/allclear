@@ -5,7 +5,7 @@
 
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 FIXTURE_DIR="$REPO_ROOT/tests/fixtures/config"
-LIB_CONFIG="$REPO_ROOT/lib/config.sh"
+LIB_CONFIG="$REPO_ROOT/plugins/ligamen/lib/config.sh"
 
 setup() {
   # Reset the guard variable before each test so lib/config.sh re-loads

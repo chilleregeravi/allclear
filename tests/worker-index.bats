@@ -5,7 +5,7 @@
 load 'test_helper/bats-support/load'
 load 'test_helper/bats-assert/load'
 
-PLUGIN_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+PLUGIN_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../plugins/ligamen" && pwd)"
 
 setup() {
   export LIGAMEN_DATA_DIR="$(mktemp -d)"
