@@ -309,6 +309,15 @@ export class QueryEngine {
       "DELETE FROM services WHERE repo_id = ? AND scan_version_id != ? AND scan_version_id IS NOT NULL"
     );
 
+    this._stmtDeleteNullConnections = db.prepare(`
+      DELETE FROM connections
+      WHERE source_service_id IN (SELECT id FROM services WHERE repo_id = ? AND scan_version_id IS NULL)
+         OR target_service_id IN (SELECT id FROM services WHERE repo_id = ? AND scan_version_id IS NULL)
+    `);
+    this._stmtDeleteNullServices = db.prepare(
+      "DELETE FROM services WHERE repo_id = ? AND scan_version_id IS NULL"
+    );
+
     this._stmtUpsertSchema = db.prepare(`
       INSERT OR REPLACE INTO schemas (connection_id, role, name, file)
       VALUES (@connection_id, @role, @name, @file)
@@ -628,6 +637,9 @@ export class QueryEngine {
     // Delete stale connections before stale services — no CASCADE on FK
     this._stmtDeleteStaleConnections.run(repoId, scanVersionId, repoId, scanVersionId);
     this._stmtDeleteStaleServices.run(repoId, scanVersionId);
+    // Delete legacy NULL scan_version_id rows (pre-bracket rows) for this repo
+    this._stmtDeleteNullConnections.run(repoId, repoId);
+    this._stmtDeleteNullServices.run(repoId);
     // Clean up actor_connections for deleted services
     // (no CASCADE on the stale-service DELETE since it goes through scan_version_id filtering)
     try {
