@@ -102,7 +102,19 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
-(Defined per milestone — see REQUIREMENTS.md when next milestone starts)
+## Current Milestone: v5.3.0 Scan Intelligence & Enrichment
+
+**Goal:** Add enrichment pass architecture, surface schema/field data, persist confidence/evidence, extract team ownership and auth/DB metadata, improve agent data quality, and spin out quality-gate.
+
+**Target features:**
+- Spin out quality-gate into standalone plugin (THE-937)
+- Surface schema/fields in graph UI detail panel (THE-938)
+- Persist confidence levels and evidence snippets from scans (THE-939)
+- Extract team ownership from CODEOWNERS files (THE-940)
+- Enrichment pass architecture for post-scan metadata (THE-941)
+- Agent prompt improvements for source_file/target_file (THE-942)
+- Auth mechanism and database backend extraction (THE-943)
+- Show "unknown" for missing metadata fields in UI (THE-944)
 
 ### Out of Scope
 
@@ -179,4 +191,4 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | .mcp.json points to wrapper script not node directly | Enables self-healing path; wrapper handles dep check before exec | ✓ Good |
 
 ---
-*Last updated: 2026-03-21 after v5.2.1 milestone*
+*Last updated: 2026-03-21 after v5.3.0 milestone started*
