@@ -94,7 +94,18 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
-(Defined per milestone — see REQUIREMENTS.md when next milestone starts)
+## Current Milestone: v5.2.1 Scan Data Integrity
+
+**Goal:** Fix 7 scan reliability bugs — stale data cleanup, service ID collision, undefined value crashes, project hash mismatch, and confirmation flow failures.
+
+**Target features:**
+- POST /scan uses beginScan/endScan bracket for stale data cleanup (THE-930)
+- Legacy NULL scan_version_id rows garbage collected (THE-931)
+- Cross-repo service ID resolution scoped to avoid name collisions (THE-932)
+- Incremental scan prompt guidance for changed-files constraint (THE-933)
+- Confirmation flow tolerant parsing with synonym support (THE-934)
+- upsertService/upsertConnection sanitize undefined→null (THE-935)
+- CLI fallback scan passes explicit project root to openDb (THE-936)
 
 ### Out of Scope
 
@@ -171,4 +182,4 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | .mcp.json points to wrapper script not node directly | Enables self-healing path; wrapper handles dep check before exec | ✓ Good |
 
 ---
-*Last updated: 2026-03-21 after v5.2.0 milestone*
+*Last updated: 2026-03-21 after v5.2.1 milestone started*
