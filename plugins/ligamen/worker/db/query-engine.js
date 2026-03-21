@@ -864,9 +864,9 @@ export class QueryEngine {
     // 2. Upsert connections (resolve source/target names to IDs)
     for (const conn of findings.connections || []) {
       const sourceId =
-        serviceIdMap.get(conn.source) || this._resolveServiceId(conn.source);
+        serviceIdMap.get(conn.source) || this._resolveServiceId(conn.source, repoId);
       const targetId =
-        serviceIdMap.get(conn.target) || this._resolveServiceId(conn.target);
+        serviceIdMap.get(conn.target) || this._resolveServiceId(conn.target, repoId);
       if (!sourceId || !targetId) continue; // skip if service not found
 
       const connId = this.upsertConnection({
@@ -964,14 +964,46 @@ export class QueryEngine {
 
   /**
    * Resolve a service name to its ID (for cross-repo connections).
+   *
+   * Resolution order:
+   * 1. If repoId is provided and a service with that name exists in that repo,
+   *    return it immediately (same-repo exact match — no ambiguity possible).
+   * 2. If no same-repo match (or no repoId given), query all services with
+   *    that name globally.
+   * 3. Zero rows → return null.
+   * 4. Exactly one row → return its id (unambiguous cross-repo reference, no warning).
+   * 5. Multiple rows → emit console.warn and return the first match's id.
+   *
    * @param {string} name
+   * @param {number|null} [repoId=null]
    * @returns {number|null}
    */
-  _resolveServiceId(name) {
-    const row = this._db
-      .prepare("SELECT id FROM services WHERE name = ?")
-      .get(name);
-    return row ? row.id : null;
+  _resolveServiceId(name, repoId = null) {
+    // Step 1: same-repo exact match
+    if (repoId != null) {
+      const row = this._db
+        .prepare("SELECT id FROM services WHERE name = ? AND repo_id = ?")
+        .get(name, repoId);
+      if (row) return row.id;
+    }
+
+    // Step 2: global lookup
+    const rows = this._db
+      .prepare("SELECT id, repo_id FROM services WHERE name = ?")
+      .all(name);
+
+    // Step 3: not found
+    if (rows.length === 0) return null;
+
+    // Step 4: unambiguous
+    if (rows.length === 1) return rows[0].id;
+
+    // Step 5: ambiguous — warn and return first match
+    console.warn(
+      '[ligamen] Ambiguous service name "' + name + '" matches ' + rows.length +
+      ' repos — using id ' + rows[0].id + '. Scope your connection to avoid collisions.'
+    );
+    return rows[0].id;
   }
 
   /**
