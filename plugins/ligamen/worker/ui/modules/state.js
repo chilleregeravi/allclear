@@ -36,6 +36,7 @@ export const state = {
   logComponentFilter: "all",   // "all" | "worker" | "http" | "mcp" | "scan"
   logSearchFilter: "",
   logLastSince: null,          // ISO timestamp string — last poll watermark
+  edgeBundles: [],             // populated by computeEdgeBundles() after graphData load
 };
 
 export const NODE_RADIUS = 18;
@@ -79,6 +80,8 @@ export const NODE_TYPE_COLORS = {
   infra: '#68d391',
   actor: '#e06060',    // coral — distinct from all other types
 };
+
+export const BUNDLE_SEVERITY = ["rest", "grpc", "events", "internal", "sdk", "import"];
 
 /**
  * Line dash patterns per protocol.

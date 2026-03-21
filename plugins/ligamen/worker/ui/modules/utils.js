@@ -94,6 +94,69 @@ export function getNodeColor(node) {
   return NODE_TYPE_COLORS.service;
 }
 
+/**
+ * Groups an array of edges by source→target pair and returns bundle objects.
+ * Bundles with count === 1 are still returned (single code path in renderer).
+ *
+ * @param {Array} edges - Filtered edge objects from graphData.edges
+ * @returns {Array} Array of bundle objects with count, protocol, hasMismatch, edges
+ */
+export function computeEdgeBundles(edges) {
+  // Protocol priority: lower index = higher priority (used as tiebreaker)
+  const SEVERITY = ["rest", "grpc", "events", "internal", "sdk", "import"];
+
+  const groups = new Map();
+  for (const edge of edges) {
+    const key = `${edge.source_service_id}->${edge.target_service_id}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        source_service_id: edge.source_service_id,
+        target_service_id: edge.target_service_id,
+        edges: [],
+      });
+    }
+    groups.get(key).edges.push(edge);
+  }
+
+  const bundles = [];
+  for (const group of groups.values()) {
+    const hasMismatch = group.edges.some((e) => e.mismatch === true);
+
+    // Determine dominant protocol: most frequent; break ties by SEVERITY order
+    const protocolCounts = new Map();
+    for (const e of group.edges) {
+      protocolCounts.set(e.protocol, (protocolCounts.get(e.protocol) || 0) + 1);
+    }
+    let dominantProtocol = null;
+    let dominantCount = -1;
+    let dominantPriority = Infinity;
+    for (const [proto, cnt] of protocolCounts) {
+      const priority = SEVERITY.indexOf(proto);
+      const effectivePriority = priority === -1 ? Infinity : priority;
+      if (
+        cnt > dominantCount ||
+        (cnt === dominantCount && effectivePriority < dominantPriority)
+      ) {
+        dominantCount = cnt;
+        dominantPriority = effectivePriority;
+        dominantProtocol = proto;
+      }
+    }
+
+    bundles.push({
+      key: group.key,
+      source_service_id: group.source_service_id,
+      target_service_id: group.target_service_id,
+      count: group.edges.length,
+      edges: group.edges,
+      protocol: dominantProtocol,
+      hasMismatch,
+    });
+  }
+  return bundles;
+}
+
 export async function fetchImpact(nodeName, nodeId) {
   if (state.blastCache[nodeName] !== undefined) {
     return state.blastCache[nodeName];
