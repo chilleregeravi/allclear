@@ -88,7 +88,16 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
-(Defined per milestone — see REQUIREMENTS.md when next milestone starts)
+## Current Milestone: v5.2.0 Plugin Distribution Fix
+
+**Goal:** Make the MCP server work when the plugin is installed from marketplace by implementing runtime dependency installation.
+
+**Target features:**
+- SessionStart hook to install runtime deps into `${CLAUDE_PLUGIN_DATA}`
+- `.mcp.json` with `NODE_PATH` pointing to installed deps
+- Runtime deps manifest for MCP server dependencies
+- Version sync across all manifest files (marketplace.json, plugin.json, package.json)
+- Clean up root `.mcp.json` (dev repo, not consumer)
 
 ### Out of Scope
 
@@ -160,4 +169,4 @@ Known tech debt: no log rotation, db/database.js has console.log in script-mode 
 | marketplace.json at repo root | Required for marketplace discovery; points to ./plugins/ligamen as plugin source | ✓ Good |
 
 ---
-*Last updated: 2026-03-21 after v5.1 milestone*
+*Last updated: 2026-03-21 after v5.2.0 milestone started*
