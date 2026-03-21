@@ -5,7 +5,7 @@
 [[ "${BASH_SOURCE[0]}" != "${0}" ]] || { echo "Source this file; do not execute directly." >&2; exit 1; }
 
 # PLUGIN_ROOT: resolve from script location or from environment
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # SHOW_INFO: default false; set true when --all is in args (set by parse_drift_args)
 SHOW_INFO=false
