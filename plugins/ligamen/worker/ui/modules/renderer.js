@@ -29,6 +29,7 @@ import {
 import {
   truncate,
   getNeighborIds,
+  getNeighborIdsNHop,
   getNodeColor,
   getNodeType,
 } from "./utils.js";
@@ -77,6 +78,14 @@ export function render() {
     }
     for (const id of [...visibleIds]) {
       if (!connectedIds.has(id)) visibleIds.delete(id);
+    }
+  }
+
+  // 6. Subgraph isolation — restrict visibleIds to N-hop neighborhood
+  if (state.isolatedNodeId !== null) {
+    const isolationSet = getNeighborIdsNHop(state.isolatedNodeId, state.isolationDepth);
+    for (const id of [...visibleIds]) {
+      if (!isolationSet.has(id)) visibleIds.delete(id);
     }
   }
 
