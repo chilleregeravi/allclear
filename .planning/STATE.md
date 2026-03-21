@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Graph Interactivity
 status: unknown
-stopped_at: Completed 54-01-PLAN.md
-last_updated: "2026-03-21T11:19:40.253Z"
+stopped_at: Completed 54-02-PLAN.md
+last_updated: "2026-03-21T11:30:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 54 — Subgraph Isolation (In Progress)
+**Current focus:** Phase 54 — Subgraph Isolation (COMPLETE)
 
 ## Current Position
 
-Phase: 54 (Subgraph Isolation) — IN PROGRESS
-Plan: 1 of 2 — COMPLETE
+Phase: 54 (Subgraph Isolation) — COMPLETE
+Plan: 2 of 2 — COMPLETE
 
 ## Performance Metrics
 
@@ -53,6 +53,9 @@ Plan: 1 of 2 — COMPLETE
 - [Phase 55-01]: 55-01: latest_scan_version_id computed in getGraph() at DB layer, not HTTP layer — single source of truth
 - [Phase 54-subgraph-isolation]: 54-01: getNeighborIdsNHop placed immediately after getNeighborIds in utils.js — natural adjacency, same edge traversal pattern
 - [Phase 54-subgraph-isolation]: 54-01: isolatedNodeId and isolationDepth placed after blastCache cluster — blast and isolation are parallel mode concerns
+- [Phase 54-subgraph-isolation]: 54-02: Isolation block placed as step 6 after hideIsolated — stacks on existing filters, narrows subset
+- [Phase 54-subgraph-isolation]: 54-02: Esc handler guard broadened to OR condition — clears isolation even when no node selected
+- [Phase 54-subgraph-isolation]: 54-02: I handler uses case 'i'/'I' pattern matching Phase 52 F handler convention
 
 ### Pending Todos
 
@@ -64,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T11:19:40.249Z
-Stopped at: Completed 54-01-PLAN.md
+Last session: 2026-03-21T11:30:00.000Z
+Stopped at: Completed 54-02-PLAN.md
 Resume file: None
