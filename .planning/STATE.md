@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 63-02-PLAN.md
-last_updated: "2026-03-21T19:42:00.000Z"
+stopped_at: Completed 64-02-PLAN.md
+last_updated: "2026-03-21T19:25:38.539Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 63 — Scan Bracket Integrity
+**Current focus:** Phase 64 — Undefined Value Crash Chain
 
 ## Current Position
 
-Phase: 63 (Scan Bracket Integrity) — EXECUTING
-Plan: 2 of 2 (COMPLETE)
+Phase: 64 (Undefined Value Crash Chain) — COMPLETE
+Plan: 2 of 2 (complete)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: 2 of 2 (COMPLETE)
 - [Phase 63-scan-bracket-integrity]: scanVersionId threaded through persistFindings as 4th arg so every row is stamped with non-null scan_version_id (fixes root cause of endScan never deleting stale rows)
 - [Phase 63-scan-bracket-integrity]: endScan() now GC-deletes NULL scan_version_id connections+services after successful scan — connections deleted before services (FK order, no CASCADE)
 - [Phase 63-scan-bracket-integrity]: buildDb() test helper extended to apply migrations 005+006 — without 006, QueryEngine ON CONFLICT(path) for repos fails
+- [Phase 64-undefined-value-crash-chain]: CLI fallback map.md Step 4: pass PROJECT_ROOT captured in Step 1 to openDb() to ensure correct DB hash regardless of process.cwd() at node -e invocation time
 
 ### Pending Todos
 
@@ -59,7 +60,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T19:42:00.000Z
-Stopped at: Completed 63-02-PLAN.md
+Last session: 2026-03-21T19:25:38.535Z
+Stopped at: Completed 64-02-PLAN.md
 Resume file: None
-Next action: Phase 63 complete — proceed to Phase 64 / 65 (parallel)
+Next action: Phase 64 complete — proceed to Phase 65 (service ID collision fix, SVCR-01)
