@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Graph Interactivity
 status: unknown
-stopped_at: Completed 54-02-PLAN.md
-last_updated: "2026-03-21T11:30:00.000Z"
+stopped_at: Completed 56-01-PLAN.md
+last_updated: "2026-03-21T11:24:19.838Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 54 — Subgraph Isolation (COMPLETE)
+**Current focus:** Phase 56 — What-Changed Overlay
 
 ## Current Position
 
-Phase: 54 (Subgraph Isolation) — COMPLETE
-Plan: 2 of 2 — COMPLETE
+Phase: 56 (What-Changed Overlay) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -56,6 +56,8 @@ Plan: 2 of 2 — COMPLETE
 - [Phase 54-subgraph-isolation]: 54-02: Isolation block placed as step 6 after hideIsolated — stacks on existing filters, narrows subset
 - [Phase 54-subgraph-isolation]: 54-02: Esc handler guard broadened to OR condition — clears isolation even when no node selected
 - [Phase 54-subgraph-isolation]: 54-02: I handler uses case 'i'/'I' pattern matching Phase 52 F handler convention
+- [Phase 56]: latestScanVersionId and showChanges placed after currentProject — logically adjacent scan-awareness fields
+- [Phase 56]: scan_version_id uses nullish coalescing (?? null) — preserves 0 as a valid version ID
 
 ### Pending Todos
 
@@ -67,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T11:30:00.000Z
-Stopped at: Completed 54-02-PLAN.md
+Last session: 2026-03-21T11:24:19.835Z
+Stopped at: Completed 56-01-PLAN.md
 Resume file: None

@@ -221,6 +221,6 @@ Phases execute in numeric order: 52 → 53 → 54 → 55 → 56 → 57 → 58
 | 53. Clickable Detail Panel Targets | 1/1 | Complete   | 2026-03-21 | - |
 | 54. Subgraph Isolation | 2/2 | Complete   | 2026-03-21 | - |
 | 55. Scan Version API | 1/1 | Complete   | 2026-03-21 | - |
-| 56. What-Changed Overlay | v5.1 | 0/TBD | Not started | - |
+| 56. What-Changed Overlay | 1/2 | In Progress|  | - |
 | 57. Edge Bundling | v5.1 | 0/TBD | Not started | - |
 | 58. Documentation | v5.1 | 0/TBD | Not started | - |
