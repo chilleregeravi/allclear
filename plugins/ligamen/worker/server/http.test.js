@@ -334,3 +334,76 @@ test("GET /versions returns 503 when queryEngine is null", async () => {
   assert.equal(body.error, "No map data yet");
   await server.close();
 });
+
+test("GET /graph returns scan_version_id on services and connections", async () => {
+  const qe = {
+    getGraph: () => ({
+      services: [{ id: 1, name: "svc-a", scan_version_id: 42 }],
+      connections: [{ id: 1, source: "svc-a", target: "svc-b", scan_version_id: 42 }],
+      repos: [],
+      mismatches: [],
+      actors: [],
+      latest_scan_version_id: 42,
+    }),
+    getVersions: () => [],
+    getImpact: () => ({}),
+    getService: () => null,
+  };
+  const server = await makeServer(qe);
+  const res = await server.inject({ method: "GET", url: "/graph" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.services[0].scan_version_id, 42, "service scan_version_id");
+  assert.equal(body.connections[0].scan_version_id, 42, "connection scan_version_id");
+  assert.equal(body.latest_scan_version_id, 42, "top-level latest_scan_version_id");
+  await server.close();
+});
+
+test("GET /graph returns null latest_scan_version_id when all scan_version_ids are null", async () => {
+  const qe = {
+    getGraph: () => ({
+      services: [{ id: 1, name: "svc-a", scan_version_id: null }],
+      connections: [],
+      repos: [],
+      mismatches: [],
+      actors: [],
+      latest_scan_version_id: null,
+    }),
+    getVersions: () => [],
+    getImpact: () => ({}),
+    getService: () => null,
+  };
+  const server = await makeServer(qe);
+  const res = await server.inject({ method: "GET", url: "/graph" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.services[0].scan_version_id, null, "service scan_version_id is null");
+  assert.equal(body.latest_scan_version_id, null, "latest_scan_version_id is null");
+  await server.close();
+});
+
+test("GET /graph latest_scan_version_id is MAX of service scan_version_ids", async () => {
+  const qe = {
+    getGraph: () => ({
+      services: [
+        { id: 1, name: "svc-a", scan_version_id: 3 },
+        { id: 2, name: "svc-b", scan_version_id: 7 },
+        { id: 3, name: "svc-c", scan_version_id: 5 },
+      ],
+      connections: [],
+      repos: [],
+      mismatches: [],
+      actors: [],
+      latest_scan_version_id: 7,
+    }),
+    getVersions: () => [],
+    getImpact: () => ({}),
+    getService: () => null,
+  };
+  const server = await makeServer(qe);
+  const res = await server.inject({ method: "GET", url: "/graph" });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.payload);
+  assert.equal(body.latest_scan_version_id, 7, "latest_scan_version_id is 7 (max)");
+  await server.close();
+});
