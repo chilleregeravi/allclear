@@ -25,6 +25,7 @@ import {
   COLORS,
   PROTOCOL_COLORS,
   PROTOCOL_LINE_DASH,
+  BUNDLE_SEVERITY,
 } from "./state.js";
 import {
   truncate,
@@ -32,6 +33,7 @@ import {
   getNeighborIdsNHop,
   getNodeColor,
   getNodeType,
+  computeEdgeBundles,
 } from "./utils.js";
 
 export function render() {
@@ -155,20 +157,25 @@ export function render() {
     ctx.restore();
   }
 
-  // Draw edges
-  for (const edge of state.graphData.edges) {
-    const src = edge.source_service_id;
-    const tgt = edge.target_service_id;
+  // Filter edges that pass active protocol and mismatch filters, then bundle
+  const filteredEdges = state.graphData.edges.filter((edge) => {
+    if (!state.activeProtocols.has(edge.protocol)) return false;
+    if (state.mismatchesOnly && !edge.mismatch) return false;
+    if (!visibleIds.has(edge.source_service_id) && !visibleIds.has(edge.target_service_id)) return false;
+    return true;
+  });
+  const bundles = computeEdgeBundles(filteredEdges);
 
-    if (!state.activeProtocols.has(edge.protocol)) continue;
-    if (state.mismatchesOnly && !edge.mismatch) continue;
-    if (!visibleIds.has(src) && !visibleIds.has(tgt)) continue;
+  // Draw edges (bundle-aware: one line per source→target pair)
+  for (const bundle of bundles) {
+    const src = bundle.source_service_id;
+    const tgt = bundle.target_service_id;
 
     const srcPos = state.positions[src];
     const tgtPos = state.positions[tgt];
     if (!srcPos || !tgtPos) continue;
 
-    let color;
+    // Determine selection / blast relationship for this bundle
     const isSelectedEdge =
       hasSelection &&
       (src === state.selectedNodeId || tgt === state.selectedNodeId) &&
@@ -179,32 +186,43 @@ export function render() {
     const isBlastEdge =
       hasBlast && state.blastSet.has(src) && state.blastSet.has(tgt);
 
+    // Determine color
+    let color;
     if (isSelectedEdge) color = COLORS.edge.selected;
     else if (isBlastEdge) color = COLORS.edge.blast;
     else if (hasSelection || hasBlast) color = COLORS.edge.dimmed;
-    else color = PROTOCOL_COLORS[edge.protocol] || COLORS.edge.default;
+    else if (bundle.hasMismatch) color = "#fc8181";
+    else color = PROTOCOL_COLORS[bundle.protocol] || COLORS.edge.default;
 
-    const lineWidth = isSelectedEdge || isBlastEdge ? 2 : 1;
-
-    // Resolve line dash pattern from protocol (EDGE-01/02/03/04)
-    const dashPattern = PROTOCOL_LINE_DASH[edge.protocol] || [];
-    const scaledDash = dashPattern.map((v) => v / state.transform.scale);
-
-    // Mismatch edges render in red (EDGE-05) — override color before stroke
-    if (edge.mismatch) {
-      color = "#fc8181";
+    // Determine lineWidth: single edges use 1px, bundles scale with count
+    let lineWidth;
+    if (bundle.count === 1) {
+      lineWidth = isSelectedEdge || isBlastEdge ? 2 : 1;
+    } else {
+      // count=2 → 3px, count=3 → 4px, count=5+ → 6px
+      lineWidth = 2 + Math.min(bundle.count - 1, 4);
+      if (isSelectedEdge || isBlastEdge) lineWidth += 1;
     }
 
-    // What-changed overlay: brighten edges from the latest scan
-    const isNewEdge =
+    // Line dash: per-protocol for single edges; solid for bundles (thickness communicates)
+    let scaledDash;
+    if (bundle.count === 1) {
+      const dashPattern = PROTOCOL_LINE_DASH[bundle.protocol] || [];
+      scaledDash = dashPattern.map((v) => v / state.transform.scale);
+    } else {
+      scaledDash = [];
+    }
+
+    // What-changed overlay: brighten bundle if ANY member edge is from the latest scan
+    const isNewBundle =
       state.showChanges &&
       state.latestScanVersionId !== null &&
-      edge.scan_version_id === state.latestScanVersionId;
+      bundle.edges.some((e) => e.scan_version_id === state.latestScanVersionId);
 
     // Override color and width only when there's no selection/blast active
-    if (isNewEdge && !hasSelection && !hasBlast) {
+    if (isNewBundle && !hasSelection && !hasBlast) {
       color = COLORS.edge.new;
-      lineWidth = 2;
+      lineWidth = bundle.count === 1 ? 2 : lineWidth;
     }
 
     ctx.beginPath();
@@ -246,8 +264,8 @@ export function render() {
     }
     ctx.globalAlpha = 1;
 
-    // Mismatch cross
-    if (edge.mismatch) {
+    // Mismatch cross — draw at midpoint if any edge in bundle has mismatch
+    if (bundle.hasMismatch) {
       const mx = (srcPos.x + tgtPos.x) / 2;
       const my = (srcPos.y + tgtPos.y) / 2;
       const crossSize = 6 / state.transform.scale;
@@ -261,6 +279,40 @@ export function render() {
       ctx.lineTo(mx - crossSize, my + crossSize);
       ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+
+    // Count badge — draw for bundled edges (count > 1)
+    if (bundle.count > 1) {
+      const mx = (srcPos.x + tgtPos.x) / 2;
+      const my = (srcPos.y + tgtPos.y) / 2;
+
+      // Offset badge perpendicular to edge direction to avoid overlap with mismatch cross
+      const badgeRadius = 10 / state.transform.scale;
+      let bx = mx;
+      let by = my;
+      if (dist > 0) {
+        // Perpendicular unit vector (rotate dx/dy by 90 degrees)
+        const px = -dy / dist;
+        const py = dx / dist;
+        const offset = 12 / state.transform.scale;
+        bx = mx + px * offset;
+        by = my + py * offset;
+      }
+
+      // Badge background circle
+      ctx.beginPath();
+      ctx.arc(bx, by, badgeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "#1a202c";
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Badge text
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = `bold ${Math.round(11 / state.transform.scale)}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(bundle.count), bx, by);
     }
   }
 
