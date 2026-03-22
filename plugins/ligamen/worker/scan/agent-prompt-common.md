@@ -7,7 +7,13 @@ Only report services/libraries whose **source code is in `{{REPO_PATH}}`**. If t
 ## Confidence Rules
 
 **HIGH** — literal string definition in source code:
-- `@app.route('/users')`, `router.get('/health', handler)`, `producer.send('order.created', msg)`
+- `@app.route('/users')` — Python Flask
+- `router.get('/health', handler)` — Node.js Express
+- `@RestController` + `@GetMapping("/users")` — Java Spring Boot
+- `[HttpGet("users")]` + `[Route("api/[controller]")]` — C# ASP.NET Core
+- `get '/users', to: 'users#index'` — Ruby on Rails routes.rb
+- `@Get("/users") fun getUsers()` — Kotlin Ktor / Spring Boot
+- `producer.send('order.created', msg)` — event producer (any language)
 
 **LOW** — inferred from variables/patterns without a literal string:
 - `fetch(baseUrl + path)`, `const endpoint = getConfig().endpoint`

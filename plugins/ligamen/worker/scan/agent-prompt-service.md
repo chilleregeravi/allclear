@@ -4,6 +4,20 @@ You are a code analysis agent scanning `{{REPO_PATH}}` to extract its **service 
 
 {{COMMON_RULES}}
 
+## Discovery Context (from Phase 1)
+
+{{DISCOVERY_JSON}}
+
+Use the discovery context above to focus your scan:
+
+- **Only read files relevant to the detected services** — route files, handler files, client files, config files
+- **Use the framework hints** to know what patterns to look for (e.g., `@app.route` for Flask, `router.get` for Express, `@RestController` for Spring Boot)
+- **Focus on `route_files`** listed above — these contain the endpoint definitions
+- **Check `proto_files` and `openapi_files`** for API contracts
+- **Check `event_config_files`** for message queue topics
+
+If discovery context is empty or `{{DISCOVERY_JSON}}` was not replaced, fall back to scanning all files.
+
 ---
 
 ## What IS a Service
