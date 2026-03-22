@@ -50,6 +50,9 @@ export const VALID_CONFIDENCE = ["high", "low"];
 /** @type {string[]} */
 export const VALID_ROLES = ["request", "response", "event_payload"];
 
+/** @type {string[]} */
+export const VALID_SERVICE_TYPES = ["service", "library", "sdk", "infra"];
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -114,7 +117,11 @@ export function validateFindings(obj) {
     return err(`confidence must be one of: ${VALID_CONFIDENCE.join(", ")}`);
   }
 
-  // Validate services
+  // Collect warnings — initialized here so the services loop can push warn-and-skip messages
+  const warnings = [];
+
+  // Validate services — hard-fail on structural issues, warn-and-skip on semantic issues
+  const validServices = [];
   for (let i = 0; i < obj.services.length; i++) {
     const svc = obj.services[i];
     if (typeof svc !== "object" || svc === null) {
@@ -128,6 +135,28 @@ export function validateFindings(obj) {
         `services[${i}].confidence must be one of: ${VALID_CONFIDENCE.join(", ")}`,
       );
     }
+    // Warn-and-skip: type present but not a valid enum value
+    if ("type" in svc && !VALID_SERVICE_TYPES.includes(svc.type)) {
+      warnings.push(
+        `services[${i}].type "${svc.type}" is not a valid service type (${VALID_SERVICE_TYPES.join(", ")}) — skipping`,
+      );
+      continue;
+    }
+    // Warn-and-skip: root_path missing or empty
+    if (typeof svc.root_path !== "string" || svc.root_path === "") {
+      warnings.push(
+        `services[${i}].root_path must be a non-empty string — skipping`,
+      );
+      continue;
+    }
+    // Warn-and-skip: language missing or empty
+    if (typeof svc.language !== "string" || svc.language === "") {
+      warnings.push(
+        `services[${i}].language must be a non-empty string — skipping`,
+      );
+      continue;
+    }
+    validServices.push(svc);
   }
 
   // Validate connections
@@ -222,7 +251,6 @@ export function validateFindings(obj) {
   }
 
   // Collect source_file warnings — null is valid but undesirable (AGENT-02 / THE-942)
-  const warnings = [];
   for (let i = 0; i < obj.connections.length; i++) {
     if (obj.connections[i].source_file === null) {
       warnings.push(
@@ -230,7 +258,7 @@ export function validateFindings(obj) {
       );
     }
   }
-  return ok(/** @type {Findings} */ (obj), warnings);
+  return ok(/** @type {Findings} */ ({ ...obj, services: validServices }), warnings);
 }
 
 // ---------------------------------------------------------------------------
