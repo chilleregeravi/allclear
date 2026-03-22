@@ -243,6 +243,110 @@ check(
   "#ed8936"
 );
 
+// ── SCHEMA-01: Connection schema rendering ─────────────────────────────────
+
+// renderConnectionSchema function is defined
+check(
+  src.includes('renderConnectionSchema'),
+  'SCHEMA-01: renderConnectionSchema function defined',
+  'renderConnectionSchema'
+);
+
+// schema section label prefix
+check(
+  src.includes('Schema:'),
+  'SCHEMA-01: schema section label contains "Schema:"',
+  'Schema:'
+);
+
+// field table has Name/Type/Req header columns
+check(
+  src.includes('>Name<') && src.includes('>Type<') && src.includes('>Req<'),
+  'SCHEMA-01: field table has Name, Type, Req column headers',
+  '>Name< >Type< >Req<'
+);
+
+// escapeHtml applied to field name
+check(
+  src.includes('escapeHtml(f.name)'),
+  'SCHEMA-01: escapeHtml applied to field.name (prevents <T> generics from being hidden)',
+  'escapeHtml(f.name)'
+);
+
+// escapeHtml applied to field type
+check(
+  src.includes('escapeHtml(f.type)'),
+  'SCHEMA-01: escapeHtml applied to field.type (prevents Array<T> from being invisible)',
+  'escapeHtml(f.type)'
+);
+
+// required=true badge uses green color
+check(
+  src.includes('48bb78') || src.includes('#48bb78'),
+  'SCHEMA-01: required=true badge uses green color #48bb78',
+  '#48bb78'
+);
+
+// absent schema returns empty string (String(connectionId) conversion)
+check(
+  src.includes('String(connectionId)'),
+  'SCHEMA-01: connectionId converted to string for map key lookup',
+  'String(connectionId)'
+);
+
+// schema section wired into showBundlePanel
+check(
+  src.includes('renderConnectionSchema') && src.includes('showBundlePanel'),
+  'SCHEMA-01: renderConnectionSchema called inside showBundlePanel',
+  'renderConnectionSchema in showBundlePanel'
+);
+
+// ── UNK-01: Unknown state always visible ──────────────────────────────────
+
+// renderServiceMeta function is defined (from Plan 01)
+check(
+  src.includes('renderServiceMeta'),
+  'UNK-01: renderServiceMeta function defined',
+  'renderServiceMeta'
+);
+
+// Owner row always present
+check(
+  src.includes('Owner'),
+  'UNK-01: Owner row present in renderServiceMeta',
+  'Owner'
+);
+
+// Auth Mechanism row always present
+check(
+  src.includes('Auth Mechanism'),
+  'UNK-01: Auth Mechanism row present in renderServiceMeta',
+  'Auth Mechanism'
+);
+
+// Database row always present
+check(
+  src.includes('Database'),
+  'UNK-01: Database row present in renderServiceMeta',
+  'Database'
+);
+
+// unknown fallback uses gray color
+check(
+  src.includes('718096') && src.includes('unknown'),
+  'UNK-01: unknown fallback uses gray color #718096',
+  '#718096 + unknown'
+);
+
+// ── CONF-03: Confidence badge ──────────────────────────────────────────────
+
+// confidence badge defined in renderServiceConnections
+check(
+  src.includes('confidenceBadge') || (src.includes('confidenceColor') && src.includes('48bb78')),
+  'CONF-03: confidence badge defined with color logic',
+  'confidenceBadge or confidenceColor+48bb78'
+);
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);
