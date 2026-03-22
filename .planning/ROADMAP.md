@@ -595,8 +595,8 @@ Plans:
   5. The auth-db extractor skips directories in its exclusion list (node_modules, .git, vendor, etc.) without descending into them, and stops reading any single file after 1MB
 **Plans**: 2 plans
 Plans:
-- [ ] 81-01-PLAN.md — Port DINT-01 endScan FK fix + DINT-02 upsertRepo ID fix
-- [ ] 81-02-PLAN.md — Port DINT-03 test view names + DINT-04 worker version restart
+- [ ] 82-01-PLAN.md — Multi-strategy agent output parsing + auth-db traversal guards
+- [ ] 82-02-PLAN.md — Transitive impact depth limit and timeout
 
 ### Phase 83: Performance & Quality
 **Goal**: FTS5 search uses cached prepared statements for lower per-query overhead, journal mode pragma ordering is explicitly tested, and `/ligamen:map` captures the project name before saving the first scan
