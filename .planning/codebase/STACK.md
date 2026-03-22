@@ -1,103 +1,108 @@
 # Technology Stack
 
-**Analysis Date:** 2026-03-20
+**Analysis Date:** 2026-03-22
 
 ## Languages
 
 **Primary:**
-- JavaScript/Node.js 20.0+ - Runtime, CLI, worker, MCP server, all entry points
-- JavaScript (Browser) - UI visualization in `worker/ui/`
+- JavaScript (ES modules) - Main plugin and worker code
+- Shell Script (Bash) - CLI automation and hooks
+
+**Secondary:**
+- HTML - UI templates for graph visualization
+- SQL - SQLite database schema and migrations
 
 ## Runtime
 
 **Environment:**
-- Node.js >=20.0.0 (required)
-- ES modules (native import/export syntax throughout)
+- Node.js 20.0.0 or higher
 
 **Package Manager:**
-- npm - lockfile: `package-lock.json` (present)
+- npm
+- Lockfile: `package-lock.json` (present)
 
 ## Frameworks
 
 **Core:**
-- Fastify 5.8.2 - HTTP server framework in `worker/server/http.js`
-- @modelcontextprotocol/sdk 1.27.1 - MCP server in `worker/mcp/server.js` for Claude Code integration
+- Fastify 5.8.2 - HTTP REST server for worker process and graph UI
+- Model Context Protocol (MCP) SDK 1.27.1 - Cross-agent tool exposure for Claude integration
 
-**Database:**
-- better-sqlite3 12.8.0 - SQLite3 client in `worker/db/pool.js`, `worker/db/database.js`
-  - WAL mode enabled via `db.pragma("journal_mode = WAL")`
-  - Migrations system in `worker/db/migrations/`
-
-**Vector Search (Optional):**
-- chromadb 3.3.3 - Vector database integration in `worker/server/chroma.js`
-- @chroma-core/default-embed 1.0.0 - Optional embedding provider (optional dependency)
-
-**Validation:**
-- zod 3.25.0 - Schema validation in `worker/mcp/server.js` for tool inputs
-
-**Middleware:**
-- @fastify/cors 10.0.0 - CORS support in `worker/server/http.js`
-- @fastify/static 8.0.0 - Static file serving in `worker/server/http.js`
+**Web UI:**
+- D3.js 3 (via CDN) - Force-directed graph simulation and visualization
+- Vanilla JavaScript/Canvas - Interactive graph rendering and interactions
 
 **Testing:**
-- Node.js built-in test runner (node:test module)
-- node:assert/strict - Assertions in test files like `worker/db/query-engine.test.js`
-- BATS framework - Shell/integration testing in `tests/bats/`
+- Node.js built-in test runner (`node --test`) - Configured in `package.json` via `test:storage` script
+- Test files use synchronous database queries for snapshot testing
 
 **Build/Dev:**
-- D3.js (d3-force@3) - Force-directed graph layout in `worker/ui/force-worker.js` (loaded from CDN: https://cdn.jsdelivr.net/npm/d3-force@3/+esm)
+- Zod 3.25.0 - Runtime schema validation for tool parameters and config
+- Better-sqlite3 12.8.0 - Synchronous SQLite database access
+- picomatch 4.0.3 - Glob pattern matching for file exclusion/inclusion
 
 ## Key Dependencies
 
 **Critical:**
-- better-sqlite3 12.8.0 - Persistent data storage for impact maps (SQLite DB at `~/.ligamen/projects/<hash>/impact-map.db`)
-- @modelcontextprotocol/sdk 1.27.1 - Communication with Claude Code (stdio-based MCP protocol)
-- Fastify 5.8.2 - HTTP REST API server for graph visualization and scan operations
+- `better-sqlite3` 12.8.0 - Synchronous SQLite database client for deterministic query results
+- `@modelcontextprotocol/sdk` 1.27.1 - MCP server/transport for Claude integration
+- `fastify` 5.8.2 - Lightweight HTTP framework hosting REST API and graph UI
+- `chromadb` 3.3.3 - Optional vector database for semantic search (non-blocking fallback)
 
 **Infrastructure:**
-- chromadb 3.3.3 - Optional semantic search backend (non-blocking, falls back to SQLite FTS5 if unavailable)
+- `@fastify/cors` 10.0.0 - CORS middleware for cross-origin graph UI requests
+- `@fastify/static` 8.0.0 - Static file serving for HTML/CSS/JS graph UI
+- `zod` 3.25.0 - Schema validation for MCP tool parameters
+- `@chroma-core/default-embed` 1.0.0 - Optional embeddings for ChromaDB (only if ChromaDB enabled)
 
 ## Configuration
 
-**Environment Variables:**
-- `LIGAMEN_DATA_DIR` - Default: `~/.ligamen` (user home directory)
-- `LIGAMEN_LOG_LEVEL` - Log verbosity (INFO default, read from `settings.json`)
-- `LIGAMEN_WORKER_PORT` - HTTP server port override (37888 default, read from `settings.json`)
-- `LIGAMEN_PROJECT_ROOT` - Project path for MCP server context (cwd default)
-- `LIGAMEN_DB_PATH` - Direct SQLite DB path (computed from project hash if not set)
-- `LIGAMEN_CHROMA_MODE` - Enable ChromaDB: "local" or empty (default)
-- `LIGAMEN_CHROMA_HOST` - ChromaDB hostname (localhost default)
-- `LIGAMEN_CHROMA_PORT` - ChromaDB port (8000 default)
-- `LIGAMEN_CHROMA_SSL` - Use HTTPS for ChromaDB (true/false)
-- `LIGAMEN_CHROMA_API_KEY` - ChromaDB API key if required
-- `LIGAMEN_CHROMA_TENANT` - ChromaDB tenant name (default_tenant default)
-- `LIGAMEN_CHROMA_DATABASE` - ChromaDB database name (default_database default)
+**Environment:**
+- Machine-wide settings stored in `~/.ligamen/settings.json` (read at startup)
+- Per-project data stored in `~/.ligamen/projects/<hash>/` (one per linked repository)
+- Optional ChromaDB configuration loaded from settings at worker startup
 
-**Configuration Files:**
-- `settings.json` - Loaded from `$LIGAMEN_DATA_DIR/settings.json` at worker startup
-- `ligamen.config.json` - Example provided in `ligamen.config.json.example` (linked-repos configuration)
-- `.mcp.json` - MCP server configuration (currently empty in `/.mcp.json`)
+**Key Configuration Variables:**
+- `LIGAMEN_DATA_DIR` - Override default `~/.ligamen` data directory
+- `LIGAMEN_LOG_LEVEL` - Set worker/MCP log verbosity (DEBUG/INFO/WARN/ERROR)
+- `LIGAMEN_WORKER_PORT` - Override default worker port 37888
+- `LIGAMEN_CHROMA_MODE` - Enable ChromaDB ('local' or empty for disabled)
+- `LIGAMEN_CHROMA_HOST` - ChromaDB hostname (default: localhost)
+- `LIGAMEN_CHROMA_PORT` - ChromaDB port (default: 8000)
+- `LIGAMEN_CHROMA_SSL` - Use HTTPS for ChromaDB ('true' or empty)
+- `LIGAMEN_CHROMA_API_KEY` - Bearer token for ChromaDB authentication
+- `LIGAMEN_CHROMA_TENANT` - ChromaDB tenant name (default: default_tenant)
+- `LIGAMEN_CHROMA_DATABASE` - ChromaDB database name (default: default_database)
 
-**Build Configuration:**
-- No build step required - pure ES modules, no compilation
+**Build:**
+- No build step required — runs as ES modules directly
+- `hooks.json` at `plugins/ligamen/hooks/hooks.json` defines Claude Code session hooks
 
 ## Platform Requirements
 
 **Development:**
-- Node.js 20.0+
-- SQLite3 system library (for better-sqlite3 native binding compilation)
-- POSIX shell (bash/zsh) for scripts in `scripts/`
+- Node.js 20.0.0+
+- bash (for plugin installation and session hooks)
+- jq (optional, for settings inspection in scripts)
+- curl (optional, for version checks via HTTP API)
 
-**Production:**
-- Node.js 20.0+ runtime
-- ~100MB disk for `.ligamen/` data directory (per project DB + logs)
-- Optional: ChromaDB instance (separate process, non-blocking if unavailable)
+**Production (Claude Code Integration):**
+- Deployment target: Claude Code plugin system
+- Worker runs as background daemon process on developer's machine
+- Exposes HTTP API on localhost (default port 37888)
+- Optional ChromaDB instance (if semantic search enabled)
 
-**Data Storage:**
-- SQLite database at `~/.ligamen/projects/<sha256(projectRoot).slice(0,12)>/impact-map.db`
-- Logs written to `~/.ligamen/logs/`
-- Worker PID/PORT files at `~/.ligamen/worker.pid`, `~/.ligamen/worker.port`
+## Database
+
+**Storage:**
+- SQLite 3 with WAL mode for concurrent read access
+- Location: `~/.ligamen/projects/<sha256(projectRoot).slice(0,12)>/impact-map.db`
+- Per-project database — one DB per linked repository
+
+**Schema Migrations:**
+- 9 migrations in `plugins/ligamen/worker/db/migrations/` (001–009)
+- Applied automatically on database open via `database.js`
+- Covers: services, connections, exposed endpoints, deduplication, scan versioning, confidence enrichment
 
 ---
 
-*Stack analysis: 2026-03-20*
+*Stack analysis: 2026-03-22*

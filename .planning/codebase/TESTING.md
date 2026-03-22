@@ -1,272 +1,298 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-03-20
+**Analysis Date:** 2026-03-22
 
 ## Test Framework
 
 **Runner:**
-- Node.js built-in `node:test` module (no external test runner like Jest or Vitest)
-- Available since Node 18+; documented in `tests/storage/query-engine.test.js` comments
-- Required Node version: >= 20.0.0 (from `package.json`)
+- Node.js built-in `node:test` module (no external test framework)
+- Version: Node.js 20+
+- Run command: `node --test path/to/file.test.js`
 
 **Assertion Library:**
-- `node:assert/strict` — Node.js built-in strict assertion module
-- Imported as: `import assert from "node:assert/strict"`
+- Node.js `node:assert/strict` — strict equality checks
+- No external assertion library
 
 **Run Commands:**
 ```bash
-node --test tests/storage/query-engine.test.js      # Run single test file
-npm test                                              # Run test suite (script in package.json)
-npm run test:storage                                  # Storage-specific tests (from package.json)
+node --test worker/db/query-engine.test.js       # Run single test file
+node --test "worker/**/*.test.js"                 # Run all tests in directory (glob)
 ```
-
-**Configuration:**
-- No test config file (no `jest.config.js`, `vitest.config.js`, etc.)
-- Tests run directly with Node.js
-- No coverage tool integration detected
 
 ## Test File Organization
 
 **Location:**
-- **Colocated pattern (preferred):** Test files in same directory as source
-  - Example: `worker/ui/modules/layout.js` has `worker/ui/modules/layout.test.js`
-  - Example: `worker/ui/modules/renderer.js` has `worker/ui/modules/renderer.test.js`
-
-- **Separate directory pattern (also used):** Tests in `tests/` tree with parallel structure
-  - Example: `tests/storage/query-engine.test.js` tests `worker/db/query-engine.js`
-  - Example: `tests/ui/graph-fit-to-screen.test.js` tests `worker/ui/graph.js`
-  - Example: `tests/worker/logger.test.js` tests `worker/lib/logger.js`
+- Co-located with source: `findings.js` paired with `findings.test.js` in same directory
+- Same file suffix pattern: source module name `.test.js`
 
 **Naming:**
-- Pattern: `[module-name].test.js` for unit tests
-- Pattern: `[module-name].spec.js` not used (only `.test.js` observed)
-- Bash integration tests: `tests/bats/[name].bats`
+- File pattern: `{module-name}.test.js`
+- Test descriptions use descriptive strings: `test("validateFindings returns valid:false with error for null input", () => { ... })`
 
 **Structure:**
 ```
-tests/
-├── bats/              # Bash integration tests (13 .bats files)
-├── fixtures/          # Test fixtures and sample data
-├── helpers/           # Test helper functions
-├── integration/       # Integration tests
-├── storage/           # Database/storage tests (9 .test.js files)
-├── ui/                # UI verification tests (4 .test.js files)
-├── worker/            # Worker/server tests (2 .test.js files)
-└── test_helper/       # Vendored testing utilities (bats-support, bats-assert)
+worker/
+├── scan/
+│   ├── findings.js
+│   ├── findings.test.js
+│   ├── manager.js
+│   ├── manager.test.js
+│   └── ...
+├── db/
+│   ├── query-engine.js
+│   ├── query-engine-graph.test.js
+│   ├── query-engine-upsert.test.js
+│   └── ...
+└── ...
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```javascript
-// Pattern from tests/storage/query-engine.test.js
-import { describe, it } from "node:test";
+import { test, describe, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-describe("database setup", () => {
-  it("makeQE creates a WAL database", () => {
-    const { db, qe } = makeQE();
-    const mode = db.pragma("journal_mode", { simple: true });
-    assert.strictEqual(mode, "wal");
-    db.close();
+describe("getChangedFiles", () => {
+  let repoDir;
+  let initialHead;
+
+  before(() => {
+    const { dir, head } = makeTempRepo();
+    repoDir = dir;
+    initialHead = head;
+  });
+
+  after(() => cleanupDir(repoDir));
+
+  test("returns { error } when repoPath has no .git", () => {
+    const noGitDir = mkdtempSync(join(tmpdir(), "ligamen-nogit-"));
+    try {
+      const result = getChangedFiles(noGitDir, null);
+      assert.ok("error" in result, "should return { error }");
+      assert.equal(result.error, "not a git repo");
+    } finally {
+      cleanupDir(noGitDir);
+    }
+  });
+
+  test("with sinceCommit=null returns all tracked files as modified", () => {
+    writeFileSync(join(repoDir, "a.txt"), "hello");
+    execSync("git add a.txt", { cwd: repoDir, stdio: "pipe" });
+    execSync('git commit -m "add a.txt"', { cwd: repoDir, stdio: "pipe" });
+
+    const result = getChangedFiles(repoDir, null);
+    assert.ok(Array.isArray(result.modified), "modified should be an array");
+    assert.ok(result.modified.includes("a.txt"), "a.txt should be in modified");
   });
 });
 ```
 
 **Patterns:**
-- **Grouping:** Logical test suites with `describe("category", () => {...})`
-- **Individual tests:** Each test is a single `it("description", () => {...})` block
-- **Setup:** Helper functions like `makeQE()` or `makeTmpDir()` create test fixtures
-- **Teardown:** Cleanup done in `finally` blocks or at end of test function
+- Use `describe()` for grouping related tests by function/feature
+- Use `before()` / `after()` for suite-wide setup/teardown (temp dirs, git repos)
+- Use `beforeEach()` / `afterEach()` for per-test isolation
+- Cleanup always in `finally` block: `rmSync(dir, { recursive: true, force: true })`
 
-**Setup Pattern:**
+## Mocking
+
+**Framework:** Manual mocking (no library)
+
+**Patterns:**
 ```javascript
-// Helper function approach (no beforeEach/afterEach)
-function makeTmpDir() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "actest-"));
-  fs.mkdirSync(path.join(tmp, "logs"));
-  return tmp;
+// Mock object for QueryEngine
+const mockQE = {
+  getGraph: () => ({ nodes: [{ id: 1, name: "svc-a" }], edges: [] }),
+  getImpact: (ep) => ({ affected: [{ id: 1, name: "svc-b" }] }),
+  getService: (name) =>
+    name === "svc-a"
+      ? { service: { id: 1, name: "svc-a" }, upstream: [], downstream: [] }
+      : null,
+  getVersions: () => [{ id: 1, created_at: "2026-01-01", label: "v1" }],
+};
+
+// Inject via function parameter
+async function makeServer(qe = mockQE, opts = {}) {
+  const server = await createHttpServer(qe, { port: 0, ...opts });
+  return server;
 }
 
-test("my test", () => {
-  const tmp = makeTmpDir();
-  try {
-    // Test logic here
-  } finally {
-    fs.rmSync(tmp, { recursive: true });
-  }
+// Test uses mock
+test("GET /api/logs returns 200 with empty lines array", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ligamen-test-"));
+  const server = await makeServer(mockQE, { dataDir: tmpDir });
+  const res = await server.inject({ method: "GET", url: "/api/logs" });
+  assert.equal(res.statusCode, 200);
 });
 ```
 
-**Teardown Pattern:**
-- `finally` blocks for cleanup: `db.close()`, `fs.rmSync(tmp, { recursive: true })`
-- No test lifecycle hooks (no `beforeEach`, `afterEach`, etc.)
+**What to Mock:**
+- QueryEngine: return hardcoded test data for specific queries
+- Database: use in-memory `:memory:` databases for tests
+- Fastify servers: use `port: 0` (inject-only) and `.inject()` for HTTP testing
+- File system: use `mkdtempSync()` / `mkdirSync()` / `writeFileSync()` for temp repos
 
-**Assertion Pattern:**
+**What NOT to Mock:**
+- Git operations: use real git commands in temp repos (`execSync("git init")`)
+- File I/O for setup: real `readFileSync()` / `writeFileSync()` to create fixtures
+- SQLite database structure: real migrations, real schema creation
+
+## Fixtures and Factories
+
+**Test Data:**
 ```javascript
-// Strict equality checks preferred
-assert.strictEqual(actual, expected, "message");
-assert.ok(condition, "message");
-assert.deepStrictEqual(obj1, obj2, "message");
-assert.equal(typeof value, "string");
-assert.ok(!condition, "negation check");
+/** Minimal valid findings object */
+function minimalValid() {
+  return {
+    service_name: "test-svc",
+    confidence: "high",
+    services: [
+      {
+        name: "test-svc",
+        root_path: "src/",
+        language: "typescript",
+        confidence: "high",
+      },
+    ],
+    connections: [],
+    schemas: [],
+  };
+}
+
+/** A valid connection */
+function validConnection(overrides = {}) {
+  return {
+    source: "svc-a",
+    target: "svc-b",
+    protocol: "rest",
+    method: "GET",
+    path: "/health",
+    source_file: "src/client.ts:callHealth",
+    confidence: "high",
+    evidence: "await fetch('/health')",
+    ...overrides,
+  };
+}
+
+// Test uses factory with overrides
+test("validateFindings returns valid:false for unknown protocol", () => {
+  const obj = minimalValid();
+  obj.connections = [validConnection({ protocol: "websocket" })];
+  const result = validateFindings(obj);
+  assert.equal(result.valid, false);
+});
 ```
+
+**Location:**
+- Helper functions defined at top of test file: `makeTempRepo()`, `makeServer()`, `minimalValid()`
+- No shared fixtures directory — factories live in test files to keep tests self-contained
+
+## Coverage
+
+**Requirements:** No coverage enforcement (no coverage threshold in package.json)
+
+**View Coverage:**
+- No coverage tooling configured
+- Manual inspection: `grep -r "test(" worker/ | wc -l` to count test cases
 
 ## Test Types
 
 **Unit Tests:**
-- **Scope:** Individual functions or classes in isolation
-- **Approach:** Create minimal fixtures (e.g., isolated DB instances) and test single responsibility
-- **Example:** `tests/storage/query-engine.test.js` — tests QueryEngine methods with fresh DBs per test
-- **Coverage:** Database operations, business logic, impact traversal algorithms
-
-**Source Verification Tests (Static Analysis):**
-- **Scope:** Verify implementation structure without runtime execution
-- **Approach:** Read source file as string, check for required patterns with `src.includes()`
-- **Example:** `tests/ui/graph-fit-to-screen.test.js` — verifies `fitToScreen()` function exists and calls `render()`
-- **Example:** `worker/ui/modules/detail-panel.test.js` — checks for "infra routing branch", "escapeHtml helper", etc.
-- **Pattern:** `const src = readFileSync(join(__dirname, '../source.js'), 'utf8')`
-
-```javascript
-// Source verification example
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(__dirname, '../../worker/ui/graph.js'), 'utf8');
-
-test('fitToScreen() function is defined', () => {
-  assert.ok(
-    src.includes('function fitToScreen()'),
-    'MISSING: fitToScreen function not defined in graph.js'
-  );
-});
-```
+- Scope: Single function in isolation
+- Approach: Call function with known inputs, verify outputs using `assert`
+- Example: `validateFindings()` tests in `findings.test.js` — test all validation paths
 
 **Integration Tests:**
-- **Scope:** Test multiple components together (e.g., Fastify server, query engine, database)
-- **Example:** `tests/worker/scan-bracket.test.js` — tests worker scanning with fixtures
-- **Pattern:** Create full mock data, run operations, verify results
+- Scope: Multiple modules working together (e.g., HTTP server + database + QueryEngine)
+- Approach: Real temp databases, real Fastify server in test mode (port 0), real file I/O
+- Example: `manager.test.js` tests for `scanRepos()` — uses real git repos, real DB, real enrichers
 
-**Bash Integration Tests:**
-- **Framework:** BATS (Bash Automated Testing System) with submodules `bats-support` and `bats-assert`
-- **Example:** `tests/bats/session-start.bats` (17.4K) — tests CLI session initialization
-- **Example:** `tests/bats/format.bats`, `tests/bats/lint.bats` — test quality gates
-- **Pattern:** Run shell commands, assert on exit codes and output
-
-## Fixtures and Test Data
-
-**Test Data:**
-- **Factory pattern (not factories):** Helper functions create test data on demand
-- **Example from `query-engine.test.js`:**
-  ```javascript
-  function seedChain(qe) {
-    const rId = qe.upsertRepo({ path: "/r", name: "r", type: "single" }).id;
-    const [A, B, C, D] = ["svc-a", "svc-b", "svc-c", "svc-d"].map((n) =>
-      qe.upsertService({
-        repo_id: rId,
-        name: n,
-        root_path: "/r/" + n,
-        language: "node",
-      }),
-    );
-    // ... create connections
-    return { A, B, C, D };
-  }
-  ```
-- **Isolation:** Each test creates fresh data; no shared state between tests
-- **Isolation pattern:** `makeQE()` creates independent database instances with UUID-based temp directories
-
-**Location:**
-- Test fixtures live in test files themselves (inline helper functions) or `tests/fixtures/`
-- Example: `tests/fixtures/config/` contains sample configuration files
-- Example: `tests/fixtures/drift/repo-a/` and `tests/fixtures/drift/repo-b/` contain sample repositories
-
-## Coverage
-
-**Requirements:**
-- No coverage target enforced (no `.nyc_reporter.json` or similar)
-- No coverage thresholds in config
-
-**Coverage tracking:**
-- No coverage tool integrated (would use `nyc` with Node.js test runner)
-- Coverage not visible in test output
+**E2E Tests:**
+- Framework: BATS (Bash Automated Testing System) in `tests/bats/`
+- Pattern: Shell scripts that invoke CLI commands and assert outputs
+- Not Node.js unit tests — separate from `*.test.js` files
 
 ## Common Patterns
 
 **Async Testing:**
-- Async tests use `async` keyword and `await` directly
-- Example from UI tests:
-  ```javascript
-  test("my async test", async () => {
-    const result = await fetchData();
-    assert.ok(result);
-  });
-  ```
-- Promise-based assertions work naturally with strict assert
+```javascript
+test("scanRepos calls agentRunner and stores results", async () => {
+  let agentCalled = false;
+  const mockRunner = async () => {
+    agentCalled = true;
+    return { service_name: "test", services: [...], connections: [], schemas: [] };
+  };
+  setAgentRunner(mockRunner);
+
+  const result = await scanRepos([testRepoPath], {}, mockQE);
+
+  assert.ok(agentCalled, "agent should have been called");
+  assert.ok(result.findings, "should have findings");
+});
+```
 
 **Error Testing:**
-- Errors tested indirectly via return values (e.g., empty Set on error)
-- No explicit error assertion library
-- Example from `query-engine.test.js`:
-  ```javascript
-  test("returns empty array for unknown query (not an error)", () => {
-    const { db, qe } = makeQE();
-    const results = qe.search("nonexistent-xyz-query-abc-999");
-    assert.ok(Array.isArray(results), "should return array");
-    assert.strictEqual(results.length, 0);
-    db.close();
-  });
-  ```
-
-**Database Testing:**
-- SQLite in-memory with WAL mode for isolation
-- Fresh database per test with all migrations applied
-- Pragmas set consistently: `journal_mode = WAL`, `foreign_keys = ON`
-- Example setup:
-  ```javascript
-  function makeQE() {
-    const dir = path.join(os.tmpdir(), "ligamen-test-" + crypto.randomUUID());
-    fs.mkdirSync(dir, { recursive: true });
-    const dbPath = path.join(dir, "test.db");
-
-    const db = new Database(dbPath);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
-    // Apply migrations...
-    return { db, qe: new QueryEngine(db) };
-  }
-  ```
-
-**Verification Tests (Custom Pattern):**
-- No framework required — manual `passed++`/`failed++` counters
-- Example from `detail-panel.test.js`:
-  ```javascript
-  let passed = 0;
-  let failed = 0;
-
-  function check(condition, description, pattern) {
-    if (condition) {
-      console.log(`OK: ${description}`);
-      passed++;
-    } else {
-      console.error(`FAIL: ${description}${pattern ? ` (missing: ${pattern})` : ''}`);
-      failed++;
-    }
-  }
-
-  check(
-    src.includes("nodeType === 'infra'"),
-    "PANEL-02: infra routing branch exists",
-    "nodeType === 'infra'"
+```javascript
+test("validateFindings returns valid:false when confidence is invalid value", () => {
+  const obj = minimalValid();
+  obj.confidence = "medium";  // Invalid — only "high" or "low" allowed
+  const result = validateFindings(obj);
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.error.includes("high") || result.error.includes("low"),
+    `Expected error about confidence values, got: ${result.error}`,
   );
+});
 
-  if (failed > 0) {
-    process.exit(1);
+test("buildTestDb throws when migration fails", async () => {
+  const badDb = new Database(":memory:");
+  // Don't run migrations — trigger migration failure
+  assert.throws(
+    () => { runMigrations(badDb); },
+    /Migration error/,
+    "should throw migration error"
+  );
+});
+```
+
+**Temp Directory Cleanup:**
+```javascript
+test("discovery finds nested services", () => {
+  const tmpDir = mkdtempSync(join(tmpdir(), "ligamen-test-"));
+  try {
+    // Setup: create temp repo structure
+    mkdirSync(join(tmpDir, "services", "api"), { recursive: true });
+    writeFileSync(join(tmpDir, "services", "api", "package.json"), "{}");
+
+    // Test: run discovery
+    const result = discoverNew(tmpDir, []);
+
+    // Assert
+    assert.ok(result.some(r => r.path.includes("api")), "should find api service");
+  } finally {
+    // Cleanup: always remove temp dir
+    rmSync(tmpDir, { recursive: true, force: true });
   }
-  ```
+});
+```
+
+## Test Isolation
+
+**Database Isolation:**
+- Each test that needs a database uses a fresh in-memory instance: `new Database(":memory:")`
+- Migrations run fresh per test
+- No shared test database across tests
+
+**File System Isolation:**
+- Each test creates its own temp directory: `mkdtempSync(join(tmpdir(), "ligamen-test-" + Date.now()))`
+- Cleanup happens in `finally` or `after()` hook
+- Temp dir names include Date.now() to avoid collisions in parallel test runs
+
+**Module State Isolation:**
+- Tests that inject logger/runner call the injection function in `before()` or at test start
+- Tests that use enrichers call `clearEnrichers()` in `before()` to remove registered enrichers from prior tests
+- See `manager.test.js` for pattern: `clearEnrichers()` called in test setup
 
 ---
 
-*Testing analysis: 2026-03-20*
+*Testing analysis: 2026-03-22*
