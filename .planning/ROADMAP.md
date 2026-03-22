@@ -498,7 +498,7 @@ Plans:
   2. The deep scan agent prompt received by the agent contains a populated {{DISCOVERY_JSON}} block with at least one detected language when scanning a non-empty repo
   3. If the discovery agent fails or times out, the deep scan still runs using a fallback empty discovery context — the scan is not aborted
   4. Discovery output is not persisted to the database — it is ephemeral prompt context only
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 76-01-PLAN.md — Wire runDiscoveryPass into scanRepos loop + discovery wiring tests
 
@@ -564,7 +564,7 @@ Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
 | 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
 | 74. Scan Bug Fixes | 2/2 | Complete    | 2026-03-22 | - |
 | 75. Validation Hardening | 2/2 | Complete    | 2026-03-22 | - |
-| 76. Discovery Phase Wiring | v5.4.0 | 0/1 | Not started | - |
+| 76. Discovery Phase Wiring | 1/1 | Complete   | 2026-03-22 | - |
 | 77. Prompt Debiasing & Dead Code Removal | v5.4.0 | 0/TBD | Not started | - |
 | 78. Scan Reliability | v5.4.0 | 0/TBD | Not started | - |
 | 79. Version Bump | v5.4.0 | 0/TBD | Not started | - |

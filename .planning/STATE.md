@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 74-scan-bug-fixes 74-02-PLAN.md
-last_updated: "2026-03-22T17:57:00.556Z"
+stopped_at: Completed 76-discovery-phase-wiring 76-01-PLAN.md
+last_updated: "2026-03-22T18:01:25.218Z"
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -43,6 +43,7 @@ Plan: 1 of 1
 | Phase 75-validation-hardening P02 | 10 | 2 tasks | 2 files |
 | Phase 74-scan-bug-fixes P01 | 15 | 2 tasks | 6 files |
 | Phase 74-scan-bug-fixes P02 | 8 | 1 tasks | 2 files |
+| Phase 76-discovery-phase-wiring P01 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Plan: 1 of 1
 - [Phase 74-scan-bug-fixes]: SBUG-03: enricher ctx carries repoAbsPath (absolute repo root, filesystem probe) separate from repoPath (relative service path, pattern matching)
 - [Phase 74-scan-bug-fixes]: SBUG-02: docker-compose.yml is infra ONLY when no service entry-point detected — docker-compose for local dev must not misclassify Node/Python/Go services as infra
 - [Phase 74-scan-bug-fixes]: SBUG-02: Poetry detection uses [tool.poetry] and [tool.poetry.scripts] (not [project]/[project.scripts]) — addresses Poetry-specific pyproject.toml format
+- [Phase 76-discovery-phase-wiring]: promptDeep (agent-prompt-deep.md) used for all deep scans — type-specific prompts not used (SARC-03 Phase 77 cleanup)
+- [Phase 76-discovery-phase-wiring]: beginScan bracket opens AFTER runDiscoveryPass completes — no orphaned scan_versions rows on discovery failure
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T17:54:29.738Z
-Stopped at: Completed 74-scan-bug-fixes 74-02-PLAN.md
+Last session: 2026-03-22T18:01:25.216Z
+Stopped at: Completed 76-discovery-phase-wiring 76-01-PLAN.md
 Resume file: None

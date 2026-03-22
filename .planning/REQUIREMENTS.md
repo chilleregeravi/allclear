@@ -15,7 +15,7 @@ Requirements for Scan Pipeline Hardening milestone. Each maps to roadmap phases.
 
 ### Scan Architecture
 
-- [ ] **SARC-01**: Discovery agent (Phase 1) runs before deep scan per repo, returning languages, frameworks, service hints, and file targets as {{DISCOVERY_JSON}} to the deep scan prompt (THE-953)
+- [x] **SARC-01**: Discovery agent (Phase 1) runs before deep scan per repo, returning languages, frameworks, service hints, and file targets as {{DISCOVERY_JSON}} to the deep scan prompt (THE-953)
 - [ ] **SARC-02**: Active agent prompts use discovery context for language-specific pattern guidance instead of hardcoded Python/JS examples; entry points expanded for Java, C#, Ruby, Kotlin (THE-959)
 - [ ] **SARC-03**: Dead code removed: agent-prompt-deep.md deleted, promptDeep variable removed from manager.js, unique documentation migrated to active prompts first (THE-954)
 
@@ -58,7 +58,7 @@ Requirements for Scan Pipeline Hardening milestone. Each maps to roadmap phases.
 | SBUG-03 | Phase 74 | Complete |
 | SVAL-01 | Phase 75 | Complete |
 | SVAL-02 | Phase 75 | Complete |
-| SARC-01 | Phase 76 | Pending |
+| SARC-01 | Phase 76 | Complete |
 | SARC-02 | Phase 77 | Pending |
 | SARC-03 | Phase 77 | Pending |
 | SREL-01 | Phase 78 | Pending |
