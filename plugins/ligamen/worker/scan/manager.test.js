@@ -13,7 +13,7 @@
 import { test, describe, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -22,6 +22,7 @@ import {
   buildScanContext,
   scanRepos,
   setAgentRunner,
+  detectRepoType,
 } from "./manager.js";
 import {
   registerEnricher,
@@ -796,5 +797,98 @@ describe("scanRepos — enrichment pass wiring", () => {
     const after = enrichmentDb.prepare("SELECT COUNT(*) as n FROM services").get().n;
 
     assert.strictEqual(before, after, "enrichment must not change service count");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectRepoType tests (SBUG-02)
+// ---------------------------------------------------------------------------
+
+describe("detectRepoType", () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "ligamen-repotype-"));
+  });
+
+  afterEach(() => {
+    cleanupDir(tmpDir);
+  });
+
+  // --- docker-compose exemption (SBUG-02) ---
+
+  test("detectRepoType: repo with only docker-compose.yml (no service entry-point) returns 'infra'", () => {
+    writeFileSync(join(tmpDir, "docker-compose.yml"), "version: '3'\nservices:\n  redis:\n    image: redis\n");
+    assert.equal(detectRepoType(tmpDir), "infra");
+  });
+
+  test("detectRepoType: repo with docker-compose.yml AND package.json with scripts.start returns 'service'", () => {
+    writeFileSync(join(tmpDir, "docker-compose.yml"), "version: '3'\n");
+    writeFileSync(join(tmpDir, "package.json"), JSON.stringify({
+      name: "my-svc",
+      scripts: { start: "node index.js" },
+    }));
+    assert.equal(detectRepoType(tmpDir), "service");
+  });
+
+  test("detectRepoType: repo with docker-compose.yml AND main.py returns 'service'", () => {
+    writeFileSync(join(tmpDir, "docker-compose.yml"), "version: '3'\n");
+    writeFileSync(join(tmpDir, "main.py"), "from flask import Flask\napp = Flask(__name__)\n");
+    assert.equal(detectRepoType(tmpDir), "service");
+  });
+
+  test("detectRepoType: repo with docker-compose.yml AND main.go returns 'service'", () => {
+    writeFileSync(join(tmpDir, "docker-compose.yml"), "version: '3'\n");
+    writeFileSync(join(tmpDir, "main.go"), "package main\nfunc main() {}\n");
+    assert.equal(detectRepoType(tmpDir), "service");
+  });
+
+  test("detectRepoType: repo with kustomization.yaml returns 'infra' (unchanged behavior)", () => {
+    writeFileSync(join(tmpDir, "kustomization.yaml"), "apiVersion: kustomize.config.k8s.io/v1beta1\n");
+    assert.equal(detectRepoType(tmpDir), "infra");
+  });
+
+  // --- Go library heuristics ---
+
+  test("detectRepoType: Go repo with go.mod but no main.go and no cmd/ dir returns 'library'", () => {
+    writeFileSync(join(tmpDir, "go.mod"), "module github.com/example/mylib\n\ngo 1.21\n");
+    writeFileSync(join(tmpDir, "mylib.go"), "package mylib\n\nfunc Exported() {}\n");
+    assert.equal(detectRepoType(tmpDir), "library");
+  });
+
+  test("detectRepoType: Go repo with go.mod and cmd/ dir returns 'service'", () => {
+    writeFileSync(join(tmpDir, "go.mod"), "module github.com/example/mysvc\n\ngo 1.21\n");
+    mkdirSync(join(tmpDir, "cmd"), { recursive: true });
+    writeFileSync(join(tmpDir, "cmd", "main.go"), "package main\nfunc main() {}\n");
+    assert.equal(detectRepoType(tmpDir), "service");
+  });
+
+  // --- Java library heuristics ---
+
+  test("detectRepoType: Java repo with pom.xml and no Application.java or *Main.java returns 'library'", () => {
+    writeFileSync(join(tmpDir, "pom.xml"), "<project><modelVersion>4.0.0</modelVersion></project>\n");
+    // Create src/main/java dir but no Application or Main class
+    mkdirSync(join(tmpDir, "src", "main", "java", "com", "example"), { recursive: true });
+    writeFileSync(join(tmpDir, "src", "main", "java", "com", "example", "MyLib.java"), "package com.example;\npublic class MyLib {}\n");
+    assert.equal(detectRepoType(tmpDir), "library");
+  });
+
+  test("detectRepoType: Java repo with pom.xml and Application.java returns 'service'", () => {
+    writeFileSync(join(tmpDir, "pom.xml"), "<project><modelVersion>4.0.0</modelVersion></project>\n");
+    mkdirSync(join(tmpDir, "src", "main", "java", "com", "example"), { recursive: true });
+    writeFileSync(join(tmpDir, "src", "main", "java", "com", "example", "Application.java"), "package com.example;\npublic class Application { public static void main(String[] args) {} }\n");
+    assert.equal(detectRepoType(tmpDir), "service");
+  });
+
+  // --- Poetry library heuristics ---
+
+  test("detectRepoType: Poetry repo with [tool.poetry] but no [tool.poetry.scripts] returns 'library'", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = \"mylib\"\nversion = \"0.1.0\"\n\n[tool.poetry.dependencies]\npython = \"^3.11\"\n");
+    assert.equal(detectRepoType(tmpDir), "library");
+  });
+
+  test("detectRepoType: Poetry repo with [tool.poetry] and [tool.poetry.scripts] returns 'service'", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = \"mysvc\"\nversion = \"0.1.0\"\n\n[tool.poetry.scripts]\nmysvc = \"mysvc.main:run\"\n");
+    assert.equal(detectRepoType(tmpDir), "service");
   });
 });
