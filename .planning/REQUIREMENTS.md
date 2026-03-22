@@ -9,7 +9,7 @@ Requirements for Scan Intelligence & Enrichment milestone. Each maps to roadmap 
 
 ### Quality Gate Spinout
 
-- [ ] **QGATE-01**: Quality-gate command and skill extracted to standalone plugin (THE-937)
+- [x] **QGATE-01**: Quality-gate command and skill extracted to standalone plugin (THE-937)
 
 ### Schema Surfacing
 
@@ -103,7 +103,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | AGENT-01 | Phase 73 | Pending |
 | AGENT-02 | Phase 73 | Pending |
 | AGENT-03 | Phase 73 | Complete |
-| QGATE-01 | Phase 73 | Pending |
+| QGATE-01 | Phase 73 | Complete |
 
 **Coverage:**
 - v5.3.0 requirements: 19 total

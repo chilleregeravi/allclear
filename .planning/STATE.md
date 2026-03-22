@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 73-02-PLAN.md
-last_updated: "2026-03-22T11:15:48Z"
+stopped_at: Completed 73-03-PLAN.md
+last_updated: "2026-03-22T11:17:29.690Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 12
 ---
 
 # Project State
@@ -61,6 +61,8 @@ Plan: 2 of 3
 - [Phase 72-detail-panel-ui]: renderConnectionSchema wired into outgoing loop only in renderServiceConnections — incoming edges show schema at source service panel
 - [Phase 72-detail-panel-ui]: escapeHtml applied to f.name AND f.type — TypeScript generics must render as visible literal characters
 - [Phase 73-agent-prompts---quality-gate-spinout]: renderServiceConnections already had correct conn-file rows for e.source_file (outgoing) and e.target_file (incoming) with escapeHtml — AGENT-03 plan confirmed pattern, added 4 tests only
+- [Phase 73-agent-prompts---quality-gate-spinout]: quality-gate removed from Ligamen plugin entirely — standalone plugin spinout is out of scope for this plan
+- [Phase 73-agent-prompts---quality-gate-spinout]: session-start.bats quality-gate assertion replaced with /ligamen:cross-impact to keep test meaningful
 
 ### Pending Todos
 
@@ -73,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T11:15:48Z
-Stopped at: Completed 73-02-PLAN.md
+Last session: 2026-03-22T11:17:29.687Z
+Stopped at: Completed 73-03-PLAN.md
 Resume file: None
