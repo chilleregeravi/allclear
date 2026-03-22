@@ -269,8 +269,14 @@ export function validateFindings(obj) {
 const JSON_BLOCK_RE = /```json\s*\n([\s\S]*?)\n```/;
 
 /**
- * Extracts the first fenced ```json block from raw agent output text and
+ * Extracts JSON from raw agent output using a 3-strategy fallback chain and
  * validates the parsed object against the findings schema.
+ *
+ * Strategy 1 — Fenced code block: Try regex `/```json\s*\n([\s\S]*?)\n```/`.
+ * Strategy 2 — Raw JSON.parse: Try JSON.parse(rawText.trim()).
+ * Strategy 3 — JSON substring extraction: Find first `{` and last `}`, parse substring.
+ *
+ * If ALL strategies fail, returns an error with a truncated preview of the input.
  *
  * @param {string} rawText - Raw agent output (may contain leading/trailing prose)
  * @returns {FindingsResult}
@@ -280,18 +286,41 @@ export function parseAgentOutput(rawText) {
     return err("no JSON block found in agent output");
   }
 
+  // Strategy 1 — Fenced code block
   const match = rawText.match(JSON_BLOCK_RE);
-  if (!match) {
-    return err("no JSON block found in agent output");
+  if (match) {
+    const jsonStr = match[1].trim();
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return validateFindings(parsed);
+    } catch (e) {
+      return err(`JSON parse error: ${e.message}`);
+    }
   }
 
-  const jsonStr = match[1].trim();
-  let parsed;
+  // Strategy 2 — Raw JSON.parse (handles pure JSON with no markdown)
   try {
-    parsed = JSON.parse(jsonStr);
-  } catch (e) {
-    return err(`JSON parse error: ${e.message}`);
+    const parsed = JSON.parse(rawText.trim());
+    return validateFindings(parsed);
+  } catch {
+    // fall through to Strategy 3
   }
 
-  return validateFindings(parsed);
+  // Strategy 3 — JSON substring extraction (handles prose-wrapped JSON)
+  const firstBrace = rawText.indexOf("{");
+  const lastBrace = rawText.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSubstr = rawText.slice(firstBrace, lastBrace + 1);
+    try {
+      const parsed = JSON.parse(jsonSubstr);
+      return validateFindings(parsed);
+    } catch {
+      // fall through to all-fail error
+    }
+  }
+
+  // All strategies failed — return truncated preview
+  return err(
+    `no parseable JSON in agent output (preview: ${rawText.slice(0, 200)}...)`
+  );
 }
