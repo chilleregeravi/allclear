@@ -410,7 +410,10 @@ Plans:
   3. MCP `impact_query` and `impact_changed` responses include the owner field for each affected service
   4. MCP impact responses include `auth_mechanism` and `db_backend` for each affected service
   5. Re-scanning a service removes stale schema fields from prior scans — deleted fields do not accumulate across re-scans
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 71-01-PLAN.md — Extend getGraph(): schemas_by_connection, confidence/evidence on connections, owner/auth_mechanism/db_backend on services, stale schema cleanup in endScan()
+- [ ] 71-02-PLAN.md — Extend enrichImpactResult and add enrichAffectedResult; wire into impact_changed MCP handler
 
 ### Phase 72: Detail Panel UI
 **Goal**: The detail panel renders schema/field data, confidence badges, owner/auth/db rows, and "unknown" placeholders for all missing metadata fields — with XSS-safe rendering throughout
