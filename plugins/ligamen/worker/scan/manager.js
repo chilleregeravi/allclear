@@ -28,6 +28,12 @@ import { join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseAgentOutput } from "./findings.js";
+import { registerEnricher, runEnrichmentPass } from "./enrichment.js";
+import { createCodeownersEnricher } from "./codeowners.js";
+
+// Register CODEOWNERS enricher once at module load (OWN-01).
+// Module-level registration runs before the first scan.
+registerEnricher("codeowners", createCodeownersEnricher());
 
 // ---------------------------------------------------------------------------
 // Logger injection
@@ -407,6 +413,20 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     const currentHead = getCurrentHead(repoPath);
     queryEngine.persistFindings(repo.id, result.findings, currentHead, scanVersionId);
     queryEngine.endScan(repo.id, scanVersionId);
+
+    // 9. Run enrichment pass per service — post-scan, after bracket closes
+    // ENRICH-01: enrichment runs after core scan. Bracket is already closed above.
+    // Enrichment MUST NOT call beginScan/endScan — never opens a new bracket.
+    try {
+      const services = queryEngine._db
+        .prepare('SELECT id, root_path, language, boundary_entry FROM services WHERE repo_id = ?')
+        .all(repo.id);
+      for (const service of services) {
+        await runEnrichmentPass(service, queryEngine._db, _logger);
+      }
+    } catch (err) {
+      slog('WARN', 'enrichment pass error', { repoPath, error: err.message });
+    }
 
     slog('INFO', 'scan complete', { repoPath, mode: ctx.mode });
     results.push({ repoPath, mode: ctx.mode, findings: result.findings });
