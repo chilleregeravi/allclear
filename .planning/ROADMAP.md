@@ -562,7 +562,7 @@ Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
 | 59-62 | v5.2.0 | 5/5 | Complete | 2026-03-21 |
 | 63-66 | v5.2.1 | 7/7 | Complete | 2026-03-21 |
 | 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
-| 74. Scan Bug Fixes | 2/2 | Complete   | 2026-03-22 | - |
+| 74. Scan Bug Fixes | 2/2 | Complete    | 2026-03-22 | - |
 | 75. Validation Hardening | 2/2 | Complete    | 2026-03-22 | - |
 | 76. Discovery Phase Wiring | v5.4.0 | 0/1 | Not started | - |
 | 77. Prompt Debiasing & Dead Code Removal | v5.4.0 | 0/TBD | Not started | - |
