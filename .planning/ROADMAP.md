@@ -14,7 +14,8 @@
 - ✅ **v5.1 Graph Interactivity** — Phases 52-58 (shipped 2026-03-21)
 - ✅ **v5.2.0 Plugin Distribution Fix** — Phases 59-62 (shipped 2026-03-21)
 - ✅ **v5.2.1 Scan Data Integrity** — Phases 63-66 (shipped 2026-03-21)
-- 🚧 **v5.3.0 Scan Intelligence & Enrichment** — Phases 67-73 (in progress)
+- ✅ **v5.3.0 Scan Intelligence & Enrichment** — Phases 67-73 (shipped 2026-03-22)
+- 🚧 **v5.4.0 Scan Pipeline Hardening** — Phases 74-79 (in progress)
 
 ## Phases
 
@@ -126,17 +127,25 @@ Full details: see Phase Details below (archived)
 
 </details>
 
-### 🚧 v5.3.0 Scan Intelligence & Enrichment (In Progress)
+<details>
+<summary>✅ v5.3.0 Scan Intelligence & Enrichment (Phases 67-73) — SHIPPED 2026-03-22</summary>
 
-**Milestone Goal:** Add enrichment pass architecture, surface schema/field data, persist confidence/evidence, extract team ownership and auth/DB metadata, improve agent data quality, and spin out quality-gate.
+- [x] Phase 67-73: 7 phases, 12 plans — enrichment architecture, CODEOWNERS, auth/DB extraction, confidence/evidence pipeline, schema storage, detail panel UI, agent prompts, quality-gate spinout
 
-- [ ] **Phase 67: DB Foundation** - Migration 009 adds confidence/evidence columns, schema tables, and denormalized enrichment columns; upsertNodeMetadata() method added
-- [ ] **Phase 68: Enrichment Architecture & CODEOWNERS** - Enrichment pass framework wired into manager.js; CODEOWNERS parsed and team ownership stored
-- [ ] **Phase 69: Auth & DB Extraction** - Auth mechanism and database backend extracted per service via enrichment pass
-- [ ] **Phase 70: Confidence & Evidence Pipeline** - Confidence and evidence persisted through upsertConnection() and returned by getGraph()
-- [ ] **Phase 71: Schema Storage & API Extension** - Schema/field data stored, /graph response extended with schemas_by_connection and all enrichment fields
-- [ ] **Phase 72: Detail Panel UI** - Schema section, confidence badge, owner/auth/db rows, and "unknown" fallbacks rendered in detail panel
-- [ ] **Phase 73: Agent Prompts & Quality-Gate Spinout** - source_file/target_file guidance added to agent prompt; quality-gate extracted to standalone plugin
+Full details: see Phase Details below (archived)
+
+</details>
+
+### 🚧 v5.4.0 Scan Pipeline Hardening (In Progress)
+
+**Milestone Goal:** Fix scan pipeline bugs, wire up the unused discovery phase for language-agnostic scanning, harden validation, and clean up dead code.
+
+- [ ] **Phase 74: Scan Bug Fixes** - Eliminate phantom actor hexagons, fix repo type misclassification, and fix CODEOWNERS absolute path bug
+- [ ] **Phase 75: Validation Hardening** - Tighten findings.js enum/field validation and replace shell string interpolation with safe execFileSync argument arrays
+- [ ] **Phase 76: Discovery Phase Wiring** - Run discovery agent (Phase 1) before deep scan to produce language/framework context for language-agnostic analysis
+- [ ] **Phase 77: Prompt Debiasing & Dead Code Removal** - Replace hardcoded Python/JS examples with discovery-context guidance; delete agent-prompt-deep.md and promptDeep variable
+- [ ] **Phase 78: Scan Reliability** - Parallel discovery and deep-scan agents with retry-once error handling; UI-layer actor deduplication as defense in depth
+- [ ] **Phase 79: Version Bump** - All manifest files bumped to 5.4.0
 
 ## Phase Details
 
@@ -349,6 +358,9 @@ Plans:
 
 </details>
 
+<details>
+<summary>✅ v5.3.0 Scan Intelligence & Enrichment (Phases 67-73) — SHIPPED 2026-03-22</summary>
+
 ### Phase 67: DB Foundation
 **Goal**: The database has all columns and tables required for enrichment — confidence/evidence on connections, owner/auth_mechanism/db_backend on services, schemas and schema_fields tables — and query-engine exposes upsertNodeMetadata()
 **Depends on**: Phase 66 (v5.2.1 complete)
@@ -360,7 +372,7 @@ Plans:
   4. `upsertNodeMetadata(serviceId, view, key, value)` is callable from a scan context and writes a row to the `node_metadata` table without triggering a scan bracket
 **Plans**: 1 plan
 Plans:
-- [ ] 67-01-PLAN.md — Migration 009: add confidence/evidence/enrichment columns + upsertNodeMetadata() method
+- [x] 67-01-PLAN.md — Migration 009: add confidence/evidence/enrichment columns + upsertNodeMetadata() method
 
 ### Phase 68: Enrichment Architecture & CODEOWNERS
 **Goal**: A post-scan enrichment pass framework runs after core agent output is parsed, each enricher is isolated and gracefully silenced on failure, and the CODEOWNERS enricher correctly stores team ownership for each service
@@ -372,10 +384,10 @@ Plans:
   3. If the CODEOWNERS enricher throws an unhandled error, the scan still completes and all primary service/connection data is persisted (the error is logged, not re-thrown)
   4. Each enricher writes metadata with a distinct `view` key in `node_metadata` — no two enrichers collide on the same key
   5. The enrichment pass does not trigger beginScan/endScan — `SELECT COUNT(*) FROM services` is unchanged after enrichment runs
-**Plans:** 2/2 plans complete
+**Plans**: 2 plans
 Plans:
-- [ ] 68-01-PLAN.md — enrichment.js registry + codeowners.js parser and enricher factory
-- [ ] 68-02-PLAN.md — Wire runEnrichmentPass into manager.js success path
+- [x] 68-01-PLAN.md — enrichment.js registry + codeowners.js parser and enricher factory
+- [x] 68-02-PLAN.md — Wire runEnrichmentPass into manager.js success path
 
 ### Phase 69: Auth & DB Extraction
 **Goal**: Auth mechanism and database backend are extracted from each service's source files via regex signal tables and written to the database, with credential value exclusion preventing secret leakage
@@ -388,7 +400,7 @@ Plans:
   4. Extracted values never contain strings longer than 40 characters or matching credential patterns (Bearer tokens, connection strings with passwords) — the extractor rejects them before DB write
 **Plans**: 1 plan
 Plans:
-- [ ] 69-01-PLAN.md — auth-db-extractor.js with regex signal tables + enricher registry registration
+- [x] 69-01-PLAN.md — auth-db-extractor.js with regex signal tables + enricher registry registration
 
 ### Phase 70: Confidence & Evidence Pipeline
 **Goal**: Confidence levels and evidence snippets emitted by the agent during scanning are persisted through the upsert layer and returned on every connection object in the /graph response
@@ -400,7 +412,7 @@ Plans:
   3. Re-scanning without confidence/evidence in agent output leaves existing confidence/evidence values in place rather than overwriting with null (ON CONFLICT DO UPDATE preserves existing non-null values)
 **Plans**: 1 plan
 Plans:
-- [ ] 70-01-PLAN.md — Extend upsertConnection + getGraph() to write and return confidence/evidence with migration-009-aware fallback
+- [x] 70-01-PLAN.md — Extend upsertConnection + getGraph() to write and return confidence/evidence with migration-009-aware fallback
 
 ### Phase 71: Schema Storage & API Extension
 **Goal**: Schema and field data collected during scans is persisted in the schemas/schema_fields tables and the /graph response includes schemas_by_connection plus all enrichment fields pivoted from node_metadata
@@ -414,8 +426,8 @@ Plans:
   5. Re-scanning a service removes stale schema fields from prior scans — deleted fields do not accumulate across re-scans
 **Plans**: 2 plans
 Plans:
-- [ ] 71-01-PLAN.md — Extend getGraph(): schemas_by_connection, confidence/evidence on connections, owner/auth_mechanism/db_backend on services, stale schema cleanup in endScan()
-- [ ] 71-02-PLAN.md — Extend enrichImpactResult and add enrichAffectedResult; wire into impact_changed MCP handler
+- [x] 71-01-PLAN.md — Extend getGraph(): schemas_by_connection, confidence/evidence on connections, owner/auth_mechanism/db_backend on services, stale schema cleanup in endScan()
+- [x] 71-02-PLAN.md — Extend enrichImpactResult and add enrichAffectedResult; wire into impact_changed MCP handler
 
 ### Phase 72: Detail Panel UI
 **Goal**: The detail panel renders schema/field data, confidence badges, owner/auth/db rows, and "unknown" placeholders for all missing metadata fields — with XSS-safe rendering throughout
@@ -429,8 +441,8 @@ Plans:
   5. TypeScript generic type strings (e.g., `Array<Record<string, unknown>>`) render as literal characters in the panel, not as invisible HTML
 **Plans**: 2 plans
 Plans:
-- [ ] 72-01-PLAN.md — Wire enrichment fields into state + service metadata rows + confidence badges
-- [ ] 72-02-PLAN.md — Schema field table in connection detail panel + tests
+- [x] 72-01-PLAN.md — Wire enrichment fields into state + service metadata rows + confidence badges
+- [x] 72-02-PLAN.md — Schema field table in connection detail panel + tests
 
 ### Phase 73: Agent Prompts & Quality-Gate Spinout
 **Goal**: Agent scan prompts explicitly require source_file on connections to reduce null paths; quality-gate command and skill are removed from this plugin in preparation for a standalone plugin
@@ -443,15 +455,82 @@ Plans:
   4. The `/ligamen:quality-gate` command no longer exists in this plugin — invoking it produces "command not found" or a redirect message pointing to the standalone plugin
 **Plans**: 3 plans
 Plans:
-- [ ] 73-01-PLAN.md — agent-prompt-service/library: source_file REQUIRED section + findings.js null warning
-- [ ] 73-02-PLAN.md — detail-panel.js: verify source_file/target_file display in service connections + tests
-- [ ] 73-03-PLAN.md — delete quality-gate command/skill + clean manifests, session-start, bats tests
+- [x] 73-01-PLAN.md — agent-prompt-service/library: source_file REQUIRED section + findings.js null warning
+- [x] 73-02-PLAN.md — detail-panel.js: verify source_file/target_file display in service connections + tests
+- [x] 73-03-PLAN.md — delete quality-gate command/skill + clean manifests, session-start, bats tests
+
+</details>
+
+### Phase 74: Scan Bug Fixes
+**Goal**: Known scan correctness bugs are eliminated — phantom actor hexagons no longer appear for services, repos with docker-compose are correctly typed, and CODEOWNERS ownership patterns match correctly
+**Depends on**: Phase 73 (v5.3.0 complete)
+**Requirements**: SBUG-01, SBUG-02, SBUG-03
+**Success Criteria** (what must be TRUE):
+  1. After scanning a repo where a service is also referenced as an external actor target, no hexagon node appears in the graph for that service — the existing service node receives the connection instead
+  2. A Node.js or Python service repo that includes docker-compose.yml for local development is classified as its correct type (service/library), not misclassified as infra
+  3. A Go or Java project containing only library-type files is classified as a library, not misidentified as a service
+  4. After scanning a repo with a CODEOWNERS file, team ownership is populated correctly for services whose paths use relative (not absolute) patterns
+**Plans**: TBD
+
+### Phase 75: Validation Hardening
+**Goal**: findings.js rejects agent output with invalid service types or missing required fields before it reaches the database, and file-based shell operations use argument arrays eliminating the shell injection surface
+**Depends on**: Phase 73 (v5.3.0 complete — independent of Phase 74, can run in parallel)
+**Requirements**: SVAL-01, SVAL-02
+**Success Criteria** (what must be TRUE):
+  1. When the agent emits a service with `type: "microservice"` (not a valid enum), findings.js logs a validation warning and skips that service rather than persisting it
+  2. When the agent emits a service with a missing or empty `root_path`, findings.js logs a validation warning and skips that service
+  3. When the agent emits a service with a missing or empty `language`, findings.js logs a validation warning and skips that service
+  4. `getChangedFiles()` and `getCurrentHead()` use execFileSync with argument arrays — no user-controlled string is ever interpolated into a shell command string
+**Plans**: TBD
+
+### Phase 76: Discovery Phase Wiring
+**Goal**: A discovery agent runs before the deep scan agent for each repo, producing structured language/framework/entry-point context that is injected into the deep scan prompt as {{DISCOVERY_JSON}}
+**Depends on**: Phase 74 (bug fixes should be stable before wiring new scan phases — discovery output affects scan flow)
+**Requirements**: SARC-01
+**Success Criteria** (what must be TRUE):
+  1. Running `/ligamen:map` on a repo produces a discovery pass log entry showing detected languages, frameworks, and candidate entry-point files before the deep scan begins
+  2. The deep scan agent prompt received by the agent contains a populated {{DISCOVERY_JSON}} block with at least one detected language when scanning a non-empty repo
+  3. If the discovery agent fails or times out, the deep scan still runs using a fallback empty discovery context — the scan is not aborted
+  4. Discovery output is not persisted to the database — it is ephemeral prompt context only
+**Plans**: TBD
+
+### Phase 77: Prompt Debiasing & Dead Code Removal
+**Goal**: Active agent prompts use discovery context for language-specific guidance instead of hardcoded Python/JS examples; the unused agent-prompt-deep.md file and promptDeep variable are deleted after any unique content is migrated
+**Depends on**: Phase 76 (SARC-02 requires discovery context to be wired before removing Python/JS bias; SARC-03 should happen after SARC-01 since agent-prompt-deep.md may be repurposed)
+**Requirements**: SARC-02, SARC-03
+**Success Criteria** (what must be TRUE):
+  1. The active agent prompts (service, library, infra) contain entry-point examples for Java, C#, Ruby, and Kotlin in addition to the existing Python/JS examples — or use {{DISCOVERY_JSON}} placeholders instead of any hardcoded language examples
+  2. Scanning a Java repo produces scan output where the agent correctly identifies Java entry points (e.g., @RestController, Application.java) — not Python or JS patterns
+  3. The file `plugins/ligamen/worker/scan/agent-prompt-deep.md` does not exist in the repository
+  4. The variable `promptDeep` does not appear in `plugins/ligamen/worker/scan/manager.js`
+**Plans**: TBD
+
+### Phase 78: Scan Reliability
+**Goal**: Discovery and deep-scan agents run in parallel across repos where possible, failed agents retry once before being skipped with a user-visible warning, and the graph UI filters stale actor data as a defense-in-depth layer
+**Depends on**: Phase 76 (SREL-01 depends on SARC-01 since discovery changes the scan flow; SREL-02 is independent but grouped here as reliability work)
+**Requirements**: SREL-01, SREL-02
+**Success Criteria** (what must be TRUE):
+  1. Scanning a workspace with 3 repos produces discovery agent invocations that run concurrently — the total scan time is closer to the slowest single-repo scan than the sum of all repo scans
+  2. When a deep scan agent call fails on first attempt, a single retry is automatically issued before the repo is skipped — the user sees a warning identifying the skipped repo by name
+  3. A skipped repo (after retry failure) does not cause the entire `/ligamen:map` command to error out — remaining repos complete normally
+  4. When the /graph endpoint returns an actor whose name exactly matches a known service name, the actor node is absent from the rendered graph and its connections point to the service node instead
+**Plans**: TBD
+
+### Phase 79: Version Bump
+**Goal**: All manifest files reflect version 5.4.0 so the marketplace and plugin install surfaces present the correct version
+**Depends on**: Phase 78 (must be last — version bump is the release gate)
+**Requirements**: REL-01
+**Success Criteria** (what must be TRUE):
+  1. `plugins/ligamen/package.json`, `plugins/ligamen/.claude-plugin/marketplace.json`, and `plugins/ligamen/.claude-plugin/plugin.json` all contain `"version": "5.4.0"`
+  2. Running `make check` (version sync check) passes with all three files at 5.4.0
+  3. `claude plugin marketplace add` offers version 5.4.0 of the ligamen plugin
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 67 → 68 → 69 → 70 → 71 → 72 → 73
-(Phase 70 can begin after Phase 67; Phase 69 can begin after Phase 68; Phase 71 requires both Phase 69 and Phase 70 complete; Phase 73 is independent but runs last)
+Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
+(Phase 75 can begin after Phase 73, in parallel with Phase 74; Phase 76 depends on Phase 74; Phase 77 depends on Phase 76; Phase 78 depends on Phase 76; Phase 79 must be last)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -467,10 +546,10 @@ Phases execute in numeric order: 67 → 68 → 69 → 70 → 71 → 72 → 73
 | 52-58 | v5.1 | 11/11 | Complete | 2026-03-21 |
 | 59-62 | v5.2.0 | 5/5 | Complete | 2026-03-21 |
 | 63-66 | v5.2.1 | 7/7 | Complete | 2026-03-21 |
-| 67. DB Foundation | 1/1 | Complete   | 2026-03-22 | - |
-| 68. Enrichment Architecture & CODEOWNERS | 2/2 | Complete   | 2026-03-22 | - |
-| 69. Auth & DB Extraction | 1/1 | Complete   | 2026-03-22 | - |
-| 70. Confidence & Evidence Pipeline | 1/1 | Complete   | 2026-03-22 | - |
-| 71. Schema Storage & API Extension | 2/2 | Complete   | 2026-03-22 | - |
-| 72. Detail Panel UI | 2/2 | Complete   | 2026-03-22 | - |
-| 73. Agent Prompts & Quality-Gate Spinout | 3/3 | Complete   | 2026-03-22 | - |
+| 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
+| 74. Scan Bug Fixes | v5.4.0 | 0/TBD | Not started | - |
+| 75. Validation Hardening | v5.4.0 | 0/TBD | Not started | - |
+| 76. Discovery Phase Wiring | v5.4.0 | 0/TBD | Not started | - |
+| 77. Prompt Debiasing & Dead Code Removal | v5.4.0 | 0/TBD | Not started | - |
+| 78. Scan Reliability | v5.4.0 | 0/TBD | Not started | - |
+| 79. Version Bump | v5.4.0 | 0/TBD | Not started | - |

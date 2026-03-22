@@ -53,23 +53,23 @@ Requirements for Scan Pipeline Hardening milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SBUG-01 | TBD | Pending |
-| SBUG-02 | TBD | Pending |
-| SBUG-03 | TBD | Pending |
-| SARC-01 | TBD | Pending |
-| SARC-02 | TBD | Pending |
-| SARC-03 | TBD | Pending |
-| SVAL-01 | TBD | Pending |
-| SVAL-02 | TBD | Pending |
-| SREL-01 | TBD | Pending |
-| SREL-02 | TBD | Pending |
-| REL-01 | TBD | Pending |
+| SBUG-01 | Phase 74 | Pending |
+| SBUG-02 | Phase 74 | Pending |
+| SBUG-03 | Phase 74 | Pending |
+| SVAL-01 | Phase 75 | Pending |
+| SVAL-02 | Phase 75 | Pending |
+| SARC-01 | Phase 76 | Pending |
+| SARC-02 | Phase 77 | Pending |
+| SARC-03 | Phase 77 | Pending |
+| SREL-01 | Phase 78 | Pending |
+| SREL-02 | Phase 78 | Pending |
+| REL-01 | Phase 79 | Pending |
 
 **Coverage:**
 - v5.4.0 requirements: 11 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 11
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 after roadmap creation*
