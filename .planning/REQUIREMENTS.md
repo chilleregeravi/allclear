@@ -30,7 +30,7 @@ Requirements for Security & Data Integrity Hardening. Each maps to roadmap phase
 ### Quality
 
 - [ ] **QUAL-01**: Journal mode pragma ordering has explicit unit tests for readonly vs read-write connection modes
-- [ ] **QUAL-02**: /ligamen:map asks user for project name before saving, stores in ligamen.config.json for reuse
+- [x] **QUAL-02**: /ligamen:map asks user for project name before saving, stores in ligamen.config.json for reuse
 
 ## Future Requirements
 
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-03 | Phase 82 | Complete |
 | REL-04 | Phase 83 | Pending |
 | QUAL-01 | Phase 83 | Pending |
-| QUAL-02 | Phase 83 | Pending |
+| QUAL-02 | Phase 83 | Complete |
 
 **Coverage:**
 - v5.5.0 requirements: 13 total
