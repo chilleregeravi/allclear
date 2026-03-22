@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 71-01-PLAN.md
-last_updated: "2026-03-22T11:06:34.308Z"
+stopped_at: Completed 72-01-PLAN.md
+last_updated: "2026-03-22T11:10:35.312Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 12
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 71 — Schema Storage & API Extension
+**Current focus:** Phase 72 — Detail Panel UI
 
 ## Current Position
 
-Phase: 71 (Schema Storage & API Extension) — EXECUTING
+Phase: 72 (Detail Panel UI) — EXECUTING
 Plan: 1 of 2
 
 ## Performance Metrics
@@ -56,6 +56,8 @@ Plan: 1 of 2
 - [Phase 71-schema-storage---api-extension]: impact_changed enriched with owner/auth_mechanism/db_backend via enrichAffectedResult — null fields when qe._db unavailable
 - [Phase 71-schema-storage---api-extension]: v5.3.0: Schema/field cleanup in endScan() runs before stale connection delete to avoid FK violation (schemas table has no CASCADE DELETE on connections FK)
 - [Phase 71-schema-storage---api-extension]: v5.3.0: getGraph() fallback connections SELECT projects null as confidence, null as evidence for type consistency on pre-migration-009 DBs
+- [Phase 72-detail-panel-ui]: renderServiceMeta called only in non-actor branch of showDetailPanel — actor nodes have different data shape
+- [Phase 72-detail-panel-ui]: schemas_by_connection stored at state.graphData level (not per-node) — consistent with Phase 71 API design
 
 ### Pending Todos
 
@@ -68,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T11:06:34.305Z
-Stopped at: Completed 71-01-PLAN.md
+Last session: 2026-03-22T11:10:35.309Z
+Stopped at: Completed 72-01-PLAN.md
 Resume file: None
