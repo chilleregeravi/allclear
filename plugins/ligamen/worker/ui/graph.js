@@ -79,6 +79,9 @@ export async function loadProject(hash, canvas) {
       exposes: s.exposes || [],
       boundary: nameToBoundary[s.name] || null,
       scan_version_id: s.scan_version_id ?? null,
+      owner: s.owner ?? null,
+      auth_mechanism: s.auth_mechanism ?? null,
+      db_backend: s.db_backend ?? null,
     };
   });
 
@@ -93,6 +96,8 @@ export async function loadProject(hash, canvas) {
     target_file: c.target_file,
     mismatch: c.id ? mismatchSet.has(c.id) : false,
     scan_version_id: c.scan_version_id ?? null,
+    confidence: c.confidence ?? null,
+    evidence: c.evidence ?? null,
   }));
 
   state.graphData.mismatches = raw.mismatches || [];
@@ -100,6 +105,7 @@ export async function loadProject(hash, canvas) {
 
   // Store raw actors for detail panel
   state.graphData.actors = raw.actors || [];
+  state.graphData.schemas_by_connection = raw.schemas_by_connection || {};
 
   // Create synthetic nodes for actors with IDs that won't collide with service IDs.
   // Use negative IDs: actor with DB id=1 becomes node id=-1, id=2 becomes -2, etc.
