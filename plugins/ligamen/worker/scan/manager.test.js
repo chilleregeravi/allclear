@@ -13,7 +13,7 @@
 import { test, describe, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readdirSync, unlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,6 +25,9 @@ import {
   setScanLogger,
   detectRepoType,
   runDiscoveryPass,
+  acquireScanLock,
+  releaseScanLock,
+  scanLockHash,
 } from "./manager.js";
 import {
   registerEnricher,
@@ -1390,5 +1393,170 @@ describe("runDiscoveryPass", () => {
     const warnLog = logs.find((l) => l.msg === 'discovery pass failed — using empty context');
     assert.ok(warnLog, "must emit WARN for agent failure");
     assert.equal(warnLog.error, "discovery timeout");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// concurrent scan locking (SEC-03)
+// ---------------------------------------------------------------------------
+
+describe("concurrent scan locking (SEC-03)", () => {
+  let repoDir;
+  let lockDir;
+
+  const silentSlog = (_level, _msg, _extra = {}) => {};
+
+  const validFindings = JSON.stringify({
+    service_name: "lock-test-svc",
+    confidence: "high",
+    services: [
+      { name: "lock-test-svc", root_path: ".", language: "javascript", confidence: "high" },
+    ],
+    connections: [],
+    schemas: [],
+  });
+
+  const minimalDiscovery = '```json\n{"languages":["javascript"],"frameworks":[],"service_hints":[]}\n```';
+
+  function makeQueryEngine() {
+    return {
+      upsertRepo: () => ({ id: 99 }),
+      getRepoState: () => null,
+      setRepoState: () => {},
+      getRepoByPath: () => null,
+      beginScan: () => 1,
+      persistFindings: () => {},
+      endScan: () => {},
+      _db: { prepare: () => ({ all: () => [] }) },
+    };
+  }
+
+  before(() => {
+    const { dir } = makeTempRepo();
+    repoDir = dir;
+    writeFileSync(join(dir, "app.js"), "const x = 1;");
+    execSync("git add app.js", { cwd: dir, stdio: "pipe" });
+    execSync('git commit -m "add app.js"', { cwd: dir, stdio: "pipe" });
+
+    // Use a temp directory as lock dir to avoid polluting ~/.ligamen
+    lockDir = mkdtempSync(join(tmpdir(), "ligamen-locktest-"));
+    process.env.LIGAMEN_DATA_DIR = lockDir;
+  });
+
+  after(() => {
+    delete process.env.LIGAMEN_DATA_DIR;
+    cleanupDir(repoDir);
+    cleanupDir(lockDir);
+  });
+
+  afterEach(() => {
+    setAgentRunner(null);
+    // Clean up any leftover lock files between tests
+    try {
+      for (const f of readdirSync(lockDir)) {
+        if (f.endsWith(".lock")) unlinkSync(join(lockDir, f));
+      }
+    } catch { /* ignore */ }
+  });
+
+  test("acquireScanLock, releaseScanLock, and scanLockHash are exported functions", () => {
+    assert.equal(typeof acquireScanLock, "function", "acquireScanLock should be exported");
+    assert.equal(typeof releaseScanLock, "function", "releaseScanLock should be exported");
+    assert.equal(typeof scanLockHash, "function", "scanLockHash should be exported");
+  });
+
+  test("scanLockHash returns a 12-char hex string", () => {
+    const hash = scanLockHash([repoDir]);
+    assert.equal(typeof hash, "string");
+    assert.equal(hash.length, 12);
+    assert.ok(/^[0-9a-f]{12}$/.test(hash), "hash should be lowercase hex");
+  });
+
+  test("scanRepos acquires lock during scan and releases it after completion", async () => {
+    const qe = makeQueryEngine();
+    const hash = scanLockHash([repoDir]);
+    const expectedLockPath = join(lockDir, `scan-${hash}.lock`);
+
+    let lockExistedDuringScan = false;
+
+    setAgentRunner(async (prompt, _path) => {
+      if (prompt.includes('Discovery Agent') || prompt.includes('structure discovery')) {
+        return minimalDiscovery;
+      }
+      lockExistedDuringScan = existsSync(expectedLockPath);
+      return `\`\`\`json\n${validFindings}\n\`\`\``;
+    });
+
+    await scanRepos([repoDir], {}, qe);
+
+    assert.ok(lockExistedDuringScan, "lock file should exist during scan");
+    assert.ok(!existsSync(expectedLockPath), "lock file should be removed after scan completes");
+  });
+
+  test("concurrent scan is rejected with clear error — scan already in progress", async () => {
+    const hash = scanLockHash([repoDir]);
+    const lockPath = join(lockDir, `scan-${hash}.lock`);
+
+    // Write a lock file with current PID to simulate active scan
+    writeFileSync(lockPath, JSON.stringify({
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      repoPaths: [repoDir],
+    }));
+
+    setAgentRunner(async () => `\`\`\`json\n${validFindings}\n\`\`\``);
+    const qe = makeQueryEngine();
+    await assert.rejects(
+      () => scanRepos([repoDir], {}, qe),
+      /scan already in progress/i,
+      "should throw with 'scan already in progress' when lock held by active PID",
+    );
+    // lock file still exists (we own it) — afterEach cleans it up
+  });
+
+  test("stale lock (dead PID) is cleaned up and acquireScanLock proceeds", () => {
+    const repoPaths = [repoDir];
+    const hash = scanLockHash(repoPaths);
+    const lockPath = join(lockDir, `scan-${hash}.lock`);
+
+    // PID 999999 is virtually guaranteed not to be running
+    writeFileSync(lockPath, JSON.stringify({
+      pid: 999999,
+      startedAt: new Date().toISOString(),
+      repoPaths,
+    }));
+
+    const logs = [];
+    const testSlog = (level, msg, extra = {}) => logs.push({ level, msg, ...extra });
+
+    let acquiredPath;
+    assert.doesNotThrow(() => {
+      acquiredPath = acquireScanLock(repoPaths, testSlog);
+    }, "acquireScanLock should not throw on stale lock");
+
+    const warnLog = logs.find((l) => l.msg === 'removing stale scan lock');
+    assert.ok(warnLog, "should emit WARN when removing stale lock");
+
+    // Clean up via releaseScanLock
+    releaseScanLock(acquiredPath);
+    assert.ok(!existsSync(lockPath), "lock file should be released after releaseScanLock");
+  });
+
+  test("lock is released even when scan agent throws repeatedly (error path)", async () => {
+    const qe = makeQueryEngine();
+    const hash = scanLockHash([repoDir]);
+    const lockPath = join(lockDir, `scan-${hash}.lock`);
+
+    setAgentRunner(async (prompt, _path) => {
+      if (prompt.includes('Discovery Agent') || prompt.includes('structure discovery')) {
+        return minimalDiscovery;
+      }
+      throw new Error("agent crashed — simulated failure");
+    });
+
+    // scanRepos catches double-throw and returns skip result — lock must still be released
+    const results = await scanRepos([repoDir], {}, qe);
+    assert.equal(results.length, 1, "should return one result");
+    assert.ok(!existsSync(lockPath), "lock file must be cleaned up even after agent error");
   });
 });

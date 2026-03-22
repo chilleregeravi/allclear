@@ -24,9 +24,11 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
+import os from "node:os";
 
 import { parseAgentOutput } from "./findings.js";
 import { registerEnricher, runEnrichmentPass } from "./enrichment.js";
@@ -438,6 +440,86 @@ export async function runDiscoveryPass(repoPath, discoveryPromptTemplate, agentR
  * }} ScanResult
  */
 
+// ---------------------------------------------------------------------------
+// Scan lock helpers (SEC-03) — prevent concurrent scan corruption
+// ---------------------------------------------------------------------------
+
+const LOCK_DIR = process.env.LIGAMEN_DATA_DIR || join(os.homedir(), '.ligamen');
+
+/**
+ * Compute a short hash for lock file naming.
+ * Uses sorted repo paths as project identifier.
+ * @param {string[]} repoPaths
+ * @returns {string} 12-char hex hash
+ */
+export function scanLockHash(repoPaths) {
+  const key = repoPaths.slice().sort().join('\n');
+  return crypto.createHash('sha256').update(key).digest('hex').slice(0, 12);
+}
+
+/**
+ * Check if a PID is still running.
+ * @param {number} pid
+ * @returns {boolean}
+ */
+function isProcessRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Acquire a filesystem lock for a scan. Rejects if another scan is active.
+ * Cleans up stale locks (dead PID).
+ * @param {string[]} repoPaths
+ * @param {Function} slog - scan logger
+ * @returns {string} lockPath - caller must release via releaseScanLock
+ */
+export function acquireScanLock(repoPaths, slog) {
+  const hash = scanLockHash(repoPaths);
+  const lockDir = process.env.LIGAMEN_DATA_DIR || join(os.homedir(), '.ligamen');
+  const lockPath = join(lockDir, `scan-${hash}.lock`);
+
+  if (existsSync(lockPath)) {
+    try {
+      const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+      if (lock.pid && isProcessRunning(lock.pid)) {
+        throw new Error(
+          `Scan already in progress for this project (PID ${lock.pid}, started ${lock.startedAt}). ` +
+          'Wait for the current scan to finish or remove the lock file: ' + lockPath
+        );
+      }
+      // Stale lock — PID is gone
+      slog('WARN', 'removing stale scan lock', { lockPath, stalePid: lock.pid });
+      unlinkSync(lockPath);
+    } catch (err) {
+      if (err.message.startsWith('Scan already in progress')) throw err;
+      // Corrupted lock file — remove it
+      slog('WARN', 'removing corrupted scan lock', { lockPath });
+      try { unlinkSync(lockPath); } catch { /* ignore */ }
+    }
+  }
+
+  writeFileSync(lockPath, JSON.stringify({
+    pid: process.pid,
+    startedAt: new Date().toISOString(),
+    repoPaths,
+  }));
+
+  return lockPath;
+}
+
+/**
+ * Release a scan lock file.
+ * @param {string} lockPath
+ */
+export function releaseScanLock(lockPath) {
+  try { unlinkSync(lockPath); } catch { /* already gone */ }
+}
+
 /**
  * Scan one or more repos by dispatching agents in parallel via Promise.allSettled,
  * with retry-once on agentRunner throw. DB writes remain sequential after all
@@ -474,6 +556,11 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   function slog(level, msg, extra = {}) {
     if (_logger) _logger.log(level, msg, extra);
   }
+
+  // Acquire per-project filesystem lock (SEC-03) — rejects concurrent scans
+  const lockPath = acquireScanLock(repoPaths, slog);
+
+  try {
 
   // Load shared prompt components once
   const commonRules = readFileSync(join(__dirname, "agent-prompt-common.md"), "utf8");
@@ -657,4 +744,8 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   }
 
   return results;
+
+  } finally {
+    releaseScanLock(lockPath);
+  }
 }
