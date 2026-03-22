@@ -339,3 +339,42 @@ test("parseAgentOutput with empty string returns no JSON block error", () => {
   assert.equal(result.valid, false);
   assert.equal(result.error, "no JSON block found in agent output");
 });
+
+// ---------------------------------------------------------------------------
+// validateFindings — source_file null warnings
+// ---------------------------------------------------------------------------
+
+test("warns when connection has source_file: null", () => {
+  const obj = minimalValid();
+  obj.connections = [validConnection({ source_file: null })];
+  const result = validateFindings(obj);
+  assert.equal(result.valid, true);
+  assert.ok(Array.isArray(result.warnings), "warnings should be an array");
+  assert.equal(result.warnings.length, 1);
+  assert.ok(
+    result.warnings[0].includes("connection[0].source_file is null"),
+    `Expected warning about null source_file, got: ${result.warnings[0]}`,
+  );
+});
+
+test("warns for each null source_file", () => {
+  const obj = minimalValid();
+  obj.connections = [
+    validConnection({ source_file: null }),
+    validConnection({ source_file: null }),
+  ];
+  const result = validateFindings(obj);
+  assert.equal(result.valid, true);
+  assert.equal(result.warnings.length, 2);
+  assert.ok(result.warnings[0].includes("connection[0].source_file is null"));
+  assert.ok(result.warnings[1].includes("connection[1].source_file is null"));
+});
+
+test("no warnings when source_file is non-null", () => {
+  const obj = minimalValid();
+  obj.connections = [validConnection({ source_file: "src/api.ts:callTarget" })];
+  const result = validateFindings(obj);
+  assert.equal(result.valid, true);
+  assert.ok(Array.isArray(result.warnings), "warnings should be an array");
+  assert.equal(result.warnings.length, 0);
+});
