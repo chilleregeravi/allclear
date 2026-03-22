@@ -45,6 +45,16 @@ For `type: "library"` in the same repo: list exported function signatures as `"f
 
 For `sdk` connections: the `path` must be the specific exported function(s) the caller uses — NOT the module import path. This enables precise impact analysis.
 
+## source_file Requirement
+
+`source_file` on every connection is **REQUIRED**. This field enables file-level impact analysis. Do not emit `null` unless you have exhaustively searched all source files and found no call site.
+
+**Format:** `"path/to/caller.ts:functionName"` or `"path/to/caller.ts:42"` (line number fallback).
+
+- Use the file that contains the call — not the file that defines the target.
+- For SDK connections, use the file that imports and invokes the SDK function.
+- `source_file: null` is only valid when the call site is dynamically generated or the source file is minified/bundled with no recoverable origin.
+
 ## Example
 
 ```json
