@@ -10,7 +10,7 @@
  * Uses node:test + node:assert/strict — zero external dependencies.
  */
 
-import { test, describe, before, after, beforeEach } from "node:test";
+import { test, describe, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";

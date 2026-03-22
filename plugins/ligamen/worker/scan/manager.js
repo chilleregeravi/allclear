@@ -63,19 +63,77 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 
 /**
+ * Check if a repo has any service entry-point indicator.
+ * Used to exempt docker-compose repos from infra classification (SBUG-02).
+ * @param {string} repoPath
+ * @returns {boolean}
+ */
+function _hasServiceEntryPoint(repoPath) {
+  // Node.js: package.json with start or serve script
+  try {
+    const pkgPath = join(repoPath, "package.json");
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+      if (pkg.scripts && (pkg.scripts.start || pkg.scripts.serve)) return true;
+    }
+  } catch { /* ignore */ }
+  // Python
+  if (existsSync(join(repoPath, "main.py")) || existsSync(join(repoPath, "app.py"))) return true;
+  // Go
+  if (existsSync(join(repoPath, "main.go"))) return true;
+  try {
+    if (existsSync(join(repoPath, "cmd"))) return true;
+  } catch { /* ignore */ }
+  // Java
+  try {
+    if (existsSync(join(repoPath, "src", "main", "java"))) return true;
+  } catch { /* ignore */ }
+  // Makefile with server/run targets
+  try {
+    const makefile = join(repoPath, "Makefile");
+    if (existsSync(makefile)) {
+      const content = readFileSync(makefile, "utf8");
+      if (/^(run|serve|server|start):/m.test(content)) return true;
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
+/**
+ * Recursively search for Application.java or *Main.java in a directory (max depth 5).
+ * @param {string} dir
+ * @param {number} depth
+ * @returns {boolean}
+ */
+function _findJavaEntryPoint(dir, depth = 0) {
+  if (depth > 5) return false;
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && (entry.name === "Application.java" || entry.name.endsWith("Main.java"))) {
+        return true;
+      }
+      if (entry.isDirectory() && depth < 5) {
+        if (_findJavaEntryPoint(join(dir, entry.name), depth + 1)) return true;
+      }
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
+/**
  * Detect whether a repo is a service, library, or infra project.
  * Checks for presence of indicator files — first match wins.
  *
  * @param {string} repoPath
  * @returns {"service" | "library" | "infra"}
  */
-function detectRepoType(repoPath) {
-  // Infra indicators — check first (most specific)
-  const infraIndicators = [
+export function detectRepoType(repoPath) {
+  // Hard infra indicators — always infra, no exemption needed
+  const hardInfraIndicators = [
     "kustomization.yaml", "Chart.yaml", "helmfile.yaml",
-    "docker-compose.yml", "docker-compose.yaml",
   ];
-  for (const f of infraIndicators) {
+  for (const f of hardInfraIndicators) {
     if (existsSync(join(repoPath, f))) return "infra";
   }
   // Check for terraform files
@@ -86,6 +144,15 @@ function detectRepoType(repoPath) {
   // Check for overlays/ or terraform/ directories
   if (existsSync(join(repoPath, "overlays")) || existsSync(join(repoPath, "terraform"))) {
     return "infra";
+  }
+
+  // SBUG-02: docker-compose is infra ONLY when no service entry-point exists
+  const hasDockerCompose = existsSync(join(repoPath, "docker-compose.yml"))
+    || existsSync(join(repoPath, "docker-compose.yaml"));
+  if (hasDockerCompose) {
+    const hasServiceEntryPoint = _hasServiceEntryPoint(repoPath);
+    if (!hasServiceEntryPoint) return "infra";
+    // else: docker-compose is for local dev, continue to library/service detection
   }
 
   // Library indicators — no server entry point, has package exports
@@ -117,6 +184,41 @@ function detectRepoType(repoPath) {
     if (existsSync(cargo)) {
       const content = readFileSync(cargo, "utf8");
       if (content.includes("[lib]") && !content.includes("[[bin]]")) {
+        return "library";
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Go: go.mod present, no main.go in root, no cmd/ directory → library
+  try {
+    if (existsSync(join(repoPath, "go.mod"))) {
+      const hasMainGo = existsSync(join(repoPath, "main.go"));
+      const hasCmdDir = existsSync(join(repoPath, "cmd"));
+      if (!hasMainGo && !hasCmdDir) return "library";
+    }
+  } catch { /* ignore */ }
+
+  // Java: pom.xml or build.gradle present, no Application.java or *Main.java in src/main/java → library
+  try {
+    const hasPom = existsSync(join(repoPath, "pom.xml"));
+    const hasGradle = existsSync(join(repoPath, "build.gradle")) || existsSync(join(repoPath, "build.gradle.kts"));
+    if (hasPom || hasGradle) {
+      const javaMainDir = join(repoPath, "src", "main", "java");
+      if (!existsSync(javaMainDir)) {
+        return "library";
+      }
+      // Check for Application.java or *Main.java — search recursively in src/main/java tree
+      const hasAppClass = _findJavaEntryPoint(javaMainDir);
+      if (!hasAppClass) return "library";
+    }
+  } catch { /* ignore */ }
+
+  // Poetry: pyproject.toml with [tool.poetry] but no [tool.poetry.scripts] → library
+  try {
+    const pyproj = join(repoPath, "pyproject.toml");
+    if (existsSync(pyproj)) {
+      const content = readFileSync(pyproj, "utf8");
+      if (content.includes("[tool.poetry]") && !content.includes("[tool.poetry.scripts]")) {
         return "library";
       }
     }
