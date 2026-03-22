@@ -436,7 +436,11 @@ Plans:
   2. When the agent emits a connection without `source_file`, a validation warning is logged to the worker's structured logger — the scan still completes
   3. The detail panel connection list shows the source_file path next to each connection when the field is present
   4. The `/ligamen:quality-gate` command no longer exists in this plugin — invoking it produces "command not found" or a redirect message pointing to the standalone plugin
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 73-01-PLAN.md — agent-prompt-service/library: source_file REQUIRED section + findings.js null warning
+- [ ] 73-02-PLAN.md — detail-panel.js: verify source_file/target_file display in service connections + tests
+- [ ] 73-03-PLAN.md — delete quality-gate command/skill + clean manifests, session-start, bats tests
 
 ## Progress
 
