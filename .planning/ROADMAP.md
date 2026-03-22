@@ -503,7 +503,10 @@ Plans:
   4. Discovery output is not persisted to the database — it is ephemeral prompt context only
 **Plans:** 1 plan
 Plans:
-- [ ] 79-01-PLAN.md — Bump all manifest version fields to 5.4.0
+- [ ] 76-01-PLAN.md — Wire runDiscoveryPass into scanRepos loop + discovery wiring tests
+
+
+
 
 ### Phase 77: Prompt Debiasing & Dead Code Removal
 **Goal**: Active agent prompts use discovery context for language-specific guidance instead of hardcoded Python/JS examples; the unused agent-prompt-deep.md file and promptDeep variable are deleted after any unique content is migrated
@@ -566,7 +569,7 @@ Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
 | 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
 | 74. Scan Bug Fixes | v5.4.0 | 0/2 | Not started | - |
 | 75. Validation Hardening | v5.4.0 | 0/TBD | Not started | - |
-| 76. Discovery Phase Wiring | v5.4.0 | 0/TBD | Not started | - |
+| 76. Discovery Phase Wiring | v5.4.0 | 0/1 | Not started | - |
 | 77. Prompt Debiasing & Dead Code Removal | v5.4.0 | 0/TBD | Not started | - |
 | 78. Scan Reliability | v5.4.0 | 0/TBD | Not started | - |
 | 79. Version Bump | v5.4.0 | 0/TBD | Not started | - |
