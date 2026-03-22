@@ -24,15 +24,15 @@ Requirements for Scan Intelligence & Enrichment milestone. Each maps to roadmap 
 
 ### Team Ownership
 
-- [ ] **OWN-01**: CODEOWNERS parsed and team ownership stored in node_metadata (THE-940)
+- [x] **OWN-01**: CODEOWNERS parsed and team ownership stored in node_metadata (THE-940)
 - [ ] **OWN-02**: Owner displayed in detail panel (THE-940)
 - [ ] **OWN-03**: Owner included in MCP impact_query/impact_changed responses (THE-940)
 
 ### Enrichment Architecture
 
-- [ ] **ENRICH-01**: Enrichment pass framework runs after core scan, before graph display (THE-941)
-- [ ] **ENRICH-02**: Each pass writes to node_metadata with distinct view key (THE-941)
-- [ ] **ENRICH-03**: Pass failures logged and skipped — never abort the scan (THE-941)
+- [x] **ENRICH-01**: Enrichment pass framework runs after core scan, before graph display (THE-941)
+- [x] **ENRICH-02**: Each pass writes to node_metadata with distinct view key (THE-941)
+- [x] **ENRICH-03**: Pass failures logged and skipped — never abort the scan (THE-941)
 
 ### Agent Data Quality
 
@@ -87,10 +87,10 @@ Deferred to future milestones. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | CONF-01 | Phase 67 | Complete |
 | CONF-02 | Phase 67 | Complete |
-| ENRICH-01 | Phase 68 | Pending |
-| ENRICH-02 | Phase 68 | Pending |
-| ENRICH-03 | Phase 68 | Pending |
-| OWN-01 | Phase 68 | Pending |
+| ENRICH-01 | Phase 68 | Complete |
+| ENRICH-02 | Phase 68 | Complete |
+| ENRICH-03 | Phase 68 | Complete |
+| OWN-01 | Phase 68 | Complete |
 | AUTHDB-01 | Phase 69 | Pending |
 | AUTHDB-02 | Phase 69 | Pending |
 | CONF-03 | Phase 70 | Pending |

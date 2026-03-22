@@ -372,7 +372,7 @@ Plans:
   3. If the CODEOWNERS enricher throws an unhandled error, the scan still completes and all primary service/connection data is persisted (the error is logged, not re-thrown)
   4. Each enricher writes metadata with a distinct `view` key in `node_metadata` — no two enrichers collide on the same key
   5. The enrichment pass does not trigger beginScan/endScan — `SELECT COUNT(*) FROM services` is unchanged after enrichment runs
-**Plans:** 1/1 plans complete
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 68-01-PLAN.md — enrichment.js registry + codeowners.js parser and enricher factory
 - [ ] 68-02-PLAN.md — Wire runEnrichmentPass into manager.js success path
@@ -468,7 +468,7 @@ Phases execute in numeric order: 67 → 68 → 69 → 70 → 71 → 72 → 73
 | 59-62 | v5.2.0 | 5/5 | Complete | 2026-03-21 |
 | 63-66 | v5.2.1 | 7/7 | Complete | 2026-03-21 |
 | 67. DB Foundation | 1/1 | Complete   | 2026-03-22 | - |
-| 68. Enrichment Architecture & CODEOWNERS | v5.3.0 | 0/TBD | Not started | - |
+| 68. Enrichment Architecture & CODEOWNERS | 1/2 | In Progress|  | - |
 | 69. Auth & DB Extraction | v5.3.0 | 0/1 | Not started | - |
 | 70. Confidence & Evidence Pipeline | v5.3.0 | 0/TBD | Not started | - |
 | 71. Schema Storage & API Extension | v5.3.0 | 0/TBD | Not started | - |
