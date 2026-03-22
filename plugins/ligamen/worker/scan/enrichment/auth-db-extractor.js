@@ -15,6 +15,21 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
 // ---------------------------------------------------------------------------
+// Traversal guards — excluded directories, depth limit, file size cap
+// ---------------------------------------------------------------------------
+
+/** Directories to never descend into during file collection */
+export const EXCLUDED_DIRS = new Set([
+  'node_modules', '.git', 'vendor', 'dist', 'build', '__pycache__', '.venv', 'venv', // EXCLUDED_DIRS: canonical list
+]);
+
+/** Maximum directory depth to recurse into during file collection */
+export const MAX_TRAVERSAL_DEPTH = 8;
+
+/** Maximum file size (in bytes) to read — files larger than this are skipped */
+export const MAX_FILE_SIZE = 1_048_576; // 1MB
+
+// ---------------------------------------------------------------------------
 // File exclusion — never scan test/example/fixture files
 // ---------------------------------------------------------------------------
 
@@ -184,12 +199,13 @@ const LANG_EXTENSIONS = {
 };
 
 /**
- * Collect source files from a directory (non-recursive for subdirs).
+ * Collect source files from a directory recursively with traversal guards.
  * @param {string} dirPath
  * @param {string} language
  * @param {string[]} candidates - Mutated in place
+ * @param {number} [depth=0] - Current depth level (stops at MAX_TRAVERSAL_DEPTH)
  */
-function collectSourceFiles(dirPath, language, candidates) {
+function collectSourceFiles(dirPath, language, candidates, depth = 0) {
   const exts = LANG_EXTENSIONS[language] ?? [];
   if (exts.length === 0) return;
   let entries;
@@ -199,6 +215,9 @@ function collectSourceFiles(dirPath, language, candidates) {
     return;
   }
   for (const entry of entries) {
+    // Skip excluded directories without descending
+    if (EXCLUDED_DIRS.has(entry)) continue;
+
     const fullPath = join(dirPath, entry);
     let stat;
     try {
@@ -208,12 +227,16 @@ function collectSourceFiles(dirPath, language, candidates) {
     }
     if (stat.isFile() && exts.includes(extname(entry).toLowerCase())) {
       candidates.push(fullPath);
+    } else if (stat.isDirectory() && depth < MAX_TRAVERSAL_DEPTH) {
+      collectSourceFiles(fullPath, language, candidates, depth + 1);
     }
   }
 }
 
 /**
  * Collect files to scan for a service.
+ * Walks the full repo directory tree (depth-limited, excluding EXCLUDED_DIRS).
+ * Prioritizes entryFile first, caps at 20 total files.
  * @param {string} repoPath
  * @param {string|null} entryFile
  * @param {string} language
@@ -223,16 +246,10 @@ function collectScanFiles(repoPath, entryFile, language) {
   const candidates = [];
   // Always include entryFile first (gives high confidence)
   if (entryFile) candidates.push(join(repoPath, entryFile));
-  // Add files under auth/middleware/routes/security/src subdirs (up to 20 total)
-  const SCAN_DIRS = ['routes', 'middleware', 'auth', 'security', 'src'];
-  for (const dir of SCAN_DIRS) {
-    const dirPath = join(repoPath, dir);
-    if (existsSync(dirPath)) {
-      collectSourceFiles(dirPath, language, candidates);
-    }
-    if (candidates.length >= 20) break;
-  }
-  return [...new Set(candidates)].filter(f => !isExcluded(f));
+  // Walk the full repo tree with traversal guards (depth 0 = repoPath level)
+  collectSourceFiles(repoPath, language, candidates, 0);
+  // Deduplicate, filter excluded file patterns, cap at 20
+  return [...new Set(candidates)].filter(f => !isExcluded(f)).slice(0, 20);
 }
 
 // ---------------------------------------------------------------------------
@@ -258,6 +275,13 @@ function detectAuth(files, entryAbsolute, language, logger) {
   let confidence = null;
 
   for (const filePath of files) {
+    // Skip files larger than MAX_FILE_SIZE
+    try {
+      if (statSync(filePath).size > MAX_FILE_SIZE) continue;
+    } catch {
+      continue;
+    }
+
     let content;
     try {
       content = readFileSync(filePath, 'utf8');
@@ -395,6 +419,13 @@ function detectDbFromSources(files, language) {
   if (!signals) return null;
 
   for (const filePath of files) {
+    // Skip files larger than MAX_FILE_SIZE
+    try {
+      if (statSync(filePath).size > MAX_FILE_SIZE) continue;
+    } catch {
+      continue;
+    }
+
     let content;
     try {
       content = readFileSync(filePath, 'utf8');
