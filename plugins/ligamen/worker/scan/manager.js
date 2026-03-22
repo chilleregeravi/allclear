@@ -431,7 +431,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
         .prepare('SELECT id, root_path, language, boundary_entry FROM services WHERE repo_id = ?')
         .all(repo.id);
       for (const service of services) {
-        await runEnrichmentPass(service, queryEngine._db, _logger);
+        await runEnrichmentPass(service, queryEngine._db, _logger, repoPath);
       }
     } catch (err) {
       slog('WARN', 'enrichment pass error', { repoPath, error: err.message });

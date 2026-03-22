@@ -31,11 +31,13 @@ export function clearEnrichers() {
  * @param {{ id: number, root_path: string, language: string|null, boundary_entry: string|null }} service
  * @param {import('better-sqlite3').Database} db
  * @param {{ warn?: Function, info?: Function, debug?: Function } | null} logger
+ * @param {string|null} [repoAbsPath] - Absolute path to repo root (SBUG-03: for file system probing in enrichers)
  */
-export async function runEnrichmentPass(service, db, logger) {
+export async function runEnrichmentPass(service, db, logger, repoAbsPath) {
   const ctx = {
     serviceId: service.id,
     repoPath: service.root_path,
+    repoAbsPath: repoAbsPath ?? null,  // SBUG-03: absolute repo root for file system probing
     language: service.language ?? null,
     entryFile: service.boundary_entry ?? null,
     db,

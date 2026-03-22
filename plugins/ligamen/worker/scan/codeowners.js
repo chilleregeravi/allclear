@@ -116,11 +116,12 @@ export function findOwners(entries, filePath) {
  */
 export function createCodeownersEnricher() {
   return async function codeownersEnricher(ctx) {
-    const entries = parseCODEOWNERS(ctx.repoPath);
+    // SBUG-03: use repoAbsPath for file system probe (absolute repo root for .github/CODEOWNERS)
+    // Fall back to ctx.repoPath for backward compatibility with test contexts that lack repoAbsPath.
+    const entries = parseCODEOWNERS(ctx.repoAbsPath ?? ctx.repoPath);
     if (entries.length === 0) return {};
 
-    // root_path relative to repo root — use ctx.repoPath as both repo root and file path
-    // In real usage: service.root_path is the relative path used for matching
+    // SBUG-03: use ctx.repoPath (relative service root_path) for pattern matching
     const owners = findOwners(entries, ctx.repoPath);
     const owner = owners.length > 0 ? owners[0] : null;
 
