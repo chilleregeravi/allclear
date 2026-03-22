@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 70-01-PLAN.md
-last_updated: "2026-03-22T10:59:48.909Z"
+stopped_at: Completed 71-02-PLAN.md
+last_updated: "2026-03-22T11:04:39.651Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 12
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 70 — Confidence & Evidence Pipeline
+**Current focus:** Phase 71 — Schema Storage & API Extension
 
 ## Current Position
 
-Phase: 70 (Confidence & Evidence Pipeline) — EXECUTING
-Plan: 1 of 1
+Phase: 71 (Schema Storage & API Extension) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,8 @@ Plan: 1 of 1
 - [Phase 69-auth---db-extraction]: Auth-db enricher registered in manager.js (not enricher.js which does not exist) — follows established codeowners pattern
 - [Phase 70-confidence---evidence-pipeline]: v5.3.0: Three-tier try/catch for _stmtUpsertConnection: outermost tries confidence+evidence (migration 009), middle tries crossing-only (migration 008), inner is pre-migration-008 fallback
 - [Phase 70-confidence---evidence-pipeline]: v5.3.0: getGraph() connections SELECT wrapped in try/catch — primary SELECT projects c.confidence, c.evidence; fallback omits them on pre-migration-009 DBs without throwing
+- [Phase 71-schema-storage---api-extension]: enrichImpactResult and enrichAffectedResult never throw — try/catch wraps all node_metadata lookups for pre-migration-008 DB compatibility
+- [Phase 71-schema-storage---api-extension]: impact_changed enriched with owner/auth_mechanism/db_backend via enrichAffectedResult — null fields when qe._db unavailable
 
 ### Pending Todos
 
@@ -64,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T10:59:48.905Z
-Stopped at: Completed 70-01-PLAN.md
+Last session: 2026-03-22T11:04:39.647Z
+Stopped at: Completed 71-02-PLAN.md
 Resume file: None

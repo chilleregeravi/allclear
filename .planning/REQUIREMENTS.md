@@ -26,7 +26,7 @@ Requirements for Scan Intelligence & Enrichment milestone. Each maps to roadmap 
 
 - [x] **OWN-01**: CODEOWNERS parsed and team ownership stored in node_metadata (THE-940)
 - [ ] **OWN-02**: Owner displayed in detail panel (THE-940)
-- [ ] **OWN-03**: Owner included in MCP impact_query/impact_changed responses (THE-940)
+- [x] **OWN-03**: Owner included in MCP impact_query/impact_changed responses (THE-940)
 
 ### Enrichment Architecture
 
@@ -44,7 +44,7 @@ Requirements for Scan Intelligence & Enrichment milestone. Each maps to roadmap 
 
 - [x] **AUTHDB-01**: Auth mechanism extracted per service via enrichment pass (THE-943)
 - [x] **AUTHDB-02**: Database backend extracted per service via enrichment pass (THE-943)
-- [ ] **AUTHDB-03**: Auth and DB info included in MCP impact responses (THE-943)
+- [x] **AUTHDB-03**: Auth and DB info included in MCP impact responses (THE-943)
 
 ### Unknown State Display
 
@@ -96,8 +96,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | CONF-03 | Phase 70 | Complete |
 | SCHEMA-02 | Phase 71 | Pending |
 | OWN-02 | Phase 71 | Pending |
-| OWN-03 | Phase 71 | Pending |
-| AUTHDB-03 | Phase 71 | Pending |
+| OWN-03 | Phase 71 | Complete |
+| AUTHDB-03 | Phase 71 | Complete |
 | SCHEMA-01 | Phase 72 | Pending |
 | UNK-01 | Phase 72 | Pending |
 | AGENT-01 | Phase 73 | Pending |
