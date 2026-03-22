@@ -42,8 +42,8 @@ Requirements for Scan Intelligence & Enrichment milestone. Each maps to roadmap 
 
 ### Auth & DB Extraction
 
-- [ ] **AUTHDB-01**: Auth mechanism extracted per service via enrichment pass (THE-943)
-- [ ] **AUTHDB-02**: Database backend extracted per service via enrichment pass (THE-943)
+- [x] **AUTHDB-01**: Auth mechanism extracted per service via enrichment pass (THE-943)
+- [x] **AUTHDB-02**: Database backend extracted per service via enrichment pass (THE-943)
 - [ ] **AUTHDB-03**: Auth and DB info included in MCP impact responses (THE-943)
 
 ### Unknown State Display
@@ -91,8 +91,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | ENRICH-02 | Phase 68 | Complete |
 | ENRICH-03 | Phase 68 | Complete |
 | OWN-01 | Phase 68 | Complete |
-| AUTHDB-01 | Phase 69 | Pending |
-| AUTHDB-02 | Phase 69 | Pending |
+| AUTHDB-01 | Phase 69 | Complete |
+| AUTHDB-02 | Phase 69 | Complete |
 | CONF-03 | Phase 70 | Pending |
 | SCHEMA-02 | Phase 71 | Pending |
 | OWN-02 | Phase 71 | Pending |
