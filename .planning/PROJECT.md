@@ -123,7 +123,24 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
-(No active requirements — start next milestone with `/gsd:new-milestone`)
+## Current Milestone: v5.5.0 Security & Data Integrity Hardening
+
+**Goal:** Fix security vulnerabilities, data integrity bugs, and critical test coverage gaps identified during v5.4.0 audit.
+
+**Target features:**
+- Path traversal protection in MCP resolveDb()
+- Concurrent scan protection with project locking
+- Agent output parsing hardening with multiple strategies
+- endScan() schema FK cleanup (already fixed, needs shipping from source)
+- upsertRepo() correct ID on update (already fixed, needs shipping from source)
+- node_metadata test view mismatch fix (already fixed, needs shipping from source)
+- Worker version restart on session start (already fixed, needs shipping from source)
+- Credential rejection hardening with entropy-based detection
+- Transitive dependency depth limit with query timeout
+- Journal mode pragma test coverage
+- Auth-db extractor file traversal limits
+- FTS5 prepared statement caching
+- Map command asks user for project name
 
 ### Out of Scope
 
@@ -144,7 +161,7 @@ Architecture: commands/ for user-invoked features, skills/ for auto-invoked know
 Known tech debt: no log rotation, db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), query-engine-upsert.test.js pre-existing failure (test schema missing migrations 5-8), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-03-22 after v5.4.0 milestone*
+*Last updated: 2026-03-22 after v5.5.0 milestone start*
 
 ## Constraints
 
