@@ -552,6 +552,58 @@ async function runTests() {
   }
 
   // -------------------------------------------------------------------------
+  // Test 8: SBUG-01 — persistFindings skips actor creation when target is a known service
+  // -------------------------------------------------------------------------
+  console.log("Test 8: persistFindings skips actor creation when target is a known service");
+  try {
+    const db = await buildTestDb();
+    const { QueryEngine } = await import("./query-engine.js");
+    const qe = new QueryEngine(db);
+    const { repoId } = seedRepo(db);
+
+    // Insert a service row with name='payment-svc' directly — this simulates a known service
+    // that was scanned and exists in the services table already via persistFindings seed
+    // We call persistFindings such that 'payment-svc' is a known service in the services table
+    // Then connect 'order-api' -> 'payment-svc' with crossing='external'
+    qe.persistFindings(repoId, {
+      services: [
+        { name: "order-api", root_path: ".", language: "typescript", type: "service" },
+        { name: "payment-svc", root_path: ".", language: "typescript", type: "service" },
+      ],
+      connections: [
+        {
+          source: "order-api",
+          target: "payment-svc",
+          protocol: "rest",
+          method: "POST",
+          path: "/charge",
+          crossing: "external",
+          source_file: null,
+          target_file: null,
+          confidence: "high",
+          evidence: "test",
+        },
+      ],
+      schemas: [],
+    }, "sbug01test");
+
+    // payment-svc is a known service — no actor row should be created for it
+    const actor = db.prepare("SELECT * FROM actors WHERE name = 'payment-svc'").get();
+    assert.strictEqual(actor, undefined, "No actor row should be created when target is a known service");
+
+    // Also assert no actor_connection rows exist (since no actor was created)
+    const acCount = db.prepare("SELECT COUNT(*) AS cnt FROM actor_connections").get().cnt;
+    assert.strictEqual(acCount, 0, `Expected 0 actor_connections, got ${acCount}`);
+
+    db.close();
+    console.log("  PASS");
+    passed++;
+  } catch (err) {
+    console.log("  FAIL:", err.message);
+    failed++;
+  }
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   console.log(`\n${passed + failed} tests run: ${passed} passed, ${failed} failed`);
