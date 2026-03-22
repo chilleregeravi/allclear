@@ -758,6 +758,85 @@ describe("scanRepos — incremental prompt constraint", () => {
 });
 
 // ---------------------------------------------------------------------------
+// scanRepos — SARC-02: prompt content (multi-language examples + DISCOVERY_JSON)
+// ---------------------------------------------------------------------------
+
+describe("scanRepos — SARC-02 prompt content", () => {
+  let repoDir;
+
+  before(() => {
+    const { dir } = makeTempRepo();
+    repoDir = dir;
+    writeFileSync(join(dir, "index.js"), "module.exports = {}");
+    execSync("git add index.js", { cwd: dir, stdio: "pipe" });
+    execSync('git commit -m "add index.js"', { cwd: dir, stdio: "pipe" });
+  });
+
+  after(() => cleanupDir(repoDir));
+
+  beforeEach(() => {
+    setAgentRunner(null);
+  });
+
+  const validFindings = JSON.stringify({
+    service_name: "test-svc",
+    confidence: "high",
+    services: [
+      {
+        name: "test-svc",
+        root_path: ".",
+        language: "javascript",
+        confidence: "high",
+      },
+    ],
+    connections: [],
+    schemas: [],
+  });
+
+  const mockQE = {
+    upsertRepo: (_repoData) => ({ id: 42 }),
+    getRepoState: (_id) => null,
+    setRepoState: (_id, _commit) => {},
+    getRepoByPath: (_path) => null,
+    beginScan: (_repoId) => 1,
+    persistFindings: (_repoId, _findings, _commit, _scanVersionId) => {},
+    endScan: (_repoId, _scanVersionId) => {},
+    _db: { prepare: () => ({ all: () => [] }) },
+  };
+
+  test("SARC-02: service prompt contains multi-language examples and DISCOVERY_JSON", async () => {
+    let capturedPrompt = null;
+    setAgentRunner(async (prompt, _repoPath) => {
+      // Discovery calls return minimal context; capture deep scan prompt
+      if (prompt.includes("Discovery Agent") || prompt.includes("structure discovery")) {
+        return '```json\n{"services":[],"route_files":[],"proto_files":[],"openapi_files":[],"event_config_files":[]}\n```';
+      }
+      capturedPrompt = prompt;
+      return `\`\`\`json\n${validFindings}\n\`\`\``;
+    });
+
+    await scanRepos([repoDir], {}, mockQE);
+
+    assert.ok(capturedPrompt !== null, "prompt was captured");
+
+    // Multi-language examples (SARC-02 criterion 1)
+    assert.ok(capturedPrompt.includes("@RestController"), "prompt includes Java Spring Boot example");
+    assert.ok(capturedPrompt.includes("[HttpGet"), "prompt includes C# ASP.NET Core example");
+    assert.ok(capturedPrompt.includes("get '/users'"), "prompt includes Ruby on Rails example");
+    assert.ok(capturedPrompt.includes("fun getUsers()"), "prompt includes Kotlin example");
+
+    // DISCOVERY_JSON placeholder presence (SARC-02 criterion 2)
+    assert.ok(
+      capturedPrompt.includes("{{DISCOVERY_JSON}}") || capturedPrompt.includes('"services"'),
+      "prompt includes DISCOVERY_JSON placeholder or interpolated discovery context",
+    );
+
+    // Fallback instruction (safety for pre-Phase-76)
+    assert.ok(capturedPrompt.includes("fall back to scanning all files"), "prompt includes DISCOVERY_JSON fallback");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // scanRepos — enrichment pass wiring (68-02)
 // ---------------------------------------------------------------------------
 

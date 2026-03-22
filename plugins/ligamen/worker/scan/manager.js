@@ -478,8 +478,6 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const promptService = readFileSync(join(__dirname, "agent-prompt-service.md"), "utf8");
   const promptLibrary = readFileSync(join(__dirname, "agent-prompt-library.md"), "utf8");
   const promptInfra = readFileSync(join(__dirname, "agent-prompt-infra.md"), "utf8");
-  // Deep-scan prompt with {{DISCOVERY_JSON}} placeholder (SARC-01)
-  const promptDeep = readFileSync(join(__dirname, "agent-prompt-deep.md"), "utf8");
   // Discovery prompt for Phase 1 structure analysis (SARC-01)
   const promptDiscovery = readFileSync(join(__dirname, "agent-prompt-discovery.md"), "utf8");
 
@@ -520,13 +518,16 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     // 5. Open scan version bracket — records scan start in scan_versions table
     const scanVersionId = queryEngine.beginScan(repo.id);
 
-    // 6. Detect repo type for informational logging (SARC-03 will clean up type-specific prompts)
+    // 6. Detect repo type and select type-specific prompt (SARC-03)
     const repoType = detectRepoType(repoPath);
     slog('DEBUG', 'repo type detected', { repoPath, repoType });
 
-    // Deep scan — Phase 2: use agent-prompt-deep.md with discovery context (SARC-01)
+    // Deep scan — Phase 2: use type-specific prompt with discovery context (SARC-03)
     const discoveryJson = JSON.stringify(discoveryContext, null, 2);
-    const interpolatedPrompt = promptDeep
+    const typePrompt = repoType === "library" ? promptLibrary
+      : repoType === "infra" ? promptInfra
+      : promptService;
+    const interpolatedPrompt = typePrompt
       .replaceAll("{{REPO_PATH}}", repoPath)
       .replaceAll("{{DISCOVERY_JSON}}", discoveryJson)
       .replaceAll("{{SERVICE_HINT}}", basename(repoPath))
