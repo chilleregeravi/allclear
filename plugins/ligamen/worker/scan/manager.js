@@ -6,6 +6,7 @@
  *   buildScanContext(repoPath, repoId, qe, opts) - Determines scan mode
  *   scanRepos(repoPaths, options, queryEngine)   - Main scan entry point
  *   setAgentRunner(fn)                           - Inject agent invoker (test + MCP server use)
+ *   runDiscoveryPass(repoPath, template, runner, slog) - Discovery agent (Phase 1)
  *
  * Agent invocation uses an injected runner to decouple from Claude's Task tool.
  * Background subagents cannot access MCP tools (Claude Code issue #13254) — all
@@ -386,6 +387,45 @@ export function buildIncrementalConstraint(changedFiles) {
 }
 
 // ---------------------------------------------------------------------------
+// runDiscoveryPass (SARC-01)
+// ---------------------------------------------------------------------------
+
+/**
+ * Run the discovery agent for a single repo (Phase 1 of two-phase scan).
+ * Interpolates {{REPO_PATH}}, calls agentRunner, extracts fenced JSON block.
+ * Returns parsed discovery JSON on success, or {} on failure/no-JSON.
+ * Discovery output is ephemeral — never persisted to DB.
+ *
+ * @param {string} repoPath - Absolute path to the repo
+ * @param {string} discoveryPromptTemplate - Raw file contents of agent-prompt-discovery.md
+ * @param {(prompt: string, repoPath: string) => Promise<string>} agentRunner
+ * @param {Function} slog - Scan-local log helper (no-ops silently when logger not injected)
+ * @returns {Promise<object>} Parsed discovery JSON, or {} on failure
+ */
+export async function runDiscoveryPass(repoPath, discoveryPromptTemplate, agentRunner, slog) {
+  const prompt = discoveryPromptTemplate.replaceAll("{{REPO_PATH}}", repoPath);
+  try {
+    const raw = await agentRunner(prompt, repoPath);
+    const match = raw.match(/```json\s*\n([\s\S]*?)\n```/);
+    if (!match) {
+      slog('WARN', 'discovery: no JSON block — using empty context', { repoPath });
+      return {};
+    }
+    const parsed = JSON.parse(match[1].trim());
+    slog('INFO', 'discovery pass complete', {
+      repoPath,
+      languages: Array.isArray(parsed.languages) ? parsed.languages : [],
+      frameworks: parsed.frameworks ?? [],
+      service_hints: (parsed.service_hints ?? []).length,
+    });
+    return parsed;
+  } catch (err) {
+    slog('WARN', 'discovery pass failed — using empty context', { repoPath, error: err.message });
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
 // scanRepos
 // ---------------------------------------------------------------------------
 
@@ -438,8 +478,10 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const promptService = readFileSync(join(__dirname, "agent-prompt-service.md"), "utf8");
   const promptLibrary = readFileSync(join(__dirname, "agent-prompt-library.md"), "utf8");
   const promptInfra = readFileSync(join(__dirname, "agent-prompt-infra.md"), "utf8");
-  // Legacy prompt kept as fallback
+  // Deep-scan prompt with {{DISCOVERY_JSON}} placeholder (SARC-01)
   const promptDeep = readFileSync(join(__dirname, "agent-prompt-deep.md"), "utf8");
+  // Discovery prompt for Phase 1 structure analysis (SARC-01)
+  const promptDiscovery = readFileSync(join(__dirname, "agent-prompt-discovery.md"), "utf8");
 
   /** @type {ScanResult[]} */
   const results = [];
@@ -471,36 +513,38 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       continue;
     }
 
-    // 4. Open scan version bracket — records scan start in scan_versions table
+    // 4. Discovery pass — Phase 1: structure analysis (SARC-01)
+    // Runs BEFORE beginScan — does not open a scan bracket.
+    const discoveryContext = await runDiscoveryPass(repoPath, promptDiscovery, agentRunner, slog);
+
+    // 5. Open scan version bracket — records scan start in scan_versions table
     const scanVersionId = queryEngine.beginScan(repo.id);
 
-    // 5. Detect repo type and select prompt
+    // 6. Detect repo type for informational logging (SARC-03 will clean up type-specific prompts)
     const repoType = detectRepoType(repoPath);
-    let promptTemplate;
-    if (repoType === "infra") promptTemplate = promptInfra;
-    else if (repoType === "library") promptTemplate = promptLibrary;
-    else promptTemplate = promptService;
-
     slog('DEBUG', 'repo type detected', { repoPath, repoType });
 
-    const interpolatedPrompt = promptTemplate
+    // Deep scan — Phase 2: use agent-prompt-deep.md with discovery context (SARC-01)
+    const discoveryJson = JSON.stringify(discoveryContext, null, 2);
+    const interpolatedPrompt = promptDeep
       .replaceAll("{{REPO_PATH}}", repoPath)
+      .replaceAll("{{DISCOVERY_JSON}}", discoveryJson)
       .replaceAll("{{SERVICE_HINT}}", basename(repoPath))
       .replaceAll("{{COMMON_RULES}}", commonRules.replaceAll("{{REPO_PATH}}", repoPath))
       .replaceAll("{{SCHEMA_JSON}}", schemaJson);
 
-    // 5b. Inject changed-files constraint for incremental scans (SREL-01 / THE-933)
+    // 7. Inject changed-files constraint for incremental scans (SREL-01 / THE-933)
     //     The constraint is a hard directive — "You MUST only examine" — not advisory.
     let finalPrompt = interpolatedPrompt;
     if (ctx.mode === "incremental" && ctx.files !== null) {
       finalPrompt = interpolatedPrompt + buildIncrementalConstraint(ctx.files.modified);
     }
 
-    // 6. Invoke agent (foreground — agentRunner injected by MCP server or test)
+    // 8. Invoke agent (foreground — agentRunner injected by MCP server or test)
     slog('INFO', 'scan started', { repoPath, mode: ctx.mode });
     const rawResponse = await agentRunner(finalPrompt, repoPath);
 
-    // 7. Parse and validate agent output
+    // 9. Parse and validate agent output
     const result = parseAgentOutput(rawResponse);
 
     if (result.valid === false) {
@@ -515,17 +559,17 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       continue;
     }
 
-    // 7b. Log validation warnings (e.g., skipped services from SVAL-01)
+    // 9b. Log validation warnings (e.g., skipped services from SVAL-01)
     for (const w of result.warnings) {
       slog('WARN', 'findings validation warning', { repoPath, warning: w });
     }
 
-    // 8. Persist findings and close scan bracket — success path only
+    // 10. Persist findings and close scan bracket — success path only
     const currentHead = getCurrentHead(repoPath);
     queryEngine.persistFindings(repo.id, result.findings, currentHead, scanVersionId);
     queryEngine.endScan(repo.id, scanVersionId);
 
-    // 9. Run enrichment pass per service — post-scan, after bracket closes
+    // 11. Run enrichment pass per service — post-scan, after bracket closes
     // ENRICH-01: enrichment runs after core scan. Bracket is already closed above.
     // Enrichment MUST NOT call beginScan/endScan — never opens a new bracket.
     try {

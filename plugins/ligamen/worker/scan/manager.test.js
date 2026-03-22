@@ -22,7 +22,9 @@ import {
   buildScanContext,
   scanRepos,
   setAgentRunner,
+  setScanLogger,
   detectRepoType,
+  runDiscoveryPass,
 } from "./manager.js";
 import {
   registerEnricher,
@@ -344,14 +346,21 @@ describe("scanRepos", () => {
       schemas: [],
     });
 
-    setAgentRunner(async (_prompt, _path) => {
+    const minimalDiscoveryJson = '```json\n{"languages":["javascript"],"frameworks":[],"service_hints":[]}\n```';
+
+    setAgentRunner(async (prompt, _path) => {
       callCount++;
-      if (callCount === 1) return "not valid json at all"; // repo 1 → error
-      return `\`\`\`json\n${validFindings}\n\`\`\``; // repo 2 → valid
+      // Discovery calls return minimal valid JSON; deep scan calls return findings or error
+      if (prompt.includes('Discovery Agent') || prompt.includes('structure discovery')) {
+        return minimalDiscoveryJson; // discovery call → valid (always succeeds)
+      }
+      // Deep scan: repo 1 deep scan is call 2, repo 2 deep scan is call 4
+      if (_path === repoDir) return "not valid json at all"; // repo 1 deep scan → error
+      return `\`\`\`json\n${validFindings}\n\`\`\``; // repo 2 deep scan → valid
     });
 
     const results = await scanRepos([repoDir, repo2.dir], {}, qe);
-    assert.equal(callCount, 2, "agent called for both repos");
+    assert.equal(callCount, 4, "agent called twice per repo (discovery + deep scan)");
     assert.equal(
       results[0].findings,
       null,
@@ -420,7 +429,12 @@ describe("scanRepos", () => {
         schemas: [],
       });
 
-    setAgentRunner(async (_prompt, repoPath) => {
+    setAgentRunner(async (prompt, repoPath) => {
+      // Discovery call — return minimal valid JSON without recording order
+      if (prompt.includes('Discovery Agent') || prompt.includes('structure discovery')) {
+        return '```json\n{"languages":["javascript"],"frameworks":[],"service_hints":[]}\n```';
+      }
+      // Deep scan call — record order and return findings
       const name = repoPath === repoDir ? "svc-a" : "svc-b";
       order.push(name);
       return `\`\`\`json\n${validFindings(name)}\n\`\`\``;
@@ -430,7 +444,7 @@ describe("scanRepos", () => {
     assert.deepEqual(
       order,
       ["svc-a", "svc-b"],
-      "agents must run in order (sequential)",
+      "deep scan agents must run in order (sequential)",
     );
 
     cleanupDir(repo2.dir);
@@ -890,5 +904,51 @@ describe("detectRepoType", () => {
   test("detectRepoType: Poetry repo with [tool.poetry] and [tool.poetry.scripts] returns 'service'", () => {
     writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = \"mysvc\"\nversion = \"0.1.0\"\n\n[tool.poetry.scripts]\nmysvc = \"mysvc.main:run\"\n");
     assert.equal(detectRepoType(tmpDir), "service");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runDiscoveryPass unit tests (Task 1 TDD — RED)
+// ---------------------------------------------------------------------------
+
+describe("runDiscoveryPass — unit", () => {
+  let repoDir;
+
+  before(() => {
+    const { dir } = makeTempRepo();
+    repoDir = dir;
+  });
+
+  after(() => cleanupDir(repoDir));
+
+  test("returns parsed JSON on valid fenced agent output", async () => {
+    const result = await runDiscoveryPass(
+      repoDir,
+      "Analyze {{REPO_PATH}} now.",
+      async () => '```json\n{"languages":["python"],"frameworks":["fastapi"],"service_hints":[]}\n```',
+      () => {},
+    );
+    assert.ok(Array.isArray(result.languages), "languages should be an array");
+    assert.equal(result.languages[0], "python");
+  });
+
+  test("returns {} when agent returns no JSON block", async () => {
+    const result = await runDiscoveryPass(
+      repoDir,
+      "Analyze {{REPO_PATH}}.",
+      async () => "no fenced json here",
+      () => {},
+    );
+    assert.equal(JSON.stringify(result), "{}");
+  });
+
+  test("returns {} when agent throws an error", async () => {
+    const result = await runDiscoveryPass(
+      repoDir,
+      "Analyze {{REPO_PATH}}.",
+      async () => { throw new Error("agent exploded"); },
+      () => {},
+    );
+    assert.equal(JSON.stringify(result), "{}");
   });
 });
