@@ -433,7 +433,7 @@ export class QueryEngine {
    */
   transitiveImpact(
     sourceServiceId,
-    { direction = "downstream", maxDepth = 10 } = {},
+    { direction = "downstream", maxDepth = 7 } = {},
   ) {
     const stmt =
       direction === "upstream" ? this._stmtUpstream : this._stmtDownstream;

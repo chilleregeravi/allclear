@@ -16,6 +16,11 @@ import { chromaSearch, isChromaAvailable } from '../server/chroma.js';
 const dataDir =
   process.env.LIGAMEN_DATA_DIR || path.join(os.homedir(), ".ligamen");
 
+/** Maximum hop depth for transitive impact graph traversal. */
+const MAX_TRANSITIVE_DEPTH = 7;
+/** Timeout in milliseconds for transitive impact queries. */
+const QUERY_TIMEOUT_MS = 30_000;
+
 let _mcpLogLevel = 'INFO';
 try {
   const _settings = JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8'));
@@ -114,7 +119,7 @@ export async function queryImpact(
   const serviceId = svcRow.id;
 
   if (transitive) {
-    // Recursive CTE for full transitive impact
+    // Recursive CTE for full transitive impact — bounded at MAX_TRANSITIVE_DEPTH
     const cte = `
       WITH RECURSIVE impacted(id, depth, path) AS (
         SELECT ${direction === "consumes" ? "target_service_id" : "source_service_id"}, 1,
@@ -125,7 +130,7 @@ export async function queryImpact(
                i.path || ',' || CAST(${direction === "consumes" ? "c.target_service_id" : "c.source_service_id"} AS TEXT)
         FROM connections c JOIN impacted i ON ${direction === "consumes" ? "c.source_service_id" : "c.target_service_id"} = i.id
         WHERE i.path NOT LIKE '%,' || CAST(${direction === "consumes" ? "c.target_service_id" : "c.source_service_id"} AS TEXT) || ',%'
-          AND i.depth < 10
+          AND i.depth < ${MAX_TRANSITIVE_DEPTH}
       )
       SELECT DISTINCT i.id, i.depth, s.name as service, c.protocol, c.method, c.path as path
       FROM impacted i
@@ -139,7 +144,24 @@ export async function queryImpact(
       )
       ORDER BY i.depth, s.name
     `;
-    const rows = db.prepare(cte).all(serviceId, serviceId);
+
+    // Interrupt the synchronous SQLite query if it runs over QUERY_TIMEOUT_MS.
+    // better-sqlite3 exposes db.interrupt() which raises SQLITE_INTERRUPT.
+    let rows;
+    const timer = setTimeout(() => {
+      try { db.interrupt?.(); } catch { /* ignore if already done */ }
+    }, QUERY_TIMEOUT_MS);
+    try {
+      rows = db.prepare(cte).all(serviceId, serviceId);
+      clearTimeout(timer);
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.message && /interrupt/i.test(e.message)) {
+        return { results: [], error: "Query timeout: transitive impact query exceeded 30s", timeout: true };
+      }
+      throw e;
+    }
+
     const results = rows.map((r) => ({
       service: r.service,
       protocol: r.protocol,
@@ -147,7 +169,17 @@ export async function queryImpact(
       path: r.path,
       depth: r.depth,
     }));
-    return { results };
+
+    // Detect truncation: if any row reached the depth cap, notify the caller.
+    const maxFound = results.reduce((m, r) => Math.max(m, r.depth), 0);
+    const truncated = maxFound >= MAX_TRANSITIVE_DEPTH;
+    return {
+      results,
+      ...(truncated && {
+        truncated: true,
+        notice: `Results truncated at depth ${MAX_TRANSITIVE_DEPTH}`,
+      }),
+    };
   }
 
   // Direct (non-transitive) query
@@ -1236,7 +1268,7 @@ server.tool(
       .boolean()
       .default(false)
       .describe(
-        "When true, follows dependency chains transitively (up to depth 10)",
+        "When true, follows dependency chains transitively (up to depth 7)",
       ),
     project: z
       .string()
