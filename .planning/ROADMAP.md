@@ -370,7 +370,10 @@ Plans:
   3. If the CODEOWNERS enricher throws an unhandled error, the scan still completes and all primary service/connection data is persisted (the error is logged, not re-thrown)
   4. Each enricher writes metadata with a distinct `view` key in `node_metadata` — no two enrichers collide on the same key
   5. The enrichment pass does not trigger beginScan/endScan — `SELECT COUNT(*) FROM services` is unchanged after enrichment runs
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 68-01-PLAN.md — enrichment.js registry + codeowners.js parser and enricher factory
+- [ ] 68-02-PLAN.md — Wire runEnrichmentPass into manager.js success path
 
 ### Phase 69: Auth & DB Extraction
 **Goal**: Auth mechanism and database backend are extracted from each service's source files via regex signal tables and written to the database, with credential value exclusion preventing secret leakage
