@@ -60,25 +60,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| DINT-01 | — | Pending |
-| DINT-02 | — | Pending |
-| DINT-03 | — | Pending |
-| DINT-04 | — | Pending |
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
-| REL-04 | — | Pending |
-| QUAL-01 | — | Pending |
-| QUAL-02 | — | Pending |
+| SEC-01 | Phase 80 | Pending |
+| SEC-02 | Phase 80 | Pending |
+| SEC-03 | Phase 80 | Pending |
+| DINT-01 | Phase 81 | Pending |
+| DINT-02 | Phase 81 | Pending |
+| DINT-03 | Phase 81 | Pending |
+| DINT-04 | Phase 81 | Pending |
+| REL-01 | Phase 82 | Pending |
+| REL-02 | Phase 82 | Pending |
+| REL-03 | Phase 82 | Pending |
+| REL-04 | Phase 83 | Pending |
+| QUAL-01 | Phase 83 | Pending |
+| QUAL-02 | Phase 83 | Pending |
 
 **Coverage:**
 - v5.5.0 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 after roadmap creation*

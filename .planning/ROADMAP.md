@@ -15,7 +15,8 @@
 - ✅ **v5.2.0 Plugin Distribution Fix** — Phases 59-62 (shipped 2026-03-21)
 - ✅ **v5.2.1 Scan Data Integrity** — Phases 63-66 (shipped 2026-03-21)
 - ✅ **v5.3.0 Scan Intelligence & Enrichment** — Phases 67-73 (shipped 2026-03-22)
-- 🚧 **v5.4.0 Scan Pipeline Hardening** — Phases 74-79 (in progress)
+- ✅ **v5.4.0 Scan Pipeline Hardening** — Phases 74-79 (shipped 2026-03-22)
+- 🚧 **v5.5.0 Security & Data Integrity Hardening** — Phases 80-83 (in progress)
 
 ## Phases
 
@@ -136,16 +137,23 @@ Full details: see Phase Details below (archived)
 
 </details>
 
-### 🚧 v5.4.0 Scan Pipeline Hardening (In Progress)
+<details>
+<summary>✅ v5.4.0 Scan Pipeline Hardening (Phases 74-79) — SHIPPED 2026-03-22</summary>
 
-**Milestone Goal:** Fix scan pipeline bugs, wire up the unused discovery phase for language-agnostic scanning, harden validation, and clean up dead code.
+- [x] Phase 74-79: 6 phases, 9 plans — phantom actor guard, repo type fixes, CODEOWNERS path fix, findings validation, discovery phase wiring, prompt debiasing, parallel scan fan-out, actor dedup, version bump
 
-- [ ] **Phase 74: Scan Bug Fixes** - Eliminate phantom actor hexagons, fix repo type misclassification, and fix CODEOWNERS absolute path bug
-- [ ] **Phase 75: Validation Hardening** - Tighten findings.js enum/field validation and replace shell string interpolation with safe execFileSync argument arrays
-- [ ] **Phase 76: Discovery Phase Wiring** - Run discovery agent (Phase 1) before deep scan to produce language/framework context for language-agnostic analysis
-- [ ] **Phase 77: Prompt Debiasing & Dead Code Removal** - Replace hardcoded Python/JS examples with discovery-context guidance; delete agent-prompt-deep.md and promptDeep variable
-- [ ] **Phase 78: Scan Reliability** - Parallel discovery and deep-scan agents with retry-once error handling; UI-layer actor deduplication as defense in depth
-- [ ] **Phase 79: Version Bump** - All manifest files bumped to 5.4.0
+Full details: see Phase Details below (archived)
+
+</details>
+
+### 🚧 v5.5.0 Security & Data Integrity Hardening (In Progress)
+
+**Milestone Goal:** Fix security vulnerabilities, data integrity bugs, and critical test coverage gaps identified during the v5.4.0 audit.
+
+- [ ] **Phase 80: Security Hardening** - Path traversal protection, credential entropy rejection, and concurrent scan locking
+- [ ] **Phase 81: Data Integrity Port** - Port four already-fixed bugs from plugin cache to source repo
+- [ ] **Phase 82: Reliability Hardening** - Agent output parsing strategies, transitive depth limits, and auth-db traversal guards
+- [ ] **Phase 83: Performance & Quality** - FTS5 prepared statement caching, journal mode test coverage, and map command project name UX
 
 ## Phase Details
 
@@ -461,6 +469,9 @@ Plans:
 
 </details>
 
+<details>
+<summary>✅ v5.4.0 Scan Pipeline Hardening (Phases 74-79) — SHIPPED 2026-03-22</summary>
+
 ### Phase 74: Scan Bug Fixes
 **Goal**: Known scan correctness bugs are eliminated — phantom actor hexagons no longer appear for services, repos with docker-compose are correctly typed, and CODEOWNERS ownership patterns match correctly
 **Depends on**: Phase 73 (v5.3.0 complete)
@@ -470,10 +481,10 @@ Plans:
   2. A Node.js or Python service repo that includes docker-compose.yml for local development is classified as its correct type (service/library), not misclassified as infra
   3. A Go or Java project containing only library-type files is classified as a library, not misidentified as a service
   4. After scanning a repo with a CODEOWNERS file, team ownership is populated correctly for services whose paths use relative (not absolute) patterns
-**Plans:** 2/2 plans complete
+**Plans**: 2 plans
 Plans:
-- [ ] 74-01-PLAN.md — SBUG-01 phantom actor guard + SBUG-03 CODEOWNERS absolute-path fix
-- [ ] 74-02-PLAN.md — SBUG-02 detectRepoType docker-compose exemption + Go/Java/Poetry library heuristics
+- [x] 74-01-PLAN.md — SBUG-01 phantom actor guard + SBUG-03 CODEOWNERS absolute-path fix
+- [x] 74-02-PLAN.md — SBUG-02 detectRepoType docker-compose exemption + Go/Java/Poetry library heuristics
 
 ### Phase 75: Validation Hardening
 **Goal**: findings.js rejects agent output with invalid service types or missing required fields before it reaches the database, and file-based shell operations use argument arrays eliminating the shell injection surface
@@ -484,10 +495,10 @@ Plans:
   2. When the agent emits a service with a missing or empty `root_path`, findings.js logs a validation warning and skips that service
   3. When the agent emits a service with a missing or empty `language`, findings.js logs a validation warning and skips that service
   4. `getChangedFiles()` and `getCurrentHead()` use execFileSync with argument arrays — no user-controlled string is ever interpolated into a shell command string
-**Plans:** 2/2 plans complete
+**Plans**: 2 plans
 Plans:
-- [ ] 75-01-PLAN.md — SVAL-01 warn-and-skip validation for service type/root_path/language in findings.js
-- [ ] 75-02-PLAN.md — SVAL-02 replace execSync with execFileSync argument arrays in manager.js
+- [x] 75-01-PLAN.md — SVAL-01 warn-and-skip validation for service type/root_path/language in findings.js
+- [x] 75-02-PLAN.md — SVAL-02 replace execSync with execFileSync argument arrays in manager.js
 
 ### Phase 76: Discovery Phase Wiring
 **Goal**: A discovery agent runs before the deep scan agent for each repo, producing structured language/framework/entry-point context that is injected into the deep scan prompt as {{DISCOVERY_JSON}}
@@ -498,9 +509,9 @@ Plans:
   2. The deep scan agent prompt received by the agent contains a populated {{DISCOVERY_JSON}} block with at least one detected language when scanning a non-empty repo
   3. If the discovery agent fails or times out, the deep scan still runs using a fallback empty discovery context — the scan is not aborted
   4. Discovery output is not persisted to the database — it is ephemeral prompt context only
-**Plans:** 1/1 plans complete
+**Plans**: 1 plan
 Plans:
-- [ ] 76-01-PLAN.md — Wire runDiscoveryPass into scanRepos loop + discovery wiring tests
+- [x] 76-01-PLAN.md — Wire runDiscoveryPass into scanRepos loop + discovery wiring tests
 
 ### Phase 77: Prompt Debiasing & Dead Code Removal
 **Goal**: Active agent prompts use discovery context for language-specific guidance instead of hardcoded Python/JS examples; the unused agent-prompt-deep.md file and promptDeep variable are deleted after any unique content is migrated
@@ -511,9 +522,9 @@ Plans:
   2. Scanning a Java repo produces scan output where the agent correctly identifies Java entry points (e.g., @RestController, Application.java) — not Python or JS patterns
   3. The file `plugins/ligamen/worker/scan/agent-prompt-deep.md` does not exist in the repository
   4. The variable `promptDeep` does not appear in `plugins/ligamen/worker/scan/manager.js`
-**Plans:** 1/1 plans complete
+**Plans**: 1 plan
 Plans:
-- [ ] 77-01-PLAN.md — Debias prompts with multi-language examples, add DISCOVERY_JSON, delete dead code
+- [x] 77-01-PLAN.md — Debias prompts with multi-language examples, add DISCOVERY_JSON, delete dead code
 
 ### Phase 78: Scan Reliability
 **Goal**: Discovery and deep-scan agents run in parallel across repos where possible, failed agents retry once before being skipped with a user-visible warning, and the graph UI filters stale actor data as a defense-in-depth layer
@@ -524,10 +535,10 @@ Plans:
   2. When a deep scan agent call fails on first attempt, a single retry is automatically issued before the repo is skipped — the user sees a warning identifying the skipped repo by name
   3. A skipped repo (after retry failure) does not cause the entire `/ligamen:map` command to error out — remaining repos complete normally
   4. When the /graph endpoint returns an actor whose name exactly matches a known service name, the actor node is absent from the rendered graph and its connections point to the service node instead
-**Plans:** 2/2 plans complete
+**Plans**: 2 plans
 Plans:
-- [ ] 78-01-PLAN.md — Parallel scan fan-out with retry-once error handling
-- [ ] 78-02-PLAN.md — Graph UI actor dedup filter (defense in depth)
+- [x] 78-01-PLAN.md — Parallel scan fan-out with retry-once error handling
+- [x] 78-02-PLAN.md — Graph UI actor dedup filter (defense in depth)
 
 ### Phase 79: Version Bump
 **Goal**: All manifest files reflect version 5.4.0 so the marketplace and plugin install surfaces present the correct version
@@ -537,15 +548,62 @@ Plans:
   1. `plugins/ligamen/package.json`, `plugins/ligamen/.claude-plugin/marketplace.json`, and `plugins/ligamen/.claude-plugin/plugin.json` all contain `"version": "5.4.0"`
   2. Running `make check` (version sync check) passes with all three files at 5.4.0
   3. `claude plugin marketplace add` offers version 5.4.0 of the ligamen plugin
-**Plans:** 1/1 plans complete
+**Plans**: 1 plan
 Plans:
-- [ ] 79-01-PLAN.md — Bump all manifest version fields to 5.4.0
+- [x] 79-01-PLAN.md — Bump all manifest version fields to 5.4.0
+
+</details>
+
+### Phase 80: Security Hardening
+**Goal**: The MCP server, scan manager, and auth extractor are protected against path traversal attacks, credential leakage, and concurrent scan corruption
+**Depends on**: Phase 79 (v5.4.0 complete)
+**Requirements**: SEC-01, SEC-02, SEC-03
+**Success Criteria** (what must be TRUE):
+  1. Passing `../../../etc/passwd` as a project hash to an MCP tool call returns an error and does not open any file outside the configured database directory
+  2. After an auth-db enrichment pass, no extracted value in `services.auth_mechanism` or `services.db_backend` contains a high-entropy string resembling a secret token or connection string password
+  3. Launching `/ligamen:map` on a project while a scan is already in progress for that project returns a clear error message — the second invocation does not corrupt scan bracket state
+  4. Near-threshold strings (entropy close to the rejection cutoff) are logged at warn level so the threshold can be tuned without silent data loss
+**Plans**: TBD
+
+### Phase 81: Data Integrity Port
+**Goal**: Four fixes already validated in the plugin cache are ported to `plugins/ligamen/` so the source repo matches the deployed behavior
+**Depends on**: Phase 80 (security fixes ship first; these are self-contained ports that can follow immediately)
+**Requirements**: DINT-01, DINT-02, DINT-03, DINT-04
+**Success Criteria** (what must be TRUE):
+  1. After endScan() runs, no orphaned schema rows exist for connections that were deleted during stale cleanup — FK constraint violations do not occur when cascades are not present
+  2. Calling upsertRepo() for an existing repo returns the correct existing row ID, not zero — callers that chain the returned ID for further inserts do not create orphaned rows
+  3. node_metadata enrichment tests reference the view names `ownership`, `security`, and `infra` matching the production query — no test failures from mismatched view key strings
+  4. When session-start.sh runs and the worker is already running with an older version, the worker is restarted before the session proceeds — stale compiled code does not serve the new session
+**Plans**: TBD
+
+### Phase 82: Reliability Hardening
+**Goal**: Agent output parsing survives malformed responses, transitive impact queries cannot run unbounded, and the auth-db extractor cannot be driven into deep or large-file traversal
+**Depends on**: Phase 80 (SEC-03 concurrent scan lock should be in place before adding parsing complexity)
+**Requirements**: REL-01, REL-02, REL-03
+**Success Criteria** (what must be TRUE):
+  1. When an agent returns output with JSON embedded inside a fenced code block (```json ... ```), the scan correctly extracts and parses the JSON rather than treating the entire response as plain text
+  2. When an agent returns malformed JSON that cannot be parsed by any strategy, the error is logged with a truncated preview of the raw output and the repo is skipped — no unhandled exception reaches the caller
+  3. A transitive impact query that would traverse more than 7 hops is terminated at the depth limit and returns results found so far with a truncation notice
+  4. A transitive impact query running longer than 30 seconds is cancelled and returns a timeout error rather than hanging indefinitely
+  5. The auth-db extractor skips directories in its exclusion list (node_modules, .git, vendor, etc.) without descending into them, and stops reading any single file after 1MB
+**Plans**: TBD
+
+### Phase 83: Performance & Quality
+**Goal**: FTS5 search uses cached prepared statements for lower per-query overhead, journal mode pragma ordering is explicitly tested, and `/ligamen:map` captures the project name before saving the first scan
+**Depends on**: Phase 81 (data integrity fixes should be in place before adding caching complexity on top of query engine)
+**Requirements**: REL-04, QUAL-01, QUAL-02
+**Success Criteria** (what must be TRUE):
+  1. Running 100 consecutive FTS5 searches does not produce 100 statement compilations — the prepared statement cache is hit for repeat queries and evicted correctly under LRU pressure
+  2. A unit test explicitly verifies that the `journal_mode=WAL` pragma is applied before any read-write operations on a new connection, and that readonly connections use `journal_mode=DELETE`
+  3. Running `/ligamen:map` on a project with no existing `ligamen.config.json` prompts the user for a project name before the scan begins
+  4. The project name entered during `/ligamen:map` is written to `ligamen.config.json` and reused on subsequent invocations without prompting again
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
-(Phase 75 can begin after Phase 73, in parallel with Phase 74; Phase 76 depends on Phase 74; Phase 77 depends on Phase 76; Phase 78 depends on Phase 76; Phase 79 must be last)
+Phases execute in numeric order: 80 → 81 → 82 → 83
+(Phase 81 can begin immediately after Phase 80 completes; Phase 82 depends on Phase 80; Phase 83 depends on Phase 81)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -562,9 +620,8 @@ Phases execute in numeric order: 74 → 75 → 76 → 77 → 78 → 79
 | 59-62 | v5.2.0 | 5/5 | Complete | 2026-03-21 |
 | 63-66 | v5.2.1 | 7/7 | Complete | 2026-03-21 |
 | 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
-| 74. Scan Bug Fixes | 2/2 | Complete    | 2026-03-22 | - |
-| 75. Validation Hardening | 2/2 | Complete    | 2026-03-22 | - |
-| 76. Discovery Phase Wiring | 1/1 | Complete    | 2026-03-22 | - |
-| 77. Prompt Debiasing & Dead Code Removal | 1/1 | Complete    | 2026-03-22 | - |
-| 78. Scan Reliability | 2/2 | Complete    | 2026-03-22 | - |
-| 79. Version Bump | 1/1 | Complete    | 2026-03-22 | - |
+| 74-79 | v5.4.0 | 9/9 | Complete | 2026-03-22 |
+| 80. Security Hardening | v5.5.0 | 0/TBD | Not started | - |
+| 81. Data Integrity Port | v5.5.0 | 0/TBD | Not started | - |
+| 82. Reliability Hardening | v5.5.0 | 0/TBD | Not started | - |
+| 83. Performance & Quality | v5.5.0 | 0/TBD | Not started | - |
