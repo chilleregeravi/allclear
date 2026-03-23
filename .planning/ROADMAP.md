@@ -654,7 +654,10 @@ Plans:
   2. When an MCP tool handler throws an error, the worker log contains a structured entry with the error message and full stack trace — not just the MCP error status response
   3. Stack traces are visible in the log terminal's component-filtered view for both http and mcp components
   4. All logger.error calls across worker modules include err.stack when an Error object is available — no call site logs only err.message
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 85-01-PLAN.md — Add stack traces to all HTTP route catch blocks (ERR-01, LOG-03 for http.js)
+- [ ] 85-02-PLAN.md — Wrap MCP tool handlers in try/catch + add err.stack to all logger.error calls (ERR-02, LOG-03)
 
 ### Phase 86: Scan Observability
 **Goal**: Scan lifecycle events are logged at appropriate verbosity — BEGIN/END for each scanRepos invocation and per-repo progress for discovery, deep scan, and enrichment — and the auth-db extractor's entropy warnings reach the structured logger
