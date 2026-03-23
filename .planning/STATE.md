@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.6.0
 milestone_name: Logging & Observability
 status: Phase complete — ready for verification
-stopped_at: Completed 86-01-PLAN.md
-last_updated: "2026-03-23T10:57:14.450Z"
+stopped_at: Completed 87-01-PLAN.md
+last_updated: "2026-03-23T10:59:00.906Z"
 progress:
   total_phases: 32
   completed_phases: 0
@@ -46,6 +46,8 @@ Plan: 1 of 1
 - [Phase 84-logger-infrastructure]: rotateIfNeeded() called after level-filter so suppressed messages do not trigger rotation
 - [Phase 85-error-logging]: stack: err.stack added to all 6 catch blocks in http.js that return 500
 - [Phase 86-scan-observability]: enricherCount in 'enrichment done' uses services.length (services enriched per run), not registered enricher count
+- [Phase 87-logger-adoption]: pool.js passes null explicitly to document logger injection deferred to future phase when pool-level logger context is available
+- [Phase 87-logger-adoption]: Optional chaining (this._logger?.warn ?? console.warn) guards against loggers missing .warn method
 
 ### Phase Structure
 
@@ -64,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T10:57:14.446Z
-Stopped at: Completed 86-01-PLAN.md
+Last session: 2026-03-23T10:59:00.902Z
+Stopped at: Completed 87-01-PLAN.md
 Resume file: None

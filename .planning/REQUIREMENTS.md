@@ -26,7 +26,7 @@ Requirements for Logging & Observability milestone. Each maps to roadmap phases.
 
 ### Logger Adoption
 
-- [ ] **ADOPT-01**: QueryEngine constructor accepts optional logger parameter — cross-repo name collision warning (line 1257) uses injected logger instead of console.warn
+- [x] **ADOPT-01**: QueryEngine constructor accepts optional logger parameter — cross-repo name collision warning (line 1257) uses injected logger instead of console.warn
 
 ## Future Requirements
 
@@ -61,7 +61,7 @@ Requirements for Logging & Observability milestone. Each maps to roadmap phases.
 | SCAN-03 | Phase 86 | Pending |
 | ERR-01 | Phase 85 | Complete |
 | ERR-02 | Phase 85 | Pending |
-| ADOPT-01 | Phase 87 | Pending |
+| ADOPT-01 | Phase 87 | Complete |
 
 **Coverage:**
 - v5.6.0 requirements: 9 total

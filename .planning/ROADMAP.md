@@ -684,7 +684,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 87-01-PLAN.md — Add optional logger to QueryEngine, replace console.warn with structured logger fallback
+- [x] 87-01-PLAN.md — Add optional logger to QueryEngine, replace console.warn with structured logger fallback
 
 ### Phase 88: Version Bump
 **Goal**: All manifest files reflect version 5.6.0 so the marketplace and plugin install surfaces present the correct version
@@ -720,5 +720,5 @@ Phase 84 first (logger infrastructure), then 85/86/87 in any order (parallel), t
 | 84. Logger Infrastructure | v5.6.0 | 1/1 | Complete   | 2026-03-23 |
 | 85. Error Logging | v5.6.0 | 1/2 | In Progress|  |
 | 86. Scan Observability | v5.6.0 | 1/2 | In Progress|  |
-| 87. Logger Adoption | v5.6.0 | 0/? | Not started | - |
+| 87. Logger Adoption | v5.6.0 | 1/1 | Complete   | 2026-03-23 |
 | 88. Version Bump | v5.6.0 | 0/? | Not started | - |
