@@ -724,7 +724,9 @@ Plans:
   1. Scanning a mono-repo with subdirectory manifests (package.json, pyproject.toml, Cargo.toml, go.mod) produces a discovery result with multiple service_hints entries — one per subdirectory
   2. Scanning a repo that contains files named *client*, *api*, or *http*, or files importing fetch/requests/reqwest/httpx produces a discovery result with a non-empty client_files array
   3. Scanning a repo with no client-like files produces a discovery result with an empty (or absent) client_files array — no false positives
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 90-01-PLAN.md — Add mono-repo heuristic and client_files schema to agent-prompt-discovery.md
 
 ### Phase 91: Version Bump
 **Goal**: All manifest files reflect version 5.7.0 so the marketplace and plugin install surfaces present the correct version
