@@ -6,6 +6,7 @@ import { getQueryEngine } from "./db/pool.js";
 import { initChromaSync } from "./server/chroma.js";
 import { createLogger } from "./lib/logger.js";
 import { setScanLogger } from "./scan/manager.js";
+import { setExtractorLogger } from "./scan/enrichment/auth-db-extractor.js";
 
 // ---------------------------------------------------------------------------
 // 1. Parse CLI args
@@ -53,6 +54,7 @@ fs.writeFileSync(PID_FILE, String(process.pid));
 // ---------------------------------------------------------------------------
 const logger = createLogger({ dataDir, port, logLevel, component: 'worker' });
 setScanLogger(logger);
+setExtractorLogger(logger);
 
 // ---------------------------------------------------------------------------
 // 6. Initialize ChromaDB (optional — non-blocking)

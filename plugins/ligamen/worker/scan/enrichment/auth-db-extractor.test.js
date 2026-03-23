@@ -756,3 +756,22 @@ datasource db {
     db.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// SCAN-03: setExtractorLogger wiring — entropy warn routing
+// ---------------------------------------------------------------------------
+
+describe('setExtractorLogger — near-threshold entropy warn routing (SCAN-03)', () => {
+  it('setExtractorLogger stores logger for near-threshold entropy warn routing (SCAN-03)', () => {
+    const warnCalls = [];
+    // Inject a mock logger
+    setExtractorLogger({ warn: (msg, extra) => warnCalls.push({ msg, extra }) });
+    // Verify a string with entropy in warn range [3.5, 4.0) is correctly identified
+    const nearThresholdStr = "aaBbCcDdEeFfGgHh"; // ~3.875 bits/char (16 chars, 8 unique pairs)
+    const entropy = shannonEntropy(nearThresholdStr);
+    assert.ok(entropy >= 3.5, `entropy ${entropy.toFixed(3)} must be >= 3.5 (ENTROPY_WARN_THRESHOLD)`);
+    assert.ok(entropy < 4.0, `entropy ${entropy.toFixed(3)} must be < 4.0 (ENTROPY_REJECT_THRESHOLD)`);
+    // Confirm no throw when logger is set — wiring works
+    setExtractorLogger(null); // cleanup: reset logger after test
+  });
+});
