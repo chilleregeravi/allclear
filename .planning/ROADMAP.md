@@ -670,7 +670,7 @@ Plans:
   4. When the auth-db extractor encounters a near-threshold entropy value, the warn log entry appears in the log terminal under the correct component tag — not silently discarded
 **Plans**: 2 plans
 Plans:
-- [ ] 86-01-PLAN.md — manager.js: BEGIN/END lifecycle logging + per-repo discovery/deep-scan/enrichment progress (SCAN-01, SCAN-02)
+- [x] 86-01-PLAN.md — manager.js: BEGIN/END lifecycle logging + per-repo discovery/deep-scan/enrichment progress (SCAN-01, SCAN-02)
 - [ ] 86-02-PLAN.md — worker/index.js: wire setExtractorLogger alongside setScanLogger (SCAN-03)
 
 ### Phase 87: Logger Adoption
@@ -719,6 +719,6 @@ Phase 84 first (logger infrastructure), then 85/86/87 in any order (parallel), t
 | 80-83 | v5.5.0 | 9/9 | Complete | 2026-03-22 |
 | 84. Logger Infrastructure | v5.6.0 | 1/1 | Complete   | 2026-03-23 |
 | 85. Error Logging | v5.6.0 | 1/2 | In Progress|  |
-| 86. Scan Observability | v5.6.0 | 0/? | Not started | - |
+| 86. Scan Observability | v5.6.0 | 1/2 | In Progress|  |
 | 87. Logger Adoption | v5.6.0 | 0/? | Not started | - |
 | 88. Version Bump | v5.6.0 | 0/? | Not started | - |
