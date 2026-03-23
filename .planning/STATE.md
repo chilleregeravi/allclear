@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.6.0
 milestone_name: Logging & Observability
 status: Phase complete — ready for verification
-stopped_at: Completed 84-01-PLAN.md
-last_updated: "2026-03-23T10:46:34.849Z"
+stopped_at: Completed 85-01-PLAN.md
+last_updated: "2026-03-23T10:56:27.500Z"
 progress:
   total_phases: 32
   completed_phases: 0
@@ -44,6 +44,7 @@ Plan: 1 of 1
 - v5.6.0: All error logging adds err.stack alongside err.message
 - [Phase 84-logger-infrastructure]: Rotation deletes .3 (oldest) on each rotation to keep exactly .1, .2, .3 — no .4 ever created
 - [Phase 84-logger-infrastructure]: rotateIfNeeded() called after level-filter so suppressed messages do not trigger rotation
+- [Phase 85-error-logging]: stack: err.stack added to all 6 catch blocks in http.js that return 500
 
 ### Phase Structure
 
@@ -62,6 +63,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T10:46:34.845Z
-Stopped at: Completed 84-01-PLAN.md
+Last session: 2026-03-23T10:56:27.496Z
+Stopped at: Completed 85-01-PLAN.md
 Resume file: None

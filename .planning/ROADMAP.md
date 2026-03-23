@@ -656,7 +656,7 @@ Plans:
   4. All logger.error calls across worker modules include err.stack when an Error object is available — no call site logs only err.message
 **Plans**: 2 plans
 Plans:
-- [ ] 85-01-PLAN.md — Add stack traces to all HTTP route catch blocks (ERR-01, LOG-03 for http.js)
+- [x] 85-01-PLAN.md — Add stack traces to all HTTP route catch blocks (ERR-01, LOG-03 for http.js)
 - [ ] 85-02-PLAN.md — Wrap MCP tool handlers in try/catch + add err.stack to all logger.error calls (ERR-02, LOG-03)
 
 ### Phase 86: Scan Observability
@@ -718,7 +718,7 @@ Phase 84 first (logger infrastructure), then 85/86/87 in any order (parallel), t
 | 74-79 | v5.4.0 | 9/9 | Complete | 2026-03-22 |
 | 80-83 | v5.5.0 | 9/9 | Complete | 2026-03-22 |
 | 84. Logger Infrastructure | v5.6.0 | 1/1 | Complete   | 2026-03-23 |
-| 85. Error Logging | v5.6.0 | 0/? | Not started | - |
+| 85. Error Logging | v5.6.0 | 1/2 | In Progress|  |
 | 86. Scan Observability | v5.6.0 | 0/? | Not started | - |
 | 87. Logger Adoption | v5.6.0 | 0/? | Not started | - |
 | 88. Version Bump | v5.6.0 | 0/? | Not started | - |
