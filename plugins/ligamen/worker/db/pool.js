@@ -58,7 +58,7 @@ export function getQueryEngine(projectRoot) {
   try {
     // Use openDb() to ensure migrations run (e.g., adding 'type' column)
     const db = openDb(projectRoot);
-    const qe = new QueryEngine(db);
+    const qe = new QueryEngine(db, null); // logger injected at higher level in future phases
     pool.set(projectRoot, qe);
     return qe;
   } catch (err) {
@@ -179,7 +179,7 @@ export function getQueryEngineByHash(hash) {
     db.pragma("busy_timeout = 5000");
     // Run all pending migrations using the same files as openDb()
     runMigrations(db);
-    const qe = new QueryEngine(db);
+    const qe = new QueryEngine(db, null); // logger injected at higher level in future phases
     pool.set(`__hash__${hash}`, qe);
     return qe;
   } catch (err) {
