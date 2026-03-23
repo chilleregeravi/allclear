@@ -1,5 +1,15 @@
 # Milestones
 
+## v5.6.0 Logging & Observability (Shipped: 2026-03-23)
+
+**Phases completed:** 0 phases, 0 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v5.5.0 Security & Data Integrity Hardening (Shipped: 2026-03-22)
 
 **Phases completed:** 4 phases, 9 plans, 0 tasks

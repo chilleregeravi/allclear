@@ -135,21 +135,18 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Journal mode pragma ordering contract tests — v5.5.0
 - ✓ /ligamen:map asks for project name before first scan — v5.5.0
 
+- ✓ Size-based log rotation (10MB max, keep 3 files) — v5.6.0
+- ✓ Stderr daemon detection (skip stderr when no TTY) — v5.6.0
+- ✓ Scan lifecycle logging (BEGIN/END + per-repo progress) — v5.6.0
+- ✓ setExtractorLogger wired for auth-db entropy warnings — v5.6.0
+- ✓ err.stack in all error log calls across worker modules — v5.6.0
+- ✓ HTTP route errors logged to structured logger with stack traces — v5.6.0
+- ✓ MCP tool errors logged to structured logger with stack traces — v5.6.0
+- ✓ QueryEngine accepts injected logger (replaces console.warn) — v5.6.0
+
 ### Active
 
-## Current Milestone: v5.6.0 Logging & Observability
-
-**Goal:** Production-grade logging infrastructure with rotation, scan lifecycle visibility, stderr dedup, and consistent structured error logging across all modules.
-
-**Target features:**
-- Size-based log rotation (10MB max, keep 3 files) in logger.js
-- Stderr daemon detection (skip stderr when no TTY)
-- Scan lifecycle logging (BEGIN/END + per-repo discovery/scan/enrichment progress)
-- Wire setExtractorLogger in worker/index.js
-- Add err.stack to all error log calls
-- Log HTTP route errors to structured logger
-- Log MCP tool errors to structured logger
-- Inject logger into QueryEngine (replace console.warn)
+(No active requirements — start next milestone with `/gsd:new-milestone`)
 
 ### Out of Scope
 
