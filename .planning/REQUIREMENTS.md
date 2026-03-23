@@ -17,7 +17,7 @@ Requirements for Logging & Observability milestone. Each maps to roadmap phases.
 
 - [x] **SCAN-01**: Scan manager logs BEGIN event (repo count, scan mode) and END event (services found, connections found, duration) for every scanRepos invocation
 - [x] **SCAN-02**: Scan manager logs per-repo progress — discovery done (languages/frameworks), deep scan done (services/connections), enrichment done (enrichers applied)
-- [ ] **SCAN-03**: setExtractorLogger is called from worker/index.js so auth-db enricher entropy warnings reach the structured logger
+- [x] **SCAN-03**: setExtractorLogger is called from worker/index.js so auth-db enricher entropy warnings reach the structured logger
 
 ### Error Logging
 
@@ -58,7 +58,7 @@ Requirements for Logging & Observability milestone. Each maps to roadmap phases.
 | LOG-03 | Phase 85 | Complete |
 | SCAN-01 | Phase 86 | Complete |
 | SCAN-02 | Phase 86 | Complete |
-| SCAN-03 | Phase 86 | Pending |
+| SCAN-03 | Phase 86 | Complete |
 | ERR-01 | Phase 85 | Complete |
 | ERR-02 | Phase 85 | Pending |
 | ADOPT-01 | Phase 87 | Complete |
