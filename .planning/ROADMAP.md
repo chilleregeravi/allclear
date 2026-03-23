@@ -668,7 +668,10 @@ Plans:
   2. After a scan completes, an END entry is logged that includes the total services found, connections found, and wall-clock duration
   3. For each repo scanned, three progress log lines appear: discovery done (with detected languages/frameworks), deep scan done (with service/connection counts), enrichment done (with enrichers applied)
   4. When the auth-db extractor encounters a near-threshold entropy value, the warn log entry appears in the log terminal under the correct component tag — not silently discarded
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 86-01-PLAN.md — manager.js: BEGIN/END lifecycle logging + per-repo discovery/deep-scan/enrichment progress (SCAN-01, SCAN-02)
+- [ ] 86-02-PLAN.md — worker/index.js: wire setExtractorLogger alongside setScanLogger (SCAN-03)
 
 ### Phase 87: Logger Adoption
 **Goal**: QueryEngine accepts an optional injected logger so the cross-repo name collision warning uses the structured logger instead of console.warn
