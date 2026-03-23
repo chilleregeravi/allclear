@@ -172,6 +172,9 @@ Full details: see Phase Details below (archived)
 **Milestone Goal:** Improve scan accuracy with proper crossing semantics, cross-repo reconciliation, mono-repo detection, and client file identification.
 
 - [ ] **Phase 89: Crossing Semantics** - Define external/cross-service/internal crossing values in agent prompts and add post-scan reconciliation in map.md
+  - **Plans:** 2 plans
+  - [ ] 89-01-PLAN.md — Update agent-prompt-common.md with crossing semantics definition; fix crossing values in all three type-specific prompt examples (CROSS-01, CROSS-02)
+  - [ ] 89-02-PLAN.md — Insert post-scan reconciliation step into map.md between scan and confirm (CROSS-03)
 - [ ] **Phase 90: Discovery Improvements** - Mono-repo multi-manifest detection and client_files field in discovery schema
 - [ ] **Phase 91: Version Bump** - Bump all 5 manifest files to v5.7.0
 
