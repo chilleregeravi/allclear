@@ -27,16 +27,9 @@ EVENT=$(printf '%s\n' "$INPUT" | jq -r '.hook_event_name // empty')
 # CWD fallback to $PWD if empty
 [[ -z "$CWD" ]] && CWD="$PWD"
 
-# SSTH-05: Deduplication — only inject context once per session
-if [[ -n "$SESSION_ID" ]]; then
-  FLAG_FILE="/tmp/ligamen_session_${SESSION_ID}.initialized"
-  if [[ -f "$FLAG_FILE" ]]; then
-    exit 0  # already ran for this session
-  fi
-  touch "$FLAG_FILE"
-fi
-
-# INTG-01: Worker auto-start — source worker-client.sh if available
+# INTG-02: Version mismatch check — runs BEFORE dedup guard (SSTH-05).
+# Must fire on every UserPromptSubmit so mid-session plugin updates are detected.
+# The check is cheap (one jq + one curl with 1s timeout) and idempotent.
 WORKER_CLIENT_LIB=""
 if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && [[ -f "${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh" ]]; then
   WORKER_CLIENT_LIB="${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh"
@@ -46,45 +39,53 @@ else
   [[ -f "$WORKER_CLIENT" ]] && WORKER_CLIENT_LIB="$WORKER_CLIENT"
 fi
 
-WORKER_STATUS=""
+_worker_restarted=false
 if [[ -n "$WORKER_CLIENT_LIB" ]]; then
   # shellcheck source=lib/worker-client.sh
   source "$WORKER_CLIENT_LIB"
+  if worker_running 2>/dev/null; then
+    _installed_version=""
+    _running_version=""
+    if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && [[ -f "${CLAUDE_PLUGIN_ROOT}/package.json" ]]; then
+      _installed_version=$(jq -r '.version // empty' "${CLAUDE_PLUGIN_ROOT}/package.json" 2>/dev/null || true)
+    fi
+    _data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
+    _port_file="${_data_dir}/worker.port"
+    if [[ -f "$_port_file" ]]; then
+      _port=$(cat "$_port_file")
+      _running_version=$(curl -s --max-time 1 "http://127.0.0.1:${_port}/api/version" 2>/dev/null | jq -r '.version // empty' 2>/dev/null || true)
+    fi
+    if [[ -n "$_installed_version" && -n "$_running_version" \
+        && "$_running_version" != "unknown" \
+        && "$_installed_version" != "$_running_version" ]]; then
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/worker-stop.sh" >/dev/null 2>&1 || true
+      worker_start_background 2>/dev/null || true
+      _worker_restarted=true
+    fi
+  fi
+fi
+
+# SSTH-05: Deduplication — only inject context once per session
+# (version check above is exempt — it must run on every prompt to catch mid-session updates)
+if [[ -n "$SESSION_ID" ]]; then
+  FLAG_FILE="/tmp/ligamen_session_${SESSION_ID}.initialized"
+  if [[ -f "$FLAG_FILE" ]]; then
+    exit 0  # already ran for this session
+  fi
+  touch "$FLAG_FILE"
+fi
+
+# INTG-01: Worker auto-start (first session only — dedup guard ensures this)
+WORKER_STATUS=""
+if [[ -n "$WORKER_CLIENT_LIB" ]]; then
   CONFIG_FILE="${CWD}/ligamen.config.json"
   if [[ -f "$CONFIG_FILE" ]] && jq -e '.["impact-map"]' "$CONFIG_FILE" >/dev/null 2>&1; then
-    if ! worker_running 2>/dev/null; then
+    if [[ "$_worker_restarted" == "true" ]]; then
+      WORKER_STATUS="Ligamen worker: restarted (${_running_version} → ${_installed_version})"
+    elif ! worker_running 2>/dev/null; then
       worker_start_background 2>/dev/null || true
     else
-      # INTG-02: Version mismatch check — restart worker if plugin was updated.
-      # Without this, a running old-version worker is never restarted because
-      # worker-start.sh (which has the version check) is only called when the
-      # worker is NOT running.
-      _needs_restart=false
-      _installed_version=""
-      _running_version=""
-      if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && [[ -f "${CLAUDE_PLUGIN_ROOT}/package.json" ]]; then
-        _installed_version=$(jq -r '.version // empty' "${CLAUDE_PLUGIN_ROOT}/package.json" 2>/dev/null || true)
-      fi
-      _data_dir="${LIGAMEN_DATA_DIR:-$HOME/.ligamen}"
-      _port_file="${_data_dir}/worker.port"
-      if [[ -f "$_port_file" ]]; then
-        _port=$(cat "$_port_file")
-        _running_version=$(curl -s --max-time 1 "http://127.0.0.1:${_port}/api/version" 2>/dev/null | jq -r '.version // empty' 2>/dev/null || true)
-      fi
-      if [[ -n "$_installed_version" && -n "$_running_version" \
-          && "$_running_version" != "unknown" \
-          && "$_installed_version" != "$_running_version" ]]; then
-        _needs_restart=true
-      fi
-
-      if [[ "$_needs_restart" == "true" ]]; then
-        # Stop old worker and start new one
-        bash "${CLAUDE_PLUGIN_ROOT}/scripts/worker-stop.sh" >/dev/null 2>&1 || true
-        worker_start_background 2>/dev/null || true
-        WORKER_STATUS="Ligamen worker: restarted (${_running_version} → ${_installed_version})"
-      else
-        WORKER_STATUS=$(worker_status_line 2>/dev/null || echo "")
-      fi
+      WORKER_STATUS=$(worker_status_line 2>/dev/null || echo "")
     fi
   fi
 fi
