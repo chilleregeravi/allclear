@@ -292,8 +292,8 @@ test("does not rotate when file is below 10 MB", () => {
   const tmp = makeTmpDir();
   try {
     const logPath = path.join(tmp, "logs", "worker.log");
-    // Write a 1-byte file
-    fs.writeFileSync(logPath, "x");
+    // Write a small file (below 10 MB threshold) — include newline so it forms its own line
+    fs.writeFileSync(logPath, "x\n");
     const logger = createLogger({
       dataDir: tmp,
       port: 37888,

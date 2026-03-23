@@ -2,6 +2,31 @@ import fs from "node:fs";
 import path from "node:path";
 
 const LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+const MAX_LOG_BYTES = 10 * 1024 * 1024; // 10 MB
+
+/**
+ * rotateIfNeeded — renames log files to implement size-based rotation.
+ * Keeps at most 3 rotated files (.1, .2, .3); deletes .4 on the next rotation.
+ *
+ * @param {string} logPath - Absolute path to the active log file
+ */
+function rotateIfNeeded(logPath) {
+  let size = 0;
+  try {
+    size = fs.statSync(logPath).size;
+  } catch {
+    // File does not exist yet — treat as 0 bytes, no rotation needed
+    return;
+  }
+  if (size < MAX_LOG_BYTES) return;
+
+  // Delete the oldest rotated file to keep at most 3 rotated files (.1, .2, .3)
+  try { fs.rmSync(`${logPath}.3`, { force: true }); } catch { /* ignore */ }
+  // Rename chain: .2 → .3, .1 → .2, active → .1
+  try { fs.renameSync(`${logPath}.2`, `${logPath}.3`); } catch { /* ignore ENOENT */ }
+  try { fs.renameSync(`${logPath}.1`, `${logPath}.2`); } catch { /* ignore ENOENT */ }
+  try { fs.renameSync(logPath, `${logPath}.1`); } catch { /* ignore ENOENT */ }
+}
 
 /**
  * createLogger — returns a structured logger bound to a component tag.
@@ -34,8 +59,12 @@ export function createLogger({ dataDir, port, logLevel = "INFO", component }) {
     Object.assign(lineObj, extra);
 
     const line = JSON.stringify(lineObj);
-    fs.appendFileSync(path.join(dataDir, "logs", "worker.log"), line + "\n");
-    process.stderr.write(line + "\n");
+    const logPath = path.join(dataDir, "logs", "worker.log");
+    rotateIfNeeded(logPath);
+    fs.appendFileSync(logPath, line + "\n");
+    if (process.stderr.isTTY) {
+      process.stderr.write(line + "\n");
+    }
   }
 
   return {
