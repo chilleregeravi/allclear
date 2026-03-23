@@ -16,7 +16,8 @@
 - ✅ **v5.2.1 Scan Data Integrity** — Phases 63-66 (shipped 2026-03-21)
 - ✅ **v5.3.0 Scan Intelligence & Enrichment** — Phases 67-73 (shipped 2026-03-22)
 - ✅ **v5.4.0 Scan Pipeline Hardening** — Phases 74-79 (shipped 2026-03-22)
-- 🚧 **v5.5.0 Security & Data Integrity Hardening** — Phases 80-83 (in progress)
+- ✅ **v5.5.0 Security & Data Integrity Hardening** — Phases 80-83 (shipped 2026-03-22)
+- 🚧 **v5.6.0 Logging & Observability** — Phases 84-88 (in progress)
 
 ## Phases
 
@@ -146,14 +147,24 @@ Full details: see Phase Details below (archived)
 
 </details>
 
-### 🚧 v5.5.0 Security & Data Integrity Hardening (In Progress)
+<details>
+<summary>✅ v5.5.0 Security & Data Integrity Hardening (Phases 80-83) — SHIPPED 2026-03-22</summary>
 
-**Milestone Goal:** Fix security vulnerabilities, data integrity bugs, and critical test coverage gaps identified during the v5.4.0 audit.
+- [x] Phase 80-83: 4 phases, 9 plans — path traversal hardening, credential entropy rejection, concurrent scan lock, data integrity ports, agent output parsing, transitive depth limits, FTS5 caching, journal mode tests, map project name UX
 
-- [ ] **Phase 80: Security Hardening** - Path traversal protection, credential entropy rejection, and concurrent scan locking
-- [ ] **Phase 81: Data Integrity Port** - Port four already-fixed bugs from plugin cache to source repo
-- [ ] **Phase 82: Reliability Hardening** - Agent output parsing strategies, transitive depth limits, and auth-db traversal guards
-- [ ] **Phase 83: Performance & Quality** - FTS5 prepared statement caching, journal mode test coverage, and map command project name UX
+Full details: see Phase Details below (archived)
+
+</details>
+
+### 🚧 v5.6.0 Logging & Observability (In Progress)
+
+**Milestone Goal:** Production-grade logging infrastructure with rotation, scan lifecycle visibility, stderr dedup, and consistent structured error logging across all modules.
+
+- [ ] **Phase 84: Logger Infrastructure** - Size-based log rotation and TTY-aware stderr suppression in logger.js
+- [ ] **Phase 85: Error Logging** - Structured error logging with stack traces in HTTP routes, MCP tools, and all error call sites
+- [ ] **Phase 86: Scan Observability** - Scan lifecycle logging (BEGIN/END/per-repo progress) and extractor logger wiring
+- [ ] **Phase 87: Logger Adoption** - QueryEngine accepts injected logger to replace console.warn
+- [ ] **Phase 88: Version Bump** - Bump all 5 manifest files (package.json, plugin.json, runtime-deps.json, 2x marketplace.json) to v5.6.0
 
 ## Phase Details
 
@@ -554,6 +565,9 @@ Plans:
 
 </details>
 
+<details>
+<summary>✅ v5.5.0 Security & Data Integrity Hardening (Phases 80-83) — SHIPPED 2026-03-22</summary>
+
 ### Phase 80: Security Hardening
 **Goal**: The MCP server, scan manager, and auth extractor are protected against path traversal attacks, credential leakage, and concurrent scan corruption
 **Depends on**: Phase 79 (v5.4.0 complete)
@@ -565,9 +579,9 @@ Plans:
   4. Near-threshold strings (entropy close to the rejection cutoff) are logged at warn level so the threshold can be tuned without silent data loss
 **Plans**: 3 plans
 Plans:
-- [ ] 80-01-PLAN.md — Path traversal hardening for resolveDb and DB pool (SEC-01)
-- [ ] 80-02-PLAN.md — Shannon entropy credential rejection in auth-db extractor (SEC-02)
-- [ ] 80-03-PLAN.md — Concurrent scan lock with stale detection in manager (SEC-03)
+- [x] 80-01-PLAN.md — Path traversal hardening for resolveDb and DB pool (SEC-01)
+- [x] 80-02-PLAN.md — Shannon entropy credential rejection in auth-db extractor (SEC-02)
+- [x] 80-03-PLAN.md — Concurrent scan lock with stale detection in manager (SEC-03)
 
 ### Phase 81: Data Integrity Port
 **Goal**: Four fixes already validated in the plugin cache are ported to `plugins/ligamen/` so the source repo matches the deployed behavior
@@ -580,8 +594,8 @@ Plans:
   4. When session-start.sh runs and the worker is already running with an older version, the worker is restarted before the session proceeds — stale compiled code does not serve the new session
 **Plans**: 2 plans
 Plans:
-- [ ] 81-01-PLAN.md — Port DINT-01 endScan FK fix + DINT-02 upsertRepo ID fix
-- [ ] 81-02-PLAN.md — Port DINT-03 test view names + DINT-04 worker version restart
+- [x] 81-01-PLAN.md — Port DINT-01 endScan FK fix + DINT-02 upsertRepo ID fix
+- [x] 81-02-PLAN.md — Port DINT-03 test view names + DINT-04 worker version restart
 
 ### Phase 82: Reliability Hardening
 **Goal**: Agent output parsing survives malformed responses, transitive impact queries cannot run unbounded, and the auth-db extractor cannot be driven into deep or large-file traversal
@@ -595,8 +609,8 @@ Plans:
   5. The auth-db extractor skips directories in its exclusion list (node_modules, .git, vendor, etc.) without descending into them, and stops reading any single file after 1MB
 **Plans**: 2 plans
 Plans:
-- [ ] 82-01-PLAN.md — Multi-strategy agent output parsing + auth-db traversal guards
-- [ ] 82-02-PLAN.md — Transitive impact depth limit and timeout
+- [x] 82-01-PLAN.md — Multi-strategy agent output parsing + auth-db traversal guards
+- [x] 82-02-PLAN.md — Transitive impact depth limit and timeout
 
 ### Phase 83: Performance & Quality
 **Goal**: FTS5 search uses cached prepared statements for lower per-query overhead, journal mode pragma ordering is explicitly tested, and `/ligamen:map` captures the project name before saving the first scan
@@ -609,14 +623,71 @@ Plans:
   4. The project name entered during `/ligamen:map` is written to `ligamen.config.json` and reused on subsequent invocations without prompting again
 **Plans**: 2 plans
 Plans:
-- [ ] 83-01-PLAN.md — FTS5 prepared statement LRU cache + journal mode pragma tests
-- [ ] 83-02-PLAN.md — Map command project name prompt and config persistence
+- [x] 83-01-PLAN.md — FTS5 prepared statement LRU cache + journal mode pragma tests
+- [x] 83-02-PLAN.md — Map command project name prompt and config persistence
+
+</details>
+
+### 🚧 v5.6.0 Logging & Observability (In Progress)
+
+**Milestone Goal:** Production-grade logging infrastructure with rotation, scan lifecycle visibility, stderr dedup, and consistent structured error logging across all modules.
+
+### Phase 84: Logger Infrastructure
+**Goal**: logger.js supports size-based log rotation and suppresses stderr output in daemon mode, eliminating double-write when running under nohup
+**Depends on**: Phase 83 (v5.5.0 complete)
+**Requirements**: LOG-01, LOG-02
+**Success Criteria** (what must be TRUE):
+  1. After writing enough log lines to exceed 10MB, worker.log is renamed to worker.log.1 and a new worker.log is started — old content is not lost
+  2. At most 3 rotated files exist alongside the active log (worker.log.1, worker.log.2, worker.log.3) — worker.log.4 and beyond are deleted
+  3. When the worker process has no TTY (daemon mode), log lines are written only to the log file — not duplicated to stderr
+  4. When the worker is run interactively with a TTY attached, stderr output continues to work as before
+**Plans**: TBD
+
+### Phase 85: Error Logging
+**Goal**: All catch blocks in HTTP routes and MCP tool handlers log structured errors with stack traces to the worker logger, and every error log call site across all modules includes err.stack
+**Depends on**: Phase 84 (logger must be stable before wiring new call sites)
+**Requirements**: ERR-01, ERR-02, LOG-03
+**Success Criteria** (what must be TRUE):
+  1. When an HTTP route handler throws an error, the worker log contains a structured entry with the error message and full stack trace — not just the HTTP 500 response body
+  2. When an MCP tool handler throws an error, the worker log contains a structured entry with the error message and full stack trace — not just the MCP error status response
+  3. Stack traces are visible in the log terminal's component-filtered view for both http and mcp components
+  4. All logger.error calls across worker modules include err.stack when an Error object is available — no call site logs only err.message
+**Plans**: TBD
+
+### Phase 86: Scan Observability
+**Goal**: Scan lifecycle events are logged at appropriate verbosity — BEGIN/END for each scanRepos invocation and per-repo progress for discovery, deep scan, and enrichment — and the auth-db extractor's entropy warnings reach the structured logger
+**Depends on**: Phase 84 (logger infrastructure must be in place)
+**Requirements**: SCAN-01, SCAN-02, SCAN-03
+**Success Criteria** (what must be TRUE):
+  1. Starting a scan logs a BEGIN entry that includes the number of repos being scanned and the scan mode (full vs incremental)
+  2. After a scan completes, an END entry is logged that includes the total services found, connections found, and wall-clock duration
+  3. For each repo scanned, three progress log lines appear: discovery done (with detected languages/frameworks), deep scan done (with service/connection counts), enrichment done (with enrichers applied)
+  4. When the auth-db extractor encounters a near-threshold entropy value, the warn log entry appears in the log terminal under the correct component tag — not silently discarded
+**Plans**: TBD
+
+### Phase 87: Logger Adoption
+**Goal**: QueryEngine accepts an optional injected logger so the cross-repo name collision warning uses the structured logger instead of console.warn
+**Depends on**: Phase 84 (logger infrastructure in place; this phase is independent of Phases 85-86)
+**Requirements**: ADOPT-01
+**Success Criteria** (what must be TRUE):
+  1. When QueryEngine is constructed with an injected logger, a cross-repo service name collision produces a structured warn log entry visible in the log terminal — not a bare console.warn line
+  2. When QueryEngine is constructed without a logger (backward-compatible path), the collision warning falls back to console.warn — no TypeError or silent failure
+  3. The injected logger is used for the collision warning at line 1257 of query-engine.js — no other console.warn calls are introduced or left unreplaced in that file
+**Plans**: TBD
+
+### Phase 88: Version Bump
+**Goal**: All manifest files reflect version 5.6.0 so the marketplace and plugin install surfaces present the correct version
+**Depends on**: Phase 87 (must be last — version bump is the release gate)
+**Requirements**: (none — release task)
+**Success Criteria** (what must be TRUE):
+  1. All 5 manifest files (package.json, plugin.json, runtime-deps.json, plugins/ligamen/.claude-plugin/marketplace.json, .claude-plugin/marketplace.json) contain version "5.6.0"
+  2. Running `claude plugin marketplace add` offers version 5.6.0
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 80 → 81 → 82 → 83
-(Phase 81 can begin immediately after Phase 80 completes; Phase 82 depends on Phase 80; Phase 83 depends on Phase 81)
+Phase 84 first (logger infrastructure), then 85/86/87 in any order (parallel), then Phase 88 last (version bump release gate).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -634,7 +705,9 @@ Phases execute in numeric order: 80 → 81 → 82 → 83
 | 63-66 | v5.2.1 | 7/7 | Complete | 2026-03-21 |
 | 67-73 | v5.3.0 | 12/12 | Complete | 2026-03-22 |
 | 74-79 | v5.4.0 | 9/9 | Complete | 2026-03-22 |
-| 80. Security Hardening | 3/3 | Complete    | 2026-03-22 | - |
-| 81. Data Integrity Port | 2/2 | Complete    | 2026-03-22 | - |
-| 82. Reliability Hardening | 2/2 | Complete    | 2026-03-22 | - |
-| 83. Performance & Quality | 2/2 | Complete    | 2026-03-22 | - |
+| 80-83 | v5.5.0 | 9/9 | Complete | 2026-03-22 |
+| 84. Logger Infrastructure | v5.6.0 | 0/? | Not started | - |
+| 85. Error Logging | v5.6.0 | 0/? | Not started | - |
+| 86. Scan Observability | v5.6.0 | 0/? | Not started | - |
+| 87. Logger Adoption | v5.6.0 | 0/? | Not started | - |
+| 88. Version Bump | v5.6.0 | 0/? | Not started | - |

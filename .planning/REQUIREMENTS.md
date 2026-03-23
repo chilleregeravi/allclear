@@ -53,20 +53,20 @@ Requirements for Logging & Observability milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LOG-01 | — | Pending |
-| LOG-02 | — | Pending |
-| LOG-03 | — | Pending |
-| SCAN-01 | — | Pending |
-| SCAN-02 | — | Pending |
-| SCAN-03 | — | Pending |
-| ERR-01 | — | Pending |
-| ERR-02 | — | Pending |
-| ADOPT-01 | — | Pending |
+| LOG-01 | Phase 84 | Pending |
+| LOG-02 | Phase 84 | Pending |
+| LOG-03 | Phase 85 | Pending |
+| SCAN-01 | Phase 86 | Pending |
+| SCAN-02 | Phase 86 | Pending |
+| SCAN-03 | Phase 86 | Pending |
+| ERR-01 | Phase 85 | Pending |
+| ERR-02 | Phase 85 | Pending |
+| ADOPT-01 | Phase 87 | Pending |
 
 **Coverage:**
 - v5.6.0 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-23*
