@@ -19,8 +19,14 @@ export async function showProjectPicker() {
 
   if (projects.length === 0) {
     picker.style.display = "block";
-    list.innerHTML =
-      '<p class="no-projects">No projects found. Run <code>/ligamen:map</code> to scan your repos first.</p>';
+    list.replaceChildren();
+    const p = document.createElement("p");
+    p.className = "no-projects";
+    p.append("No projects found. Run ");
+    const code = document.createElement("code");
+    code.textContent = "/arcanon:map";
+    p.append(code, " to scan your repos first.");
+    list.appendChild(p);
     document.getElementById("node-info").textContent = "No projects";
     return null;
   }
@@ -40,7 +46,7 @@ export async function showProjectPicker() {
   const enriched = withData.length > 0 ? withData : projects;
 
   picker.style.display = "block";
-  list.innerHTML = "";
+  list.replaceChildren();
   document.getElementById("node-info").textContent = "Select a project to view";
 
   return new Promise((resolve) => {
@@ -49,15 +55,25 @@ export async function showProjectPicker() {
       btn.className = "project-item";
 
       const sizeKB = Math.round(p.size / 1024);
-      const displayName = p.projectRoot
-        ? p.projectRoot.split("/").pop()
-        : p.hash;
+      const displayName =
+        p.projectName ||
+        (p.projectRoot ? p.projectRoot.split("/").pop() : p.hash);
       const displayPath = p.projectRoot || p.dbPath;
-      btn.innerHTML = `
-        <div><strong>${displayName}</strong></div>
-        <div class="project-path">${displayPath}</div>
-        <div class="project-stats">${p.serviceCount} services, ${p.repoCount} repos — ${sizeKB} KB</div>
-      `;
+
+      const nameRow = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = displayName;
+      nameRow.appendChild(strong);
+
+      const pathRow = document.createElement("div");
+      pathRow.className = "project-path";
+      pathRow.textContent = displayPath;
+
+      const statsRow = document.createElement("div");
+      statsRow.className = "project-stats";
+      statsRow.textContent = `${p.serviceCount} services, ${p.repoCount} repos — ${sizeKB} KB`;
+
+      btn.append(nameRow, pathRow, statsRow);
 
       btn.addEventListener("click", () => {
         picker.style.display = "none";

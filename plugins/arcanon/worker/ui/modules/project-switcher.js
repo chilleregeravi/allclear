@@ -34,10 +34,11 @@ export async function initProjectSwitcher(currentHash) {
   for (const p of projects) {
     const opt = document.createElement('option');
     opt.value = p.hash;
-    // Display: last path segment of projectRoot, fallback to first 8 chars of hash
-    opt.textContent = p.projectRoot
-      ? p.projectRoot.split('/').filter(Boolean).pop()
-      : p.hash.slice(0, 8);
+    // Prefer the user-chosen "project-name" from arcanon.config.json,
+    // fall back to the project-root basename, then the hash prefix.
+    opt.textContent =
+      p.projectName ||
+      (p.projectRoot ? p.projectRoot.split('/').filter(Boolean).pop() : p.hash.slice(0, 8));
     if (p.hash === currentHash) opt.selected = true;
     select.appendChild(opt);
   }

@@ -109,11 +109,31 @@ export function listProjects() {
         /* ignore — DB may be locked or corrupted */
       }
 
+      // Prefer the explicit "project-name" from arcanon.config.json so the
+      // UI shows the user-chosen name instead of the parent directory's
+      // basename. Falls back to legacy ligamen.config.json, then to null
+      // (callers display the path basename in that case).
+      let projectName = null;
+      if (projectRoot) {
+        for (const cfgFile of ["arcanon.config.json", "ligamen.config.json"]) {
+          try {
+            const cfg = JSON.parse(
+              fs.readFileSync(path.join(projectRoot, cfgFile), "utf8"),
+            );
+            if (cfg && typeof cfg["project-name"] === "string" && cfg["project-name"].length > 0) {
+              projectName = cfg["project-name"];
+              break;
+            }
+          } catch { /* config absent or unreadable — try next */ }
+        }
+      }
+
       return {
         hash,
         dbPath,
         size: stat.size,
         projectRoot,
+        projectName,
         serviceCount,
         repoCount,
       };
