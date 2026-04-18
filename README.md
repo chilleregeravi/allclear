@@ -48,7 +48,6 @@ Full walkthroughs live in [docs/getting-started.md](./docs/getting-started.md).
 | `/arcanon:impact` | Query cross-repo consumers of a service/endpoint. |
 | `/arcanon:cross-impact` | Legacy alias for repo-local transitive impact. |
 | `/arcanon:login` | Store your Arcanon Hub API key. |
-| `/arcanon:whoami` | Validate the stored API key and print the org/project. |
 | `/arcanon:upload` | Upload the latest scan to the hub. |
 | `/arcanon:sync` | Drain the offline upload queue. |
 | `/arcanon:status` | One-line health: worker + hub + queue. |

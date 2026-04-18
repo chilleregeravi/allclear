@@ -29,18 +29,11 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh login --api-key "<KEY>"
 
 Do **not** print the key back to the user. The script confirms success.
 
-**3. Validate it.**
+The hub exposes no way to validate an `arc_*` key without an actual
+upload, so treat the `/arcanon:login` step as storage-only. The first
+`/arcanon:upload` call will surface a bad key as 401 within seconds.
 
-Immediately run:
-
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh whoami
-```
-
-Report the result — on success, confirm the org/project. On failure, suggest
-regenerating the key at https://app.arcanon.dev/settings/api-keys.
-
-**4. Nudge toward the next step.**
+**3. Nudge toward the next step.**
 
 If `arcanon.config.json` does not have `hub.auto-upload: true`, mention:
 

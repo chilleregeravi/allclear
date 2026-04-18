@@ -22,12 +22,13 @@ Side effects: writes to `~/.arcanon/projects/<hash>/impact-map.db`. With
 ### `/arcanon:login <arc_…>`
 
 Store an API key in `~/.arcanon/config.json` (mode `0600`). Prompts
-interactively when no argument is supplied.
+interactively when no argument is supplied. Keys are issued exclusively
+through the web dashboard at https://app.arcanon.dev/settings/api-keys —
+the hub exposes no programmatic login flow (no device-code, no OAuth).
 
-### `/arcanon:whoami`
-
-Calls `GET /api/v1/auth/whoami` and reports the bound org / project.
-Non-zero exit when credentials are missing or the hub rejects them.
+To check whether credentials are stored, run `/arcanon:status`. To
+validate that a key actually works, run `/arcanon:upload` — 401/403
+indicates a bad key.
 
 ### `/arcanon:upload [--project <slug>] [--repo <path>]`
 

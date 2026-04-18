@@ -62,17 +62,14 @@ scoped keys are locked to one project_slug.
 
 The key is stored in `~/.arcanon/config.json` with mode `0600`.
 
-**c) Confirm:**
-
-```
-/arcanon:whoami
-```
-
-**d) Upload your scan:**
+**c) Upload your scan:**
 
 ```
 /arcanon:upload
 ```
+
+A `401` response means the key is invalid — regenerate one in the web
+dashboard and re-run `/arcanon:login`. A `202` response means you're in.
 
 Or turn on auto-upload in `arcanon.config.json`:
 

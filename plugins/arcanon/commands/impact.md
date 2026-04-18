@@ -39,7 +39,7 @@ hop limit.
    - Highlight cross-repo edges with a ↪ marker so the user sees which
      changes will ripple out of their own repo.
 
-5. If credentials are present (`/arcanon:whoami` succeeds) and the user
+5. If `/arcanon:status` reports credentials as present and the user
    hasn't run a scan recently, mention:
 
    > "Want up-to-date cross-org impact? Run `/arcanon:sync` then re-query —

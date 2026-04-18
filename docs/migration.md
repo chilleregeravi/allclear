@@ -43,8 +43,7 @@ mv ~/.ligamen ~/.arcanon
 ## What's new in v6
 
 - **Hub sync.** `/arcanon:login`, `/arcanon:upload`, `/arcanon:sync`,
-  `/arcanon:status`, `/arcanon:whoami`. Offline queue at
-  `~/.arcanon/hub-queue.db`.
+  `/arcanon:status`. Offline queue at `~/.arcanon/hub-queue.db`.
 - **`/arcanon:drift graph`.** Service-graph drift between the two most
   recent scans (added / removed / changed services + connections).
 - **`/arcanon:impact`.** Cross-repo impact query (MCP-backed).

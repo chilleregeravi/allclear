@@ -8,7 +8,6 @@
  *
  * Subcommands:
  *   login     Store an API key in ~/.arcanon/config.json
- *   whoami    Validate the stored API key against the hub
  *   upload    Upload the last local scan for the current repo
  *   sync      Drain the offline upload queue
  *   status    One-line health report (worker + hub + queue)
@@ -33,7 +32,6 @@ import {
   listAllUploads,
   resolveCredentials,
   storeCredentials,
-  AuthError,
 } from "../hub-sync/index.js";
 import { resolveConfigPath } from "../lib/config-path.js";
 import { resolveDataDir } from "../lib/data-dir.js";
@@ -107,48 +105,6 @@ async function cmdLogin(flags) {
     flags,
     `✓ saved credentials to ${file}${flags["hub-url"] ? ` (hub_url=${flags["hub-url"]})` : ""}`,
   );
-}
-
-async function cmdWhoami(flags) {
-  let creds;
-  try {
-    creds = resolveCredentials({ apiKey: flags["api-key"], hubUrl: flags["hub-url"] });
-  } catch (err) {
-    if (err instanceof AuthError) {
-      emit({ ok: false, error: err.message }, flags, `✗ ${err.message}`);
-      process.exit(1);
-    }
-    throw err;
-  }
-
-  const url = new URL("/api/v1/auth/whoami", creds.hubUrl).toString();
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${creds.apiKey}` },
-    });
-    const body = await res.json().catch(() => ({}));
-    if (res.ok) {
-      emit(
-        { ok: true, ...body },
-        flags,
-        `✓ authenticated (${body?.org_name || "org"}${body?.project_slug ? `/${body.project_slug}` : ""})`,
-      );
-      return;
-    }
-    emit(
-      { ok: false, status: res.status, body },
-      flags,
-      `✗ hub returned ${res.status}: ${body?.detail || body?.title || "auth failed"}`,
-    );
-    process.exit(1);
-  } catch (err) {
-    emit(
-      { ok: false, error: err.message },
-      flags,
-      `✗ hub unreachable: ${err.message}`,
-    );
-    process.exit(1);
-  }
 }
 
 async function cmdStatus(flags) {
@@ -306,7 +262,6 @@ async function cmdQueue(flags) {
 const HANDLERS = {
   version: cmdVersion,
   login: cmdLogin,
-  whoami: cmdWhoami,
   status: cmdStatus,
   upload: cmdUpload,
   sync: cmdSync,

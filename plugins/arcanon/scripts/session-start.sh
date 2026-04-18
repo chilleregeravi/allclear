@@ -122,7 +122,7 @@ CONTEXT="Arcanon active."
 if [[ -n "$PROJECT_TYPES" ]]; then
   CONTEXT="Arcanon active. Detected: ${PROJECT_TYPES}."
 fi
-CONTEXT="${CONTEXT} Commands: /arcanon:map, /arcanon:drift, /arcanon:impact, /arcanon:cross-impact, /arcanon:login, /arcanon:upload, /arcanon:status, /arcanon:sync, /arcanon:whoami, /arcanon:export."
+CONTEXT="${CONTEXT} Commands: /arcanon:map, /arcanon:drift, /arcanon:impact, /arcanon:cross-impact, /arcanon:login, /arcanon:upload, /arcanon:status, /arcanon:sync, /arcanon:export."
 [[ -n "$WORKER_STATUS" ]] && CONTEXT="${CONTEXT} ${WORKER_STATUS}"
 
 # SSTH-01: Output hookSpecificOutput.additionalContext JSON to stdout
