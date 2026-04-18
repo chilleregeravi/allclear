@@ -133,7 +133,13 @@ normalize_version() {
 # Returns 0 (true) if version string starts with a range specifier char
 # ---------------------------------------------------------------------------
 has_range_specifier() {
-  [[ "$1" =~ ^[\^~\>=\<] ]]
+  # Use case/glob instead of bash regex — bash regex interprets \> and \<
+  # as word-boundary anchors on some libc builds (notably GNU libc on
+  # Ubuntu 24.04), causing false positives on plain pinned versions.
+  case "$1" in
+    \^*|~*|\>*|\<*|=*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------
