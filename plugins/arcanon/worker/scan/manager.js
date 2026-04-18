@@ -34,11 +34,31 @@ import { parseAgentOutput } from "./findings.js";
 import { registerEnricher, runEnrichmentPass } from "./enrichment.js";
 import { createCodeownersEnricher } from "./codeowners.js";
 import { resolveDataDir } from "../lib/data-dir.js";
+import { resolveConfigPath } from "../lib/config-path.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
+import { syncFindings } from "../hub-sync/index.js";
 
 // Register CODEOWNERS enricher once at module load (OWN-01).
 // Module-level registration runs before the first scan.
 registerEnricher("codeowners", createCodeownersEnricher());
+
+/**
+ * Read hub config from arcanon.config.json (legacy ligamen.config.json supported).
+ * @returns {{ hubAutoUpload: boolean, hubUrl: string|undefined, projectSlug: string|undefined }}
+ */
+function _readHubConfig() {
+  try {
+    const cfgPath = resolveConfigPath(process.cwd());
+    const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
+    return {
+      hubAutoUpload: Boolean(cfg?.hub?.["auto-upload"]),
+      hubUrl: cfg?.hub?.url,
+      projectSlug: cfg?.hub?.["project-slug"] || cfg?.["project-name"],
+    };
+  } catch {
+    return { hubAutoUpload: false, hubUrl: undefined, projectSlug: undefined };
+  }
+}
 
 // Register auth/DB extractor enricher (AUTHDB-01, AUTHDB-02).
 registerEnricher("auth-db", extractAuthAndDb);
@@ -763,6 +783,53 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
 
     slog('INFO', 'scan complete', { repoPath: r.repoPath, mode: r.mode });
     results.push({ repoPath: r.repoPath, mode: r.mode, findings: r.findings });
+  }
+
+  // HUB-01: Optional Arcanon Hub sync — opt-in via ARCANON_API_KEY or config.hub.autoUpload.
+  // Runs per-repo, fire-and-log — a hub failure never fails the scan.
+  try {
+    const { hubAutoUpload, hubUrl, projectSlug } = _readHubConfig();
+    const hasCredentials = Boolean(
+      process.env.ARCANON_API_KEY || process.env.ARCANON_API_TOKEN,
+    );
+    if (hasCredentials && hubAutoUpload) {
+      for (const r of results) {
+        if (!r.findings) continue;
+        try {
+          const outcome = await syncFindings({
+            findings: r.findings,
+            repoPath: r.repoPath,
+            projectSlug,
+            hubUrl,
+            scanMode: r.mode,
+            log: (level, msg, data) => slog(level, `hub-sync: ${msg}`, data),
+          });
+          if (outcome.ok) {
+            slog('INFO', 'hub upload accepted', {
+              repoPath: r.repoPath,
+              scan_upload_id: outcome.result?.scan_upload_id,
+            });
+          } else if (outcome.enqueuedId) {
+            slog('INFO', 'hub upload enqueued', {
+              repoPath: r.repoPath,
+              queueId: outcome.enqueuedId,
+            });
+          } else {
+            slog('WARN', 'hub upload failed', {
+              repoPath: r.repoPath,
+              error: outcome.error?.message,
+            });
+          }
+          for (const w of outcome.warnings || []) {
+            slog('WARN', 'hub-sync payload warning', { repoPath: r.repoPath, warning: w });
+          }
+        } catch (err) {
+          slog('ERROR', 'hub sync threw', { repoPath: r.repoPath, error: err.message });
+        }
+      }
+    }
+  } catch (err) {
+    slog('WARN', 'hub sync skipped', { error: err.message });
   }
 
   // SCAN-01: Emit END event with totals and wall-clock duration
