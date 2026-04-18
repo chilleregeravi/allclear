@@ -18,24 +18,28 @@
   ],
   "userConfig": {
     "api_token": {
+      "title": "Arcanon Hub API key",
       "type": "string",
-      "description": "Arcanon Hub API key (starts with arc_). Get one at https://app.arcanon.dev/settings/api-keys",
+      "description": "Bearer token starting with arc_. Get one at https://app.arcanon.dev/settings/api-keys",
       "sensitive": true,
       "required": false
     },
     "hub_url": {
+      "title": "Arcanon Hub URL",
       "type": "string",
-      "description": "Arcanon Hub base URL. Defaults to https://api.arcanon.dev",
+      "description": "Base URL of the Arcanon Hub API. Defaults to https://api.arcanon.dev",
       "required": false,
       "default": "https://api.arcanon.dev"
     },
     "auto_upload": {
+      "title": "Auto-upload scans to hub",
       "type": "boolean",
-      "description": "Upload scan findings to Arcanon Hub automatically after every scan. Requires api_token.",
+      "description": "Upload scan findings to Arcanon Hub automatically after every /arcanon:map. Requires api_token.",
       "required": false,
       "default": false
     },
     "project_slug": {
+      "title": "Hub project slug",
       "type": "string",
       "description": "Project slug on Arcanon Hub (only required when using an org-scoped API key).",
       "required": false
