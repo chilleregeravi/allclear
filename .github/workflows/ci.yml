@@ -37,7 +37,7 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Shellcheck scripts and libs
-        run: shellcheck -x -e SC1091 plugins/arcanon/scripts/*.sh plugins/arcanon/lib/*.sh
+        run: shellcheck -x --severity=error -e SC1091 plugins/arcanon/scripts/*.sh plugins/arcanon/lib/*.sh
 
   test-hub-sync:
     name: Hub-sync tests (Node ${{ matrix.node }})

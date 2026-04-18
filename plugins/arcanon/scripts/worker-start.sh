@@ -63,14 +63,16 @@ fi
 # Determine port — check in priority order
 PORT=""
 
-# 1. Environment variable
-if [[ -n "${LIGAMEN_WORKER_PORT:-}" ]]; then
+# 1. Environment variable — ARCANON_WORKER_PORT wins, legacy LIGAMEN_WORKER_PORT falls back
+if [[ -n "${ARCANON_WORKER_PORT:-}" ]]; then
+  PORT="${ARCANON_WORKER_PORT}"
+elif [[ -n "${LIGAMEN_WORKER_PORT:-}" ]]; then
   PORT="${LIGAMEN_WORKER_PORT}"
 fi
 
-# 2. ~/.ligamen/settings.json key "LIGAMEN_WORKER_PORT"
+# 2. <data-dir>/settings.json — prefer ARCANON_WORKER_PORT key, fall back to legacy name
 if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1 && [[ -f "${DATA_DIR}/settings.json" ]]; then
-  _port=$(jq -r '.LIGAMEN_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
+  _port=$(jq -r '.ARCANON_WORKER_PORT // .LIGAMEN_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
   [[ -n "$_port" ]] && PORT="$_port"
 fi
 

@@ -155,10 +155,10 @@ setup() {
 # stderr carries the human-readable message; use 2>&1 to capture it.
 # ---------------------------------------------------------------------------
 
-@test "guard hook - block message contains Ligamen prefix" {
+@test "guard hook - block message contains Arcanon prefix" {
   local json='{"tool_name":"Write","tool_input":{"file_path":"/project/.env"}}'
   run bash -c "printf '%s' '${json}' | bash '${SCRIPT}' 2>&1"
-  assert_output --partial "Ligamen"
+  assert_output --partial "Arcanon"
 }
 
 # ---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ setup() {
   local json='{"tool_name":"Write","tool_input":{"file_path":"/project/migrations/001_init.sql"}}'
   run bash -c "printf '%s' '${json}' | bash '${SCRIPT}' 2>&1"
   refute_output ""
-  assert_output --partial "Ligamen"
+  assert_output --partial "Arcanon"
 }
 
 @test "guard hook - exits 0 for Python migration file (GRDH-05)" {

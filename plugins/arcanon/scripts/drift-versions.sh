@@ -90,20 +90,25 @@ extract_versions() {
       yq -oy '.tool.poetry.dependencies | to_entries[] | .key + "=" + .value' \
         "${repo_dir}/pyproject.toml" 2>/dev/null | grep -v '^null$' | grep -v 'python=' || true
     else
-      # Fallback: awk to find [project.dependencies] and parse PEP 508 strings
+      # Fallback awk — covers both PEP 621 (dependencies = [...]) and the
+      # non-standard [project.dependencies] section form with bare strings.
       awk '
+        # PEP 621 inline-array form: dependencies = [ "foo>=1", ... ]
+        /^[[:space:]]*dependencies[[:space:]]*=[[:space:]]*\[/ { in_array=1; next }
+        in_array && /\]/ { in_array=0 }
+        # Legacy [project.dependencies] section form
         /\[project\.dependencies\]/ { in_section=1; next }
         /^\[/ && !/\[project\.dependencies\]/ { in_section=0 }
-        in_section && /[a-zA-Z0-9]/ {
+        (in_section || in_array) && /[a-zA-Z0-9]/ {
           line=$0
-          # Remove surrounding quotes, leading spaces
+          gsub(/,$/, "", line)
           gsub(/^[[:space:]]*"/, "", line)
           gsub(/"[[:space:]]*$/, "", line)
           gsub(/^[[:space:]]*/, "", line)
-          # Extract name (everything before first specifier or space)
+          gsub(/[[:space:]]*$/, "", line)
+          if (line == "" || line ~ /^\[/) next
           n=split(line, parts, /[>=<!~^ ]/)
           name=parts[1]
-          # Extract version specifier
           ver=substr(line, length(name)+1)
           gsub(/^[[:space:]]*/, "", ver)
           gsub(/^==/, "", ver)
