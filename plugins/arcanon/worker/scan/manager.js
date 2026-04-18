@@ -792,6 +792,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     // Credential check spans env vars AND ~/.arcanon/config.json so that
     // users who ran /arcanon:login (without exporting an env var) still
     // get auto-uploads.
+    if (hubAutoUpload && !hasCredentials()) {
+      // User opted in but never set up credentials — surface a nudge so the
+      // setting isn't silently ignored. The first scan log surfaces this;
+      // subsequent scans repeat it so missing creds stay visible.
+      slog('WARN', 'hub auto-upload skipped — no api_token configured', {
+        next_step: 'Get a key at https://app.arcanon.dev/settings/api-keys, then /arcanon:login',
+      });
+    }
     if (hasCredentials() && hubAutoUpload) {
       for (const r of results) {
         if (!r.findings) continue;

@@ -79,7 +79,12 @@ export function resolveCredentials(opts = {}) {
 
   if (!apiKey) {
     throw new AuthError(
-      "Arcanon API key not found. Set ARCANON_API_KEY, run /arcanon:login, or add api_key to ~/.arcanon/config.json.",
+      "No Arcanon Hub API key found.\n" +
+        "  1. Create a key: https://app.arcanon.dev/settings/api-keys\n" +
+        "     (if you're not signed in you'll be redirected to login first;\n" +
+        "      navigate to Settings → API keys after sign-in. Tracked: THE-1016.)\n" +
+        "  2. Run /arcanon:login arc_…  OR  set ARCANON_API_KEY in your environment.\n" +
+        "     /arcanon:status will then report 'credentials: present'.",
     );
   }
   if (!apiKey.startsWith(API_KEY_PREFIX)) {

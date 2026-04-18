@@ -13,9 +13,21 @@ Push the latest findings from the local SQLite DB to
 ## Preflight
 
 Make sure:
-1. A scan exists. If no `~/.arcanon/projects/*/impact-map.db` row covers
+1. **A scan exists.** If no `~/.arcanon/projects/*/impact-map.db` row covers
    the current repo, tell the user to run `/arcanon:map` first.
-2. Credentials exist. If not, route to `/arcanon:login`.
+2. **Credentials exist.** Run
+   `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh status --json` and check the
+   `credentials` field. If it's `"missing"`, walk the user through it:
+
+   > "Arcanon Hub uses an API key (starts with `arc_`) for uploads. To get
+   > one:
+   > 1. Sign in at https://app.arcanon.dev (or sign up if you haven't yet).
+   > 2. Open Settings → API keys and create a key. *Note: deep-linking to
+   >    `/settings/api-keys` while signed out lands you on `/home` after
+   >    login — known issue THE-1016, navigate manually for now.*
+   > 3. Run `/arcanon:login arc_…` to store the key locally."
+
+   Don't proceed to the upload step until credentials are present.
 
 ## Run
 
