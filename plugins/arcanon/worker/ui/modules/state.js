@@ -48,6 +48,11 @@ export const LABEL_MAX_CHARS = 24;
  * used when tokens aren't available (SSR-ish paths, tests, missing <link>).
  */
 const DEFAULTS = {
+  canvas:   "#0b0d12",          // background of the drawing surface itself
+  boundary: "#63b3ed",          // boundary box fill/stroke/label
+  layer:    "#a0aec0",          // layer (services / libraries / infra) container
+  badge:    "#1a202c",          // small badge backdrops drawn on top of nodes
+  mismatch: "#fc8181",          // edges flagged as schema mismatches
   node: {
     default:  "#4299e1",
     selected: "#f6ad55",
@@ -76,7 +81,16 @@ const DEFAULTS = {
   },
 };
 
-export const COLORS = { node: { ...DEFAULTS.node }, edge: { ...DEFAULTS.edge }, label: { ...DEFAULTS.label } };
+export const COLORS = {
+  canvas:   DEFAULTS.canvas,
+  boundary: DEFAULTS.boundary,
+  layer:    DEFAULTS.layer,
+  badge:    DEFAULTS.badge,
+  mismatch: DEFAULTS.mismatch,
+  node:     { ...DEFAULTS.node },
+  edge:     { ...DEFAULTS.edge },
+  label:    { ...DEFAULTS.label },
+};
 export const PROTOCOL_COLORS = { ...DEFAULTS.protocol };
 export const NODE_TYPE_COLORS = { ...DEFAULTS.nodeType };
 
@@ -92,6 +106,14 @@ function readCssVar(name, fallback) {
  * on each `arcanon:theme` event.
  */
 export function refreshColors() {
+  // Surfaces drawn directly on the canvas — must follow the theme so the
+  // graph background matches the rest of the UI in both light and dark.
+  COLORS.canvas    = readCssVar("--color-canvas",            DEFAULTS.canvas);
+  COLORS.boundary  = readCssVar("--color-accent",            DEFAULTS.boundary);
+  COLORS.layer     = readCssVar("--color-text-secondary",    DEFAULTS.layer);
+  COLORS.badge     = readCssVar("--color-surface-elevated",  DEFAULTS.badge);
+  COLORS.mismatch  = readCssVar("--color-error",             DEFAULTS.mismatch);
+
   COLORS.node.default   = readCssVar("--color-node-service",  DEFAULTS.node.default);
   COLORS.node.selected  = readCssVar("--color-node-selected", DEFAULTS.node.selected);
   COLORS.node.blast     = readCssVar("--color-error",         DEFAULTS.node.blast);

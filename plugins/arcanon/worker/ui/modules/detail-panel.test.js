@@ -185,11 +185,11 @@ check(
   "'Database'"
 );
 
-// Gray color #718096 used for unknown/null values
+// Muted text token used for unknown/null values
 check(
-  src.includes("#718096"),
-  "Phase72: #718096 gray used for unknown values",
-  "#718096"
+  src.includes("var(--color-text-muted)"),
+  "Phase72: muted token used for unknown values",
+  "var(--color-text-muted)"
 );
 
 // escapeHtml applied to owner value
@@ -229,18 +229,18 @@ check(
   "confidenceBadge"
 );
 
-// Green color #48bb78 for high confidence
+// Success token for high confidence
 check(
-  src.includes("#48bb78"),
-  "Phase72: #48bb78 green color for high confidence",
-  "#48bb78"
+  src.includes("var(--color-success)"),
+  "Phase72: success token used for high confidence",
+  "var(--color-success)"
 );
 
-// Amber color #ed8936 for low confidence
+// Warn token for low confidence
 check(
-  src.includes("#ed8936"),
-  "Phase72: #ed8936 amber color for low confidence",
-  "#ed8936"
+  src.includes("var(--color-warn)"),
+  "Phase72: warn token used for low confidence",
+  "var(--color-warn)"
 );
 
 // ── SCHEMA-01: Connection schema rendering ─────────────────────────────────
@@ -280,11 +280,11 @@ check(
   'escapeHtml(f.type)'
 );
 
-// required=true badge uses green color
+// required=true badge uses success token
 check(
-  src.includes('48bb78') || src.includes('#48bb78'),
-  'SCHEMA-01: required=true badge uses green color #48bb78',
-  '#48bb78'
+  src.includes('var(--color-success)'),
+  'SCHEMA-01: required=true badge uses success token',
+  'var(--color-success)'
 );
 
 // absent schema returns empty string (String(connectionId) conversion)
@@ -331,11 +331,11 @@ check(
   'Database'
 );
 
-// unknown fallback uses gray color
+// unknown fallback uses muted text token
 check(
-  src.includes('718096') && src.includes('unknown'),
-  'UNK-01: unknown fallback uses gray color #718096',
-  '#718096 + unknown'
+  src.includes('var(--color-text-muted)') && src.includes('unknown'),
+  'UNK-01: unknown fallback uses text-muted token',
+  'var(--color-text-muted) + unknown'
 );
 
 // ── CONF-03: Confidence badge ──────────────────────────────────────────────
