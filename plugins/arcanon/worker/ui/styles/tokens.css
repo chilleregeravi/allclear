@@ -18,8 +18,10 @@
   --color-surface:           #ffffff;
   --color-surface-elevated:  #f8f9fa;
   --color-overlay:           rgba(255, 255, 255, 0.92);
-  --color-border:            rgba(0, 0, 0, 0.08);
-  --color-border-strong:     rgba(0, 0, 0, 0.18);
+  /* Borders use fixed hex (matches arcanon-hub --color-node-dark-border) so
+     they render predictably across themes — opacity-on-canvas was unreliable. */
+  --color-border:            #e5e7eb;
+  --color-border-strong:     #c5cad3;
 
   /* Text */
   --color-text-primary:   #293038;
@@ -37,13 +39,22 @@
   --color-critical:       #dc2626;
   --color-info:           #3b82f6;
 
-  /* Graph nodes */
+  /* Graph nodes — fills */
   --color-node-service:  #4299e1;
   --color-node-library:  #9f7aea;
   --color-node-infra:    #5d93c9;
   --color-node-external: #e0e3f5;
   --color-node-actor:    #e06060;
-  --color-node-selected: #f59e0b;
+  /* Selection ring uses brand accent (matches arcanon-hub). Reserved orange
+     shades are for the "what changed" / drift overlays only. */
+  --color-node-selected: #009ec2;
+
+  /* Graph node tints — subtle backgrounds layered behind the fill so different
+     node types are scannable without changing shape. Mirrors the hub. */
+  --color-node-tint-database: #eff6ff;
+  --color-node-tint-broker:   #fff7ed;
+  --color-node-tint-external: #f3f4f6;
+  --color-node-tint-frontend: #f5f3ff;
 
   /* Graph edges */
   --color-edge-rest:     #3b82f6;
@@ -57,12 +68,16 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-canvas:            #0b0d12;
-  --color-surface:           #1a1d23;
+  /* Surfaces — values aligned with arcanon-hub:
+     canvas #1a1d23, surface elevated #22262f → #2a2d35.
+     Older deeper #0b0d12 / #1a1d23 made nodes look like they were floating
+     against a too-contrasty void; the hub's lighter surfaces sit better. */
+  --color-canvas:            #1a1d23;
+  --color-surface:           #2a2d35;
   --color-surface-elevated:  #22262f;
-  --color-overlay:           rgba(26, 29, 35, 0.92);
-  --color-border:            rgba(255, 255, 255, 0.08);
-  --color-border-strong:     rgba(255, 255, 255, 0.18);
+  --color-overlay:           rgba(42, 45, 53, 0.92);
+  --color-border:            #4a4d55;
+  --color-border-strong:     #6b7280;
 
   --color-text-primary:   #e6e8ef;
   --color-text-secondary: #9ca3af;
@@ -78,7 +93,13 @@
   --color-node-infra:    #63b3ed;
   --color-node-external: #2a2f3e;
   --color-node-actor:    #fc8181;
-  --color-node-selected: #f6ad55;
+  /* Selection in dark mode: lighter brand tone for contrast. */
+  --color-node-selected: #33b8d4;
+
+  --color-node-tint-database: #1e293b;
+  --color-node-tint-broker:   #292017;
+  --color-node-tint-external: #1f2937;
+  --color-node-tint-frontend: #2d2640;
 
   --color-edge-default:  #4a5363;
   --color-edge-change:   #d6b336;

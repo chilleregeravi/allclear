@@ -26,6 +26,7 @@ import {
   PROTOCOL_COLORS,
   PROTOCOL_LINE_DASH,
   BUNDLE_SEVERITY,
+  NODE_TINT_COLORS,
 } from "./state.js";
 import {
   truncate,
@@ -33,6 +34,7 @@ import {
   getNeighborIdsNHop,
   getNodeColor,
   getNodeType,
+  getNodeTintKey,
   computeEdgeBundles,
 } from "./utils.js";
 
@@ -342,6 +344,20 @@ export function render() {
         : 1;
 
     ctx.globalAlpha = alpha;
+
+    // Tinted halo behind the node — gives types a scannable backdrop without
+    // changing shape (matches arcanon-hub's tinted-card approach within our
+    // canvas-2D constraints). Skipped for nodes with no tint key.
+    const tintKey = getNodeTintKey(node);
+    if (tintKey && NODE_TINT_COLORS[tintKey]) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.35;
+      ctx.fillStyle = NODE_TINT_COLORS[tintKey];
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, NODE_RADIUS * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     const nodeType = getNodeType(node);
     ctx.beginPath();

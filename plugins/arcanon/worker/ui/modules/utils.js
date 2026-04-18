@@ -95,6 +95,26 @@ export function getNodeColor(node) {
 }
 
 /**
+ * Return the tint key (matching NODE_TINT_COLORS) for a node, or null when
+ * no tint applies. Mirrors the hub's tinted-background-per-type approach
+ * limited to the type info our scan model captures: external actors,
+ * frontends, and (heuristically) databases / message brokers.
+ *
+ * @param {object} node
+ * @returns {"database" | "broker" | "external" | "frontend" | null}
+ */
+export function getNodeTintKey(node) {
+  if (node._isActor) return "external";
+  const t = (node.type || "").toLowerCase();
+  if (t === "frontend") return "frontend";
+  const name = (node.name || "").toLowerCase();
+  if (/ui|frontend|web|dashboard/.test(name)) return "frontend";
+  if (/postgres|mysql|sqlite|mariadb|mongo|redis|cassandra|dynamodb|db$|database/.test(name)) return "database";
+  if (/kafka|rabbitmq|sqs|sns|nats|pubsub|broker|queue/.test(name)) return "broker";
+  return null;
+}
+
+/**
  * Groups an array of edges by source→target pair and returns bundle objects.
  * Bundles with count === 1 are still returned (single code path in renderer).
  *

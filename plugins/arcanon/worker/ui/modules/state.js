@@ -79,6 +79,14 @@ const DEFAULTS = {
     library: "#9f7aea", sdk: "#9f7aea", frontend: "#f6ad55",
     service: "#4299e1", infra: "#68d391", actor: "#e06060",
   },
+  // Subtle backgrounds layered behind the node fill — matches
+  // arcanon-hub's tint approach. Defaults are the dark-mode values.
+  nodeTint: {
+    database: "#1e293b",
+    broker:   "#292017",
+    external: "#1f2937",
+    frontend: "#2d2640",
+  },
 };
 
 export const COLORS = {
@@ -93,6 +101,7 @@ export const COLORS = {
 };
 export const PROTOCOL_COLORS = { ...DEFAULTS.protocol };
 export const NODE_TYPE_COLORS = { ...DEFAULTS.nodeType };
+export const NODE_TINT_COLORS = { ...DEFAULTS.nodeTint };
 
 function readCssVar(name, fallback) {
   if (typeof document === "undefined") return fallback;
@@ -136,10 +145,17 @@ export function refreshColors() {
 
   NODE_TYPE_COLORS.library  = readCssVar("--color-node-library",  DEFAULTS.nodeType.library);
   NODE_TYPE_COLORS.sdk      = readCssVar("--color-node-library",  DEFAULTS.nodeType.sdk);
-  NODE_TYPE_COLORS.frontend = readCssVar("--color-node-selected", DEFAULTS.nodeType.frontend);
+  NODE_TYPE_COLORS.frontend = readCssVar("--color-warn",          DEFAULTS.nodeType.frontend);
   NODE_TYPE_COLORS.service  = readCssVar("--color-node-service",  DEFAULTS.nodeType.service);
   NODE_TYPE_COLORS.infra    = readCssVar("--color-node-infra",    DEFAULTS.nodeType.infra);
   NODE_TYPE_COLORS.actor    = readCssVar("--color-node-actor",    DEFAULTS.nodeType.actor);
+
+  // Hub-style tints — drawn behind the node fill to give type scannability
+  // without changing shape. (Shape-per-type taxonomy is a separate change.)
+  NODE_TINT_COLORS.database = readCssVar("--color-node-tint-database", DEFAULTS.nodeTint.database);
+  NODE_TINT_COLORS.broker   = readCssVar("--color-node-tint-broker",   DEFAULTS.nodeTint.broker);
+  NODE_TINT_COLORS.external = readCssVar("--color-node-tint-external", DEFAULTS.nodeTint.external);
+  NODE_TINT_COLORS.frontend = readCssVar("--color-node-tint-frontend", DEFAULTS.nodeTint.frontend);
 }
 
 export const BUNDLE_SEVERITY = ["rest", "grpc", "events", "internal", "sdk", "import"];
@@ -149,13 +165,14 @@ export const BUNDLE_SEVERITY = ["rest", "grpc", "events", "internal", "sdk", "im
  * Values are logical pixels — caller must divide by transform.scale.
  * EDGE-01: REST  → solid
  * EDGE-02: gRPC  → dashed  [6, 4]
- * EDGE-03: events → dotted [2, 4]
- * EDGE-04: sdk/import → solid (no dash; arrowhead already drawn for all edges)
+ * Aligned with arcanon-hub (DependencyEdge.tsx): all protocols use solid lines;
+ * color alone differentiates them. The earlier per-protocol dashing pre-dated
+ * the hub's design system and contradicted it.
  */
 export const PROTOCOL_LINE_DASH = {
   rest:     [],
-  grpc:     [6, 4],
-  events:   [2, 4],
+  grpc:     [],
+  events:   [],
   internal: [],
   sdk:      [],
   import:   [],
