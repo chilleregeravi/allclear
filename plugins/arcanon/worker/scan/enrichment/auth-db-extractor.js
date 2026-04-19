@@ -175,6 +175,23 @@ const AUTH_SIGNALS = {
     // ENR-03 — Custom API key middleware
     { mechanism: 'api-key', regex: /(ApiKeyMiddleware|IApiKeyValidator|X-API-Key|ApiKeyAttribute)/i },
   ],
+  // ENR-04 — Ruby / Rails. Devise is the dominant auth gem; HTTP basic is common in
+  // API-only Rails apps and admin tooling.
+  ruby: [
+    // ENR-04 — Devise (session/cookie) — strongest signal. Cover `devise`, `devise_for`,
+    // the `authenticate_user!` before_action, and Devise internal classes.
+    { mechanism: 'session', regex: /(devise|devise_for|before_action :authenticate_user!|Devise::RegistrationsController|Devise::SessionsController)/i },
+    // ENR-04 — HTTP Basic auth (Rails controller helper — ENR-04 explicit requirement).
+    { mechanism: 'http-basic', regex: /(authenticate_or_request_with_http_basic|authenticate_with_http_basic|ActionController::HttpAuthentication::Basic)/i },
+    // JWT via the 'jwt' gem or Knock pattern
+    { mechanism: 'jwt',     regex: /(require ['"]jwt['"]|JWT\.decode|JWT\.encode|JsonWebToken|knock)/i },
+    // OmniAuth — OAuth2/OIDC (commonly used alongside Devise)
+    { mechanism: 'oauth2',  regex: /(omniauth|OmniAuth::Builder|provider :google|provider :github|provider :facebook)/i },
+    // Warden directly (when Devise is not used)
+    { mechanism: 'session', regex: /(Warden::Manager|warden\.authenticate|env\['warden'\])/i },
+    // Custom API key pattern
+    { mechanism: 'api-key', regex: /(authenticate_api_key|api_key_header|ApiKey\.find_by|X-Api-Key)/i },
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -232,6 +249,18 @@ const DB_SOURCE_SIGNALS = {
     { backend: 'mongodb',    regex: /(MongoDB\.Driver|MongoClient|IMongoDatabase)/i },
     { backend: 'cosmosdb',   regex: /(CosmosClient|\.UseCosmos\(|Microsoft\.EntityFrameworkCore\.Cosmos)/i },
   ],
+  // ENR-07 — Ruby / Rails. ActiveRecord is ubiquitous; the `pg` / `mysql2` / `sqlite3`
+  // gems are the dominant drivers.
+  ruby: [
+    // Note: config/database.yml `adapter:` is handled separately in detectDbFromEnv();
+    // these source signals are fallbacks when the yml file is absent (API-only gems,
+    // Sinatra, non-Rails Ruby apps).
+    { backend: 'postgresql', regex: /(\bpg\b|activerecord-postgresql|pg_connection|PG::Connection)/i },
+    { backend: 'mysql',      regex: /(mysql2|activerecord-mysql|Mysql2::Client)/i },
+    { backend: 'sqlite',     regex: /(sqlite3|SQLite3::Database)/i },
+    { backend: 'mongodb',    regex: /(mongoid|Mongoid::Document|MongoClient)/i },
+    { backend: 'redis',      regex: /(\bredis\b|Redis\.new|Sidekiq\.configure_server)/i },
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -247,6 +276,7 @@ const LANG_EXTENSIONS = {
   rust:       ['.rs'],
   java:       ['.java'],
   csharp:     ['.cs'],
+  ruby:       ['.rb'],
 };
 
 /**
@@ -436,7 +466,14 @@ function detectDbFromPrisma(repoPath) {
  * @returns {string|null}
  */
 function detectDbFromEnv(repoPath) {
-  const envFiles = ['.env', '.env.local', '.env.production', 'docker-compose.yml', 'docker-compose.yaml'];
+  // ENR-07 — config/database.yml added to the probed file list. It is the authoritative
+  // Rails DB signal; DATABASE_URL is not the Rails default. The file is scanned for an
+  // `adapter:` key in addition to the existing DATABASE_URL match.
+  const envFiles = [
+    '.env', '.env.local', '.env.production',
+    'docker-compose.yml', 'docker-compose.yaml',
+    'config/database.yml',
+  ];
   for (const envFile of envFiles) {
     const fullPath = join(repoPath, envFile);
     if (!existsSync(fullPath)) continue;
@@ -446,13 +483,23 @@ function detectDbFromEnv(repoPath) {
     } catch {
       continue;
     }
-    // Find DATABASE_URL = ... line
+    // Existing path: DATABASE_URL=...
     const match = content.match(/DATABASE_URL\s*=\s*(.+)/i);
     if (match) {
       const urlValue = match[1].trim();
       for (const { pattern, backend } of ENV_DB_PATTERNS) {
         if (pattern.test(urlValue)) return backend;
       }
+    }
+    // ENR-07 new path: Rails config/database.yml `adapter:` probe. Safe to run on all
+    // env files — the regex won't match .env dotfiles. Adapter value is lowercased and
+    // normalized to canonical backend names used throughout the extractor.
+    const adapterMatch = content.match(/adapter:\s*(\S+)/);
+    if (adapterMatch) {
+      const adapter = adapterMatch[1].toLowerCase();
+      if (adapter.includes('postgresql') || adapter.includes('postgis')) return 'postgresql';
+      if (adapter.includes('mysql'))   return 'mysql';
+      if (adapter.includes('sqlite'))  return 'sqlite';
     }
   }
   return null;
