@@ -20,7 +20,8 @@ import { join, extname } from 'node:path';
 
 /** Directories to never descend into during file collection */
 export const EXCLUDED_DIRS = new Set([
-  'node_modules', '.git', 'vendor', 'dist', 'build', 'target', '__pycache__', '.venv', 'venv', // EXCLUDED_DIRS: canonical list
+  'node_modules', '.git', 'vendor', 'dist', 'build', 'target', 'obj', 'bin',
+  '__pycache__', '.venv', 'venv',
 ]);
 
 /** Maximum directory depth to recurse into during file collection */
@@ -158,6 +159,22 @@ const AUTH_SIGNALS = {
     // Custom API key filter
     { mechanism: 'api-key', regex: /(X-API-Key|ApiKeyAuthFilter|OncePerRequestFilter.*api.key|getHeader.*api)/i },
   ],
+  // ENR-03 — ASP.NET Core / ASP.NET Identity. NOTE: C# `partial class` is a Phase 92
+  // TYPE-03 drift-types concern, not an auth concern — this signal table works per-file
+  // so fragment handling is not needed here.
+  csharp: [
+    // ENR-03 — JWT: AddJwtBearer is the canonical minimal-API call. JwtBearerDefaults
+    // is the enum. JwtSecurityToken is System.IdentityModel. Also cover the NuGet
+    // package namespaces for robust match in using-less files.
+    { mechanism: 'jwt',     regex: /(AddJwtBearer|JwtBearerDefaults|JwtSecurityToken|Microsoft\.AspNetCore\.Authentication\.JwtBearer|System\.IdentityModel\.Tokens\.Jwt)/i },
+    // ENR-03 — Session / ASP.NET Identity. Widened to include the [Authorize] attribute
+    // (MVC + minimal API common pattern) per ENR-03 requirement.
+    { mechanism: 'session', regex: /(AddDefaultIdentity|AddIdentity|IdentityUser|SignInManager|UserManager|\.AddCookie\(|\[Authorize\b)/i },
+    // ENR-03 — OAuth2 / OIDC (Azure AD, Okta, Google)
+    { mechanism: 'oauth2',  regex: /(AddOpenIdConnect|AddMicrosoftIdentityWebApp|OAuthOptions|OpenIdConnectOptions)/i },
+    // ENR-03 — Custom API key middleware
+    { mechanism: 'api-key', regex: /(ApiKeyMiddleware|IApiKeyValidator|X-API-Key|ApiKeyAttribute)/i },
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -205,6 +222,16 @@ const DB_SOURCE_SIGNALS = {
     // ENR-05 — H2 in-memory
     { backend: 'h2',         regex: /(com\.h2database|jdbc:h2:|spring\.datasource\.url.*h2:|H2ConsoleAutoConfiguration)/i },
   ],
+  // ENR-06 — EF Core with ASP.NET Core minimal API (PITFALL 11 GREEN path).
+  // AddDbContext<T>(opt => opt.UseX(...)) — the Use-provider call is the discriminator.
+  csharp: [
+    { backend: 'postgresql', regex: /(Npgsql|NpgsqlConnection|\.UseNpgsql\(|Npgsql\.EntityFrameworkCore)/i },
+    { backend: 'mysql',      regex: /(Pomelo\.EntityFrameworkCore\.MySql|MySql\.EntityFrameworkCore|\.UseMySql\()/i },
+    { backend: 'sqlserver',  regex: /(SqlConnection|\.UseSqlServer\(|Microsoft\.EntityFrameworkCore\.SqlServer)/i },
+    { backend: 'sqlite',     regex: /(SQLiteConnection|\.UseSqlite\(|Microsoft\.EntityFrameworkCore\.Sqlite)/i },
+    { backend: 'mongodb',    regex: /(MongoDB\.Driver|MongoClient|IMongoDatabase)/i },
+    { backend: 'cosmosdb',   regex: /(CosmosClient|\.UseCosmos\(|Microsoft\.EntityFrameworkCore\.Cosmos)/i },
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -219,6 +246,7 @@ const LANG_EXTENSIONS = {
   go:         ['.go'],
   rust:       ['.rs'],
   java:       ['.java'],
+  csharp:     ['.cs'],
 };
 
 /**
