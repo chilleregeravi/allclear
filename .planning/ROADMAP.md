@@ -703,7 +703,7 @@ Plans:
 Plans:
 - [x] 94-01-PLAN.md — Java auth/db signals (Spring Security 5 + 6, Spring Data), 'target' in EXCLUDED_DIRS, Java fixture + e2e test (ENR-01, ENR-02, ENR-05, ENR-08, ENR-09 java portion)
 - [x] 94-02-PLAN.md — C# auth/db signals (ASP.NET Identity + JWT + [Authorize], EF Core minimal API UseNpgsql/UseSqlServer), 'obj' + 'bin' in EXCLUDED_DIRS, C# fixture + e2e test, partial class limitation documented (ENR-01, ENR-03, ENR-06, ENR-08, ENR-09 csharp portion)
-- [ ] 94-03-PLAN.md — Ruby auth/db signals (Devise + HTTP basic + ActiveRecord), config/database.yml adapter: probe in detectDbFromEnv(), Ruby fixture + e2e test (ENR-01, ENR-04, ENR-07, ENR-09 ruby portion)
+- [x] 94-03-PLAN.md — Ruby auth/db signals (Devise + HTTP basic + ActiveRecord), config/database.yml adapter: probe in detectDbFromEnv(), Ruby fixture + e2e test (ENR-01, ENR-04, ENR-07, ENR-09 ruby portion)
 
 ### Phase 95: Shell Cleanup + Unified Dispatcher
 **Goal**: scripts/drift.sh dispatches all drift subcommands as subshells; lib/worker-restart.sh extracts shared restart logic; four bug fixes (bc subprocess, declare -A leak, global stderr, Bash version guard) are applied; dead code deleted
@@ -717,7 +717,7 @@ Plans:
   5. Dead code deleted: `scripts/impact.sh` `classify_match()` function (lines 16-55); `scripts/lint.sh` `NPM_BIN=$(npm bin ...)` line (line 109); full bats suite passes with zero regressions
 **Parallelism note**: Fully independent of Phases 92, 93, 94. Can land at any point.
 **UI hint**: no
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 95-01-PLAN.md — scripts/drift.sh unified dispatcher (bash subprocess routing, Bash 4+ guard, reserved licenses|security, DSP-08 no-linked-repos message) + drift-dispatcher.bats (DSP-01..04, DSP-08, DSP-14)
 - [x] 95-02-PLAN.md — lib/worker-restart.sh extraction (should_restart_worker + restart_worker_if_stale); session-start.sh + worker-start.sh refactor, PID-file mutex preserved; worker-restart.bats (DSP-05, DSP-06, DSP-07)
@@ -763,6 +763,6 @@ Plans:
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
 | 92 | v5.8.0 | 4/4 | Complete   | 2026-04-19 |
 | 93 | v5.8.0 | 3/4 | In Progress|  |
-| 94 | v5.8.0 | 2/3 | In Progress|  |
+| 94 | v5.8.0 | 3/3 | Complete   | 2026-04-19 |
 | 95 | v5.8.0 | 3/3 | Complete   | 2026-04-19 |
 | 96 | v5.8.0 | 0/2 | Not started | - |

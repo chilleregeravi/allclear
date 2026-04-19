@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
-status: executing
-stopped_at: Completed 94-auth-db-enrichment 94-02-PLAN.md
-last_updated: "2026-04-19T16:35:09.149Z"
+status: verifying
+stopped_at: Completed 94-auth-db-enrichment 94-03-PLAN.md
+last_updated: "2026-04-19T16:40:08.303Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 Phase: 94 (Auth/DB Extractor Expansion) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-19
 
 Progress: [          ] 0%
@@ -70,6 +70,8 @@ Progress: [          ] 0%
 - [Phase 94-auth-db-enrichment]: Test D fixture isolation via tmpdir copy (not live file deletion) avoids concurrent test fragility
 - [Phase 94-auth-db-enrichment]: DB_SOURCE_SIGNALS.csharp captures EF Core minimal-API via UseNpgsql/UseSqlServer discriminators (Pitfall 11 GREEN path)
 - [Phase 94-auth-db-enrichment]: C# partial class limitation documented in AUTH_SIGNALS.csharp comment, not implemented (Phase 92 TYPE-03 locked)
+- [Phase 94-auth-db-enrichment]: config/database.yml adapter: probe runs unconditionally in envFiles loop — safe because .env files never contain adapter: keys
+- [Phase 94-auth-db-enrichment]: http-basic mechanism label used for authenticate_or_request_with_http_basic (distinct from session, passes isCredential check at 10 chars)
 
 ### Pending Todos
 
@@ -81,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:35:09.144Z
-Stopped at: Completed 94-auth-db-enrichment 94-02-PLAN.md
+Last session: 2026-04-19T16:40:08.298Z
+Stopped at: Completed 94-auth-db-enrichment 94-03-PLAN.md
 Resume file: None
