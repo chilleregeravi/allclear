@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/arcanon-logo.svg" width="72" height="72" alt="Arcanon logo" />
+</p>
+
 # Arcanon
 
 > **Cross-repo service dependency scanner for Claude Code.**
