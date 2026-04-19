@@ -40,30 +40,19 @@ else
   [[ -f "$WORKER_CLIENT" ]] && WORKER_CLIENT_LIB="$WORKER_CLIENT"
 fi
 
+# DSP-06: restart logic extracted to lib/worker-restart.sh
 _worker_restarted=false
+_installed_version=""
+_running_version=""
 if [[ -n "$WORKER_CLIENT_LIB" ]]; then
   # shellcheck source=lib/worker-client.sh
   source "$WORKER_CLIENT_LIB"
   # worker-client.sh sources data-dir.sh, so resolve_arcanon_data_dir is in scope.
-  if worker_running 2>/dev/null; then
-    _installed_version=""
-    _running_version=""
-    if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && [[ -f "${CLAUDE_PLUGIN_ROOT}/package.json" ]]; then
-      _installed_version=$(jq -r '.version // empty' "${CLAUDE_PLUGIN_ROOT}/package.json" 2>/dev/null || true)
-    fi
-    _data_dir="$(resolve_arcanon_data_dir)"
-    _port_file="${_data_dir}/worker.port"
-    if [[ -f "$_port_file" ]]; then
-      _port=$(cat "$_port_file")
-      _running_version=$(curl -s --max-time 1 "http://127.0.0.1:${_port}/api/version" 2>/dev/null | jq -r '.version // empty' 2>/dev/null || true)
-    fi
-    if [[ -n "$_installed_version" && -n "$_running_version" \
-        && "$_running_version" != "unknown" \
-        && "$_installed_version" != "$_running_version" ]]; then
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/worker-stop.sh" >/dev/null 2>&1 || true
-      worker_start_background 2>/dev/null || true
-      _worker_restarted=true
-    fi
+  WORKER_RESTART_LIB="$(dirname "$WORKER_CLIENT_LIB")/worker-restart.sh"
+  if [[ -f "$WORKER_RESTART_LIB" ]]; then
+    # shellcheck source=lib/worker-restart.sh
+    source "$WORKER_RESTART_LIB"
+    restart_worker_if_stale || true
   fi
 fi
 
