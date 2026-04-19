@@ -51,10 +51,10 @@ Extend `worker/scan/enrichment/auth-db-extractor.js` with language switch cases.
 
 ### Dependency Persistence (THE-1019 core)
 
-- [ ] **DEP-01**: Migration `010_service_dependencies.js` creates `service_dependencies` table with columns: `id`, `service_id FK ON DELETE CASCADE`, `scan_version_id FK`, `ecosystem TEXT`, `package_name TEXT`, `version_spec TEXT`, `resolved_version TEXT`, `manifest_file TEXT`, `dep_kind TEXT CHECK(dep_kind IN ('direct','transient')) DEFAULT 'direct'`
-- [ ] **DEP-02**: Unique constraint `UNIQUE(service_id, ecosystem, package_name, manifest_file)` — 4-column key handles mono-repos with the same package in multiple manifests
-- [ ] **DEP-03**: Index on `package_name` for cross-repo drift lookup; index on `scan_version_id` for stale cleanup
-- [ ] **DEP-04**: v5.8.0 writes `dep_kind = 'direct'` only; `'transient'` is a reserved future value (column in, parsing out)
+- [x] **DEP-01**: Migration `010_service_dependencies.js` creates `service_dependencies` table with columns: `id`, `service_id FK ON DELETE CASCADE`, `scan_version_id FK`, `ecosystem TEXT`, `package_name TEXT`, `version_spec TEXT`, `resolved_version TEXT`, `manifest_file TEXT`, `dep_kind TEXT CHECK(dep_kind IN ('direct','transient')) DEFAULT 'direct'`
+- [x] **DEP-02**: Unique constraint `UNIQUE(service_id, ecosystem, package_name, manifest_file)` — 4-column key handles mono-repos with the same package in multiple manifests
+- [x] **DEP-03**: Index on `package_name` for cross-repo drift lookup; index on `scan_version_id` for stale cleanup
+- [x] **DEP-04**: v5.8.0 writes `dep_kind = 'direct'` only; `'transient'` is a reserved future value (column in, parsing out)
 - [ ] **DEP-05**: `worker/scan/enrichment/dep-collector.js` exports `collectDependencies(repoPath, rootPath)` returning one row per dep across all supported ecosystems (npm/pypi/go/cargo/maven/nuget/rubygems)
 - [ ] **DEP-06**: `dep-collector.js` emits `slog('WARN', 'dep-scan: unsupported manifest skipped', {...})` for manifests it cannot parse, and returns `ecosystems_scanned: []` field so coverage gaps are visible in logs
 - [ ] **DEP-07**: `dep-collector.js` persists production deps only (not devDependencies); `drift-versions.sh` local output is unchanged
@@ -151,10 +151,10 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | ENR-07 | 94 | Pending |
 | ENR-08 | 94 | Pending |
 | ENR-09 | 94 | Pending |
-| DEP-01 | 93 | Pending |
-| DEP-02 | 93 | Pending |
-| DEP-03 | 93 | Pending |
-| DEP-04 | 93 | Pending |
+| DEP-01 | 93 | Complete |
+| DEP-02 | 93 | Complete |
+| DEP-03 | 93 | Complete |
+| DEP-04 | 93 | Complete |
 | DEP-05 | 93 | Pending |
 | DEP-06 | 93 | Pending |
 | DEP-07 | 93 | Pending |

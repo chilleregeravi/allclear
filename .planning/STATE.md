@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
-status: verifying
-stopped_at: Completed 92-manifest-parsers-02-PLAN.md
-last_updated: "2026-04-19T15:32:36.964Z"
+status: executing
+stopped_at: Completed 93-dep-collector-01-PLAN.md
+last_updated: "2026-04-19T15:42:08.139Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-19)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 92 — Manifest Parser Foundation + Language Detection + Type Extraction
+**Current focus:** Phase 93 — DB Schema + Dependency Collector
 
 ## Current Position
 
-Phase: 92 (Manifest Parser Foundation + Language Detection + Type Extraction) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 93 (DB Schema + Dependency Collector) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-04-19
 
 Progress: [          ] 0%
@@ -53,6 +53,7 @@ Progress: [          ] 0%
 - [Phase 92-manifest-parsers]: C# partial class limitation documented as code comment only — cross-file merging deferred per Pitfall 13, out of Phase 92 scope
 - [Phase 92-manifest-parsers]: Fixtures contain only minimum files to trigger exactly one parser each — no cross-ecosystem contamination
 - [Phase 92-manifest-parsers]: Rule 1 bug fix: Maven relativePath extraction RSTART+15 was off-by-one (tag is 14 chars) — fixed to RSTART+14 so ../pom.xml resolves correctly
+- [Phase 93-dep-collector]: Migration 010: CREATE TABLE IF NOT EXISTS for idempotency, no hasCol() guards; 4-col UNIQUE includes manifest_file (NOT NULL) to handle mono-repo same-package-in-multiple-manifests; dep_kind column present in v5.8.0 schema despite only writing 'direct' (transient deferred to v5.9 per PITFALLS P6); ON DELETE CASCADE from services(id) means endScan() needs no new dep cleanup code
 
 ### Pending Todos
 
@@ -64,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T15:32:36.960Z
-Stopped at: Completed 92-manifest-parsers-02-PLAN.md
+Last session: 2026-04-19T15:42:08.135Z
+Stopped at: Completed 93-dep-collector-01-PLAN.md
 Resume file: None
