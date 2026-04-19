@@ -254,6 +254,24 @@ extract_versions() {
     done || true
     rm -f "$cpm_map"
   fi
+
+  # ---- Gemfile.lock (Bundler — GEM + GIT + PATH sections — MF-05) ---------
+  if [[ -f "${repo_dir}/Gemfile.lock" ]]; then
+    awk '
+      /^GEM$/    { section="GEM"; next }
+      /^GIT$/    { section="GIT"; next }
+      /^PATH$/   { section="PATH"; next }
+      /^[A-Z]+$/ { section=""; next }
+      /^$/       { in_specs=0; next }
+      section && /^  specs:/ { in_specs=1; next }
+      in_specs && /^    [a-zA-Z0-9_-]+ \([0-9]/ {
+        name=$1
+        ver=$2
+        gsub(/[()]/,"",ver)
+        print name"="ver
+      }
+    ' "${repo_dir}/Gemfile.lock" 2>/dev/null | sort -u || true
+  fi
 }
 
 # ---------------------------------------------------------------------------
