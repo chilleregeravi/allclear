@@ -58,7 +58,7 @@ Extend `worker/scan/enrichment/auth-db-extractor.js` with language switch cases.
 - [ ] **DEP-05**: `worker/scan/enrichment/dep-collector.js` exports `collectDependencies(repoPath, rootPath)` returning one row per dep across all supported ecosystems (npm/pypi/go/cargo/maven/nuget/rubygems)
 - [ ] **DEP-06**: `dep-collector.js` emits `slog('WARN', 'dep-scan: unsupported manifest skipped', {...})` for manifests it cannot parse, and returns `ecosystems_scanned: []` field so coverage gaps are visible in logs
 - [ ] **DEP-07**: `dep-collector.js` persists production deps only (not devDependencies); `drift-versions.sh` local output is unchanged
-- [ ] **DEP-08**: `query-engine.js upsertDependency(row)` uses prepared statement + `ON CONFLICT DO UPDATE` preserving row IDs across re-scans
+- [x] **DEP-08**: `query-engine.js upsertDependency(row)` uses prepared statement + `ON CONFLICT DO UPDATE` preserving row IDs across re-scans
 - [ ] **DEP-09**: `manager.js` Phase B loop calls `collectDependencies` after `runEnrichmentPass` for each service (no change to `beginScan`/`endScan` bracket)
 - [ ] **DEP-10**: Stale rows cleaned automatically via `ON DELETE CASCADE` when `endScan()` removes a stale service; no new cleanup statement needed
 - [ ] **DEP-11**: node:test coverage: one test per ecosystem parser (npm/pypi/go/cargo/maven/nuget/rubygems), upsert, get, dedup across re-scans, stale cleanup
@@ -158,7 +158,7 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | DEP-05 | 93 | Pending |
 | DEP-06 | 93 | Pending |
 | DEP-07 | 93 | Pending |
-| DEP-08 | 93 | Pending |
+| DEP-08 | 93 | Complete |
 | DEP-09 | 93 | Pending |
 | DEP-10 | 93 | Pending |
 | DEP-11 | 93 | Pending |

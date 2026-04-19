@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
 status: executing
-stopped_at: Completed 93-dep-collector-01-PLAN.md
-last_updated: "2026-04-19T15:42:08.139Z"
+stopped_at: Completed 93-dep-collector 93-02-PLAN.md
+last_updated: "2026-04-19T15:47:52.172Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 93 (DB Schema + Dependency Collector) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-19
 
@@ -54,6 +54,9 @@ Progress: [          ] 0%
 - [Phase 92-manifest-parsers]: Fixtures contain only minimum files to trigger exactly one parser each — no cross-ecosystem contamination
 - [Phase 92-manifest-parsers]: Rule 1 bug fix: Maven relativePath extraction RSTART+15 was off-by-one (tag is 14 chars) — fixed to RSTART+14 so ../pom.xml resolves correctly
 - [Phase 93-dep-collector]: Migration 010: CREATE TABLE IF NOT EXISTS for idempotency, no hasCol() guards; 4-col UNIQUE includes manifest_file (NOT NULL) to handle mono-repo same-package-in-multiple-manifests; dep_kind column present in v5.8.0 schema despite only writing 'direct' (transient deferred to v5.9 per PITFALLS P6); ON DELETE CASCADE from services(id) means endScan() needs no new dep cleanup code
+- [Phase 93-dep-collector]: ON CONFLICT DO UPDATE (not INSERT OR REPLACE) preserves row IDs across re-scans — chosen for DEP-08 row-id stability contract
+- [Phase 93-dep-collector]: No deleteStaleDependencies() helper — ON DELETE CASCADE from services(id) handles dep cleanup automatically via endScan()
+- [Phase 93-dep-collector]: runMigrations() in test seedDb() instead of partial migration chain — QueryEngine constructor requires all migrations for unconditional prepared statements
 
 ### Pending Todos
 
@@ -65,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T15:42:08.135Z
-Stopped at: Completed 93-dep-collector-01-PLAN.md
+Last session: 2026-04-19T15:47:52.168Z
+Stopped at: Completed 93-dep-collector 93-02-PLAN.md
 Resume file: None
