@@ -717,6 +717,11 @@ Plans:
   5. Dead code deleted: `scripts/impact.sh` `classify_match()` function (lines 16-55); `scripts/lint.sh` `NPM_BIN=$(npm bin ...)` line (line 109); full bats suite passes with zero regressions
 **Parallelism note**: Fully independent of Phases 92, 93, 94. Can land at any point.
 **UI hint**: no
+**Plans:** 3 plans
+Plans:
+- [ ] 95-01-PLAN.md — scripts/drift.sh unified dispatcher (bash subprocess routing, Bash 4+ guard, reserved licenses|security, DSP-08 no-linked-repos message) + drift-dispatcher.bats (DSP-01..04, DSP-08, DSP-14)
+- [ ] 95-02-PLAN.md — lib/worker-restart.sh extraction (should_restart_worker + restart_worker_if_stale); session-start.sh + worker-start.sh refactor, PID-file mutex preserved; worker-restart.bats (DSP-05, DSP-06, DSP-07)
+- [ ] 95-03-PLAN.md — Four bug fixes + dead code removal: wait_for_worker bc→awk; drift-types.sh unset+declare -A + Bash 4+ guard; lint.sh no global stderr + dead npm-bin removed; impact.sh classify_match deleted + bash-3.2 comments updated (DSP-09..13, DSP-14 full-suite gate)
 
 ### Phase 96: Hub Payload v1.1 + Feature Flag
 **Goal**: payload.js emits a dependencies array per service and bumps schemaVersion to "1.1" when the feature flag is on and deps are non-empty; v1.0 payload is always emitted when flag is off or deps are empty
