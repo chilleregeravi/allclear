@@ -4,12 +4,10 @@ GEM
     rails (7.1.0)
       actionpack (= 7.1.0)
       activesupport (= 7.1.0)
-    activesupport (7.1.0)
-      tzinfo (~> 2.0)
 
 GIT
   remote: https://github.com/example/mygem.git
-  revision: abc1234
+  revision: abc1234def456abc1234def456abc1234def456a
   specs:
     mygem (1.2.3)
       activesupport (>= 6.0)
