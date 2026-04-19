@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
-status: executing
-stopped_at: Completed 96-hub-payload-v1-1/96-01-PLAN.md
-last_updated: "2026-04-19T16:48:24.803Z"
+status: verifying
+stopped_at: Completed 96-hub-payload-v1-1/96-02-PLAN.md
+last_updated: "2026-04-19T16:51:04.036Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 Phase: 96 (Hub Payload v1.1 + Feature Flag) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-19
 
 Progress: [          ] 0%
@@ -75,6 +75,7 @@ Progress: [          ] 0%
 - [Phase 96-hub-payload-v1-1]: schemaVersion derived inside buildFindingsBlock return value — keeps payload.js pure; buildScanPayload reads it from the findings block
 - [Phase 96-hub-payload-v1-1]: anyServiceHasDeps gate: flag=true + all-empty deps falls back to v1.0 — existing hub deployments never receive unexpected keys
 - [Phase 96-hub-payload-v1-1]: Back-fill service ids onto r.findings.services after persistFindings via single SELECT name+id — avoids threading ids through agent pipeline
+- [Phase 96-hub-payload-v1-1]: 4 new tests added (not 8): 5 of the 8 plan-spec cases were already shipped by 96-01; duplicates would violate the no-modify-existing-tests rule
 
 ### Pending Todos
 
@@ -86,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:48:24.799Z
-Stopped at: Completed 96-hub-payload-v1-1/96-01-PLAN.md
+Last session: 2026-04-19T16:51:04.031Z
+Stopped at: Completed 96-hub-payload-v1-1/96-02-PLAN.md
 Resume file: None

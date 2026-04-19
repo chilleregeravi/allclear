@@ -738,7 +738,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 96-01-PLAN.md — payload.js buildFindingsBlock + buildScanPayload feature-flag gate, schemaVersion derivation; cli/hub.js + scan/manager.js wiring
-- [ ] 96-02-PLAN.md — payload.test.js: 4-case HUB-04 flag/data matrix + HUB-05 regression guard + shell-invariant zero-diff check
+- [x] 96-02-PLAN.md — payload.test.js: 4-case HUB-04 flag/data matrix + HUB-05 regression guard + shell-invariant zero-diff check
 
 ## Progress
 
@@ -765,4 +765,4 @@ Plans:
 | 93 | v5.8.0 | 3/4 | In Progress|  |
 | 94 | v5.8.0 | 3/3 | Complete   | 2026-04-19 |
 | 95 | v5.8.0 | 3/3 | Complete   | 2026-04-19 |
-| 96 | v5.8.0 | 1/2 | In Progress|  |
+| 96 | v5.8.0 | 2/2 | Complete   | 2026-04-19 |

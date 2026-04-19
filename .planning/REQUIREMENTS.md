@@ -68,8 +68,8 @@ Extend `worker/scan/enrichment/auth-db-extractor.js` with language switch cases.
 - [x] **HUB-01**: `buildFindingsBlock()` in `worker/hub-sync/payload.js` emits `dependencies: []` array per service from `queryEngine.getDependenciesForService(serviceId)`
 - [x] **HUB-02**: `buildScanPayload()` sets `version: "1.1"` when any service has non-empty `dependencies`; falls back to `"1.0"` when all empty (backward compat with pre-THE-1018 hubs)
 - [x] **HUB-03**: Feature flag `hub.beta_features.library_deps` in `.arcanon/config.json` (default `false`) gates emission — when off, payload is v1.0 regardless of deps
-- [ ] **HUB-04**: node:test covers: empty deps → v1.0, populated deps + flag on → v1.1, populated deps + flag off → v1.0
-- [ ] **HUB-05**: Existing `/arcanon:drift versions` command keeps working exactly as today — no change to shell output shape
+- [x] **HUB-04**: node:test covers: empty deps → v1.0, populated deps + flag on → v1.1, populated deps + flag off → v1.0
+- [x] **HUB-05**: Existing `/arcanon:drift versions` command keeps working exactly as today — no change to shell output shape
 
 ### Drift Dispatcher & Shell Cleanup (THE-1021)
 
@@ -165,8 +165,8 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | HUB-01 | 96 | Complete |
 | HUB-02 | 96 | Complete |
 | HUB-03 | 96 | Complete |
-| HUB-04 | 96 | Pending |
-| HUB-05 | 96 | Pending |
+| HUB-04 | 96 | Complete |
+| HUB-05 | 96 | Complete |
 | DSP-01 | 95 | Complete |
 | DSP-02 | 95 | Complete |
 | DSP-03 | 95 | Complete |
