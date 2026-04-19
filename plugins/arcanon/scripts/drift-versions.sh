@@ -171,6 +171,89 @@ extract_versions() {
     done || true
     rm -f "$mvn_vermap"
   fi
+
+  # ---- build.gradle (Gradle Groovy DSL — MF-02, MF-03) --------------------
+  if [[ -f "${repo_dir}/build.gradle" ]]; then
+    local gradle_catalog
+    gradle_catalog=$(mktemp -t arcanon-gradle.XXXX) || return 0
+    if [[ -f "${repo_dir}/gradle/libs.versions.toml" ]]; then
+      awk '
+        /^\[versions\]/{in_v=1; next}
+        /^\[/{in_v=0}
+        in_v && /=/ {
+          n=$1; sub(/[[:space:]]*=.*/,"",n)
+          v=$0; sub(/^[^=]*=[[:space:]]*"/,"",v); sub(/"[[:space:]]*$/,"",v)
+          if(n && v) print n"="v
+        }
+      ' "${repo_dir}/gradle/libs.versions.toml" > "$gradle_catalog"
+    fi
+    # Groovy DSL: single-quote string literals  group:artifact:version
+    grep -hE "^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|platform)\s*[('][^)']*['\"]([^'\"]+):([^'\"]+):([^'\"]+)['\"]" \
+      "${repo_dir}/build.gradle" 2>/dev/null \
+      | sed -E "s/.*['\"]([^:'\"]+):([^:'\"]+):([^'\"]+)['\"].*/\1:\2=\3/" \
+      | grep -v '^=' || true
+    # Emit BOM catalog aliases so operator sees managed deps
+    if [[ -s "$gradle_catalog" ]]; then
+      awk -F= '{print "BOM:"$1"="$2}' "$gradle_catalog"
+    fi
+    rm -f "$gradle_catalog"
+  fi
+
+  # ---- build.gradle.kts (Gradle Kotlin DSL — MF-02, MF-03) ----------------
+  if [[ -f "${repo_dir}/build.gradle.kts" ]]; then
+    local gradle_catalog_kts
+    gradle_catalog_kts=$(mktemp -t arcanon-gradle.XXXX) || return 0
+    if [[ -f "${repo_dir}/gradle/libs.versions.toml" ]]; then
+      awk '
+        /^\[versions\]/{in_v=1; next}
+        /^\[/{in_v=0}
+        in_v && /=/ {
+          n=$1; sub(/[[:space:]]*=.*/,"",n)
+          v=$0; sub(/^[^=]*=[[:space:]]*"/,"",v); sub(/"[[:space:]]*$/,"",v)
+          if(n && v) print n"="v
+        }
+      ' "${repo_dir}/gradle/libs.versions.toml" > "$gradle_catalog_kts"
+    fi
+    # Kotlin DSL: double-quote string literals with mandatory parentheses
+    grep -hE '^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|platform)\s*\(\s*"[^"]*:[^"]*:[^"]*"' \
+      "${repo_dir}/build.gradle.kts" 2>/dev/null \
+      | sed -E 's/.*"([^:]+):([^:]+):([^"]+)".*/\1:\2=\3/' \
+      | grep -v '^=' || true
+    # Emit BOM catalog aliases
+    if [[ -s "$gradle_catalog_kts" ]]; then
+      awk -F= '{print "BOM:"$1"="$2}' "$gradle_catalog_kts"
+    fi
+    rm -f "$gradle_catalog_kts"
+  fi
+
+  # ---- *.csproj / Directory.Packages.props (NuGet + CPM — MF-04) -----------
+  if compgen -G "${repo_dir}/*.csproj" > /dev/null 2>&1; then
+    local cpm_map
+    cpm_map=$(mktemp -t arcanon-cpm.XXXX) || return 0
+    if [[ -f "${repo_dir}/Directory.Packages.props" ]]; then
+      grep -hE '<PackageVersion[[:space:]]+Include=' "${repo_dir}/Directory.Packages.props" 2>/dev/null \
+        | sed -E 's/.*Include="([^"]+)".*Version="([^"]+)".*/\1=\2/' \
+        > "$cpm_map"
+    fi
+    find "${repo_dir}" -maxdepth 3 -name '*.csproj' 2>/dev/null | while IFS= read -r csproj; do
+      grep -hE '<PackageReference[[:space:]]+Include=' "$csproj" 2>/dev/null | while IFS= read -r line; do
+        # Skip Update= entries (CPM transitive overrides — Pitfall 4)
+        echo "$line" | grep -qE 'Update="' && continue
+        local pkg_name inline_ver resolved
+        pkg_name=$(echo "$line" | sed -nE 's/.*Include="([^"]+)".*/\1/p')
+        inline_ver=$(echo "$line" | sed -nE 's/.*Version="([^"]+)".*/\1/p')
+        if [[ -n "$inline_ver" ]]; then
+          echo "${pkg_name}=${inline_ver}"
+        elif [[ -s "$cpm_map" ]]; then
+          resolved=$(awk -F= -v k="$pkg_name" '$1==k{print $2; exit}' "$cpm_map")
+          [[ -n "$resolved" ]] && echo "${pkg_name}=${resolved}" || echo "${pkg_name}=MANAGED"
+        else
+          echo "${pkg_name}=MANAGED"
+        fi
+      done
+    done || true
+    rm -f "$cpm_map"
+  fi
 }
 
 # ---------------------------------------------------------------------------
