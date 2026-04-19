@@ -81,11 +81,11 @@ Extend `worker/scan/enrichment/auth-db-extractor.js` with language switch cases.
 - [x] **DSP-06**: `scripts/session-start.sh` lines 43-68 replaced with `source lib/worker-restart.sh; restart_worker_if_stale || true`
 - [x] **DSP-07**: `scripts/worker-start.sh` lines 28-61 replaced with same call; PID-file mutex preserved
 - [x] **DSP-08**: `drift-common.sh` "no linked repos" case emits `echo "drift: no linked repos configured" >&2` before return
-- [ ] **DSP-09**: Bug fix: `lib/worker-client.sh:38` — remove `bc` subprocess per sleep iteration; pre-compute once or use `awk`
-- [ ] **DSP-10**: Bug fix: `scripts/drift-types.sh:148,202` — `unset type_repos && declare -A type_repos` per language block to prevent associative-array leak
-- [ ] **DSP-11**: Bug fix: `scripts/lint.sh:10` — remove global `exec 2>/dev/null`; redirect per linter call so linter panics are surfaced
-- [ ] **DSP-12**: Bug fix: Declare Bash 4+ as plugin floor — add version guard at top of `drift-types.sh`; update `lib/config.sh:32` comment to drop bash 3.2 language
-- [ ] **DSP-13**: Dead code removed: `scripts/impact.sh:16-55` `classify_match()` function; `scripts/lint.sh:109` `NPM_BIN=$(npm bin ...)` line
+- [x] **DSP-09**: Bug fix: `lib/worker-client.sh:38` — remove `bc` subprocess per sleep iteration; pre-compute once or use `awk`
+- [x] **DSP-10**: Bug fix: `scripts/drift-types.sh:148,202` — `unset type_repos && declare -A type_repos` per language block to prevent associative-array leak
+- [x] **DSP-11**: Bug fix: `scripts/lint.sh:10` — remove global `exec 2>/dev/null`; redirect per linter call so linter panics are surfaced
+- [x] **DSP-12**: Bug fix: Declare Bash 4+ as plugin floor — add version guard at top of `drift-types.sh`; update `lib/config.sh:32` comment to drop bash 3.2 language
+- [x] **DSP-13**: Dead code removed: `scripts/impact.sh:16-55` `classify_match()` function; `scripts/lint.sh:109` `NPM_BIN=$(npm bin ...)` line
 - [x] **DSP-14**: Full bats suite passes (existing + new fixtures for MF-06, DSP-10); zero regressions
 
 ## v2 Requirements (Deferred)
@@ -175,11 +175,11 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | DSP-06 | 95 | Complete |
 | DSP-07 | 95 | Complete |
 | DSP-08 | 95 | Complete |
-| DSP-09 | 95 | Pending |
-| DSP-10 | 95 | Pending |
-| DSP-11 | 95 | Pending |
-| DSP-12 | 95 | Pending |
-| DSP-13 | 95 | Pending |
+| DSP-09 | 95 | Complete |
+| DSP-10 | 95 | Complete |
+| DSP-11 | 95 | Complete |
+| DSP-12 | 95 | Complete |
+| DSP-13 | 95 | Complete |
 | DSP-14 | 95 | Complete |
 
 **Coverage:**

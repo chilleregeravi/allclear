@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
-status: executing
-stopped_at: Completed 95-shell-cleanup-dispatcher-95-02-PLAN.md
-last_updated: "2026-04-19T16:18:06.249Z"
+status: verifying
+stopped_at: Completed 95-03-PLAN.md
+last_updated: "2026-04-19T16:22:06.730Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 Phase: 95 (Shell Cleanup + Unified Dispatcher) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-19
 
 Progress: [          ] 0%
@@ -62,6 +62,9 @@ Progress: [          ] 0%
 - [Phase 95-shell-cleanup-dispatcher]: drift.sh uses bash subprocess (not source) to preserve DSP-03 direct-invocation regression contract
 - [Phase 95-shell-cleanup-dispatcher]: Reserved slots licenses|security exit 2 (distinct from unknown=1) to differentiate reserved vs typo
 - [Phase 95-shell-cleanup-dispatcher]: worker-start.sh calls should_restart_worker (not restart_worker_if_stale) to avoid recursive worker_start_background spawn
+- [Phase 95]: Pre-compute awk sleep interval once outside loop to avoid bc subprocess per iteration
+- [Phase 95]: Bash 4+ guard added to drift-types.sh; unset type_repos before first declare -A closes key-leak at loop entry
+- [Phase 95]: Remove global exec 2>/dev/null in lint.sh so linter panics surface; drop dead npm bin branch (npm 9+ removed it)
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:18:06.245Z
-Stopped at: Completed 95-shell-cleanup-dispatcher-95-02-PLAN.md
+Last session: 2026-04-19T16:22:06.726Z
+Stopped at: Completed 95-03-PLAN.md
 Resume file: None
