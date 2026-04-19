@@ -23,9 +23,9 @@ New ecosystem parsers in `scripts/drift-versions.sh`. Zero new runtime deps — 
 
 ### Language Detection
 
-- [ ] **LANG-01**: `lib/detect.sh detect_language()` recognizes Java (pom.xml / build.gradle / build.gradle.kts), .NET (.csproj / .sln), Ruby (Gemfile); session-start banner shows correct project type
-- [ ] **LANG-02**: `detect_project_type()` priority order keeps existing TS/Python/Go/Rust precedence; appends `java > dotnet > ruby`
-- [ ] **LANG-03**: `worker/scan/discovery.js` MANIFESTS array includes `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile` so linked-repo discovery picks them up
+- [x] **LANG-01**: `lib/detect.sh detect_language()` recognizes Java (pom.xml / build.gradle / build.gradle.kts), .NET (.csproj / .sln), Ruby (Gemfile); session-start banner shows correct project type
+- [x] **LANG-02**: `detect_project_type()` priority order keeps existing TS/Python/Go/Rust precedence; appends `java > dotnet > ruby`
+- [x] **LANG-03**: `worker/scan/discovery.js` MANIFESTS array includes `pom.xml`, `build.gradle`, `build.gradle.kts`, `Gemfile` so linked-repo discovery picks them up
 
 ### Type Extraction
 
@@ -134,9 +134,9 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | MF-05 | 92 | Complete |
 | MF-06 | 92 | Pending |
 | MF-07 | 92 | Complete |
-| LANG-01 | 92 | Pending |
-| LANG-02 | 92 | Pending |
-| LANG-03 | 92 | Pending |
+| LANG-01 | 92 | Complete |
+| LANG-02 | 92 | Complete |
+| LANG-03 | 92 | Complete |
 | TYPE-01 | 92 | Pending |
 | TYPE-02 | 92 | Pending |
 | TYPE-03 | 92 | Pending |
