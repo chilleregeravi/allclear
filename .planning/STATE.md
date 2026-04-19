@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.8.0
 milestone_name: Library Drift & Language Parity
-status: executing
-stopped_at: Completed 92-manifest-parsers-04-PLAN.md
-last_updated: "2026-04-19T15:27:45.419Z"
+status: verifying
+stopped_at: Completed 92-manifest-parsers-02-PLAN.md
+last_updated: "2026-04-19T15:32:36.964Z"
 last_activity: 2026-04-19
 progress:
   total_phases: 32
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 Phase: 92 (Manifest Parser Foundation + Language Detection + Type Extraction) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-19
 
 Progress: [          ] 0%
@@ -51,6 +51,8 @@ Progress: [          ] 0%
 - [Phase 92-manifest-parsers]: compgen -G used for .csproj/.sln glob detection in detect_project_type (bash builtin, no subprocess)
 - [Phase 92-manifest-parsers]: drift-types.sh: added --test-only guard (mirrors drift-versions.sh) to allow bats sourcing without triggering main loop under set -euo pipefail
 - [Phase 92-manifest-parsers]: C# partial class limitation documented as code comment only — cross-file merging deferred per Pitfall 13, out of Phase 92 scope
+- [Phase 92-manifest-parsers]: Fixtures contain only minimum files to trigger exactly one parser each — no cross-ecosystem contamination
+- [Phase 92-manifest-parsers]: Rule 1 bug fix: Maven relativePath extraction RSTART+15 was off-by-one (tag is 14 chars) — fixed to RSTART+14 so ../pom.xml resolves correctly
 
 ### Pending Todos
 
@@ -62,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-19T15:27:45.415Z
-Stopped at: Completed 92-manifest-parsers-04-PLAN.md
+Last session: 2026-04-19T15:32:36.960Z
+Stopped at: Completed 92-manifest-parsers-02-PLAN.md
 Resume file: None

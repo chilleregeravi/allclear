@@ -665,7 +665,7 @@ Plans:
 **Plans**: 4 plans
 Plans:
 - [x] 92-01-PLAN.md — Manifest parsers: Maven (parent + dependencyManagement), Gradle Groovy + Kotlin DSL + libs.versions.toml, NuGet + CPM, Gemfile.lock GEM+GIT+PATH
-- [ ] 92-02-PLAN.md — Fixtures + bats tests for Maven parent, Gradle Kotlin, NuGet CPM, Gemfile.lock all sections (MF-06, MF-07)
+- [x] 92-02-PLAN.md — Fixtures + bats tests for Maven parent, Gradle Kotlin, NuGet CPM, Gemfile.lock all sections (MF-06, MF-07)
 - [x] 92-03-PLAN.md — Language detection: detect.sh java/dotnet/ruby branches + discovery.js MANIFESTS extension
 - [x] 92-04-PLAN.md — Type extraction: drift-types.sh java/cs/rb extractors + fixtures + bats coverage
 
@@ -717,7 +717,7 @@ Plans:
   5. Dead code deleted: `scripts/impact.sh` `classify_match()` function (lines 16-55); `scripts/lint.sh` `NPM_BIN=$(npm bin ...)` line (line 109); full bats suite passes with zero regressions
 **Parallelism note**: Fully independent of Phases 92, 93, 94. Can land at any point.
 **UI hint**: no
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [ ] 95-01-PLAN.md — scripts/drift.sh unified dispatcher (bash subprocess routing, Bash 4+ guard, reserved licenses|security, DSP-08 no-linked-repos message) + drift-dispatcher.bats (DSP-01..04, DSP-08, DSP-14)
 - [ ] 95-02-PLAN.md — lib/worker-restart.sh extraction (should_restart_worker + restart_worker_if_stale); session-start.sh + worker-start.sh refactor, PID-file mutex preserved; worker-restart.bats (DSP-05, DSP-06, DSP-07)
@@ -761,7 +761,7 @@ Plans:
 | 80-83 | v5.5.0 | 9/9 | Complete | 2026-03-22 |
 | 84-88 | v5.6.0 | 6/6 | Complete | 2026-03-23 |
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
-| 92 | v5.8.0 | 3/4 | In Progress|  |
+| 92 | v5.8.0 | 4/4 | Complete   | 2026-04-19 |
 | 93 | v5.8.0 | 0/4 | Not started | - |
 | 94 | v5.8.0 | 0/3 | Not started | - |
 | 95 | v5.8.0 | 0/? | Not started | - |

@@ -18,7 +18,7 @@ New ecosystem parsers in `scripts/drift-versions.sh`. Zero new runtime deps — 
 - [x] **MF-03**: `/arcanon:drift versions` resolves Gradle version catalogs (`gradle/libs.versions.toml`) for BOM-managed deps
 - [x] **MF-04**: `/arcanon:drift versions` parses NuGet `.csproj` `<PackageReference>` entries including Central Package Management (`Directory.Packages.props`)
 - [x] **MF-05**: `/arcanon:drift versions` parses Bundler `Gemfile.lock` — uses lockfile pinned versions (not Gemfile ranges); covers GEM, GIT, PATH sections
-- [ ] **MF-06**: Each new parser has a bats fixture covering its non-obvious edge case (parent POM, Kotlin DSL, CPM, GEM+GIT+PATH); `tests/fixtures/drift/` extended
+- [x] **MF-06**: Each new parser has a bats fixture covering its non-obvious edge case (parent POM, Kotlin DSL, CPM, GEM+GIT+PATH); `tests/fixtures/drift/` extended
 - [x] **MF-07**: No regressions in existing npm / pypi / go / cargo drift output; bats suite remains green
 
 ### Language Detection
@@ -132,7 +132,7 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | MF-03 | 92 | Complete |
 | MF-04 | 92 | Complete |
 | MF-05 | 92 | Complete |
-| MF-06 | 92 | Pending |
+| MF-06 | 92 | Complete |
 | MF-07 | 92 | Complete |
 | LANG-01 | 92 | Complete |
 | LANG-02 | 92 | Complete |
