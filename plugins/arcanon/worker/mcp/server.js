@@ -1249,7 +1249,7 @@ export async function queryScan({ repo, full = false } = {}) {
 // MCP Server setup
 // ─────────────────────────────────────────────────────────────
 
-const server = new McpServer({ name: "ligamen-impact", version: "2.0.0" });
+const server = new McpServer({ name: "arcanon-impact", version: "0.1.0" });
 
 // ── impact_query ─────────────────────────────────────────────
 server.tool(

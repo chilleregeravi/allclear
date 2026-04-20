@@ -326,12 +326,63 @@
 
 ---
 
+## Milestone: v5.8.0 — Library Drift & Language Parity
+
+**Shipped:** 2026-04-19
+**Phases:** 5 (92-96) | **Plans:** 16 | **Linear tickets:** THE-1019, THE-1020, THE-1021
+
+### What Was Built
+- Manifest parsers for Maven (with `<parent>` inheritance), Gradle (Groovy + Kotlin DSL + libs.versions.toml catalog), NuGet (incl. Central Package Management), Bundler (Gemfile.lock GEM/GIT/PATH)
+- Java/.NET/Ruby language detection in `detect.sh` + `discovery.js` MANIFESTS
+- Java/C#/Ruby type extractors in `drift-types.sh` using tmpdir pattern (Bash 3.2 compatible)
+- Migration 010 `service_dependencies` table with `dep_kind` discriminant + 4-col UNIQUE + ON DELETE CASCADE
+- `dep-collector.js` enrichment module covering 7 ecosystems (npm/pypi/go/cargo/maven/nuget/rubygems), production-deps-only
+- Auth/DB enrichment for Java (Spring Security 5+6), C# (ASP.NET Identity, EF Core minimal API), Ruby (Devise, ActiveRecord, `config/database.yml` adapter probe)
+- Unified `scripts/drift.sh` dispatcher with `bash` subprocess routing + Bash 4+ floor + reserved `licenses|security` slots
+- `lib/worker-restart.sh` extracted from session-start + worker-start with PID-file mutex preserved
+- 4 shell bug fixes (bc fork, declare -A leak, global stderr suppression, bash 4 guard) + 2 dead-code removals
+- Hub Payload v1.1 with feature flag (default off, v1.0 fallback always works) — ready for hub-side companion THE-1018
+
+### What Worked
+- Milestone-level research synthesis (`.planning/research/SUMMARY.md`) replaced per-phase research for all 5 phases — saved ~50 min of duplicate work; planners had file:line precision from upstream researchers
+- Locked decisions captured upfront (4-col UNIQUE, dep_kind discriminant, Spring 5+6 dual patterns, production-only deps) eliminated relitigation in plan-checker
+- TDD pattern (RED → GREEN tasks per plan) caught real bugs early: Maven `relativePath` off-by-one (RSTART+15 → +14), `seedDb()` missing migration 006, awk regex requiring JS-compatible end-of-string
+- Sequential phase execution (forced by submodules → no worktrees) was simpler to reason about than parallel — and integration-checker confirmed zero file-level conflicts because we ordered phases by dependency
+- "Reserve column for future use" pattern (`dep_kind` accepting 'transient' even though only 'direct' is written) avoided an expensive ALTER TABLE later
+
+### What Was Inefficient
+- `audit-open` CLI command broken in gsd-tools (`output is not defined` ReferenceError) — had to skip the pre-close artifact audit
+- `gsd-tools milestone complete` returned `phases: 0` and didn't archive phase directories (manual `mv` required)
+- `gsd-tools state complete-phase` showed `total_phases: 32` instead of 5 — schema mismatch unresolved
+- Two checker/planner agents exited mid-run without writing outputs (re-spawning with explicit "do not exit mid-way" instructions worked)
+- REQUIREMENTS.md DEP-09/10/11 stayed `Pending` after Phase 93 shipped — verifier caught the docs lag, manual sed update needed
+
+### Patterns Established
+- **Cross-phase file-overlap detection during planning**: Discovered Phase 92-04 and Phase 95-03 both edit `drift-types.sh` BEFORE execution, scheduled phases serially in dependency order to avoid worktree race
+- **Workaround documentation via code comments**: ENR-05 spring.datasource.url detection via in-`.java`-file comments (LANG_EXTENSIONS limitation) is documented in extractor comments, not hidden
+- **Feature-flag-gated payload version bumps**: New schemaVersion only emitted when (flag on AND non-empty data); fallback to old version is the default — backward compat preserved by construction
+- **`--test-only` guard pattern in shell scripts**: Both drift-versions.sh and drift-types.sh now expose internals for bats sourcing without triggering main loop under `set -euo pipefail`
+
+### Key Lessons
+- "Parallel where safe" gets neutered by file overlap — verify cross-phase `files_modified` lists during planning, not at execution
+- Submodules (.gitmodules) silently disable worktree parallelism — affected execution time but eliminated merge-conflict risk
+- Documentation tracking (REQUIREMENTS.md checkboxes) drifts from code reality unless updated atomically with execution — verifier serves as a backstop
+- Pre-existing test failures (WRKR-07 in this case) should be confirmed pre-existing via git stash + test before assuming the new work caused them — saves a debugging cycle
+- Milestone-level research synthesis is more efficient than per-phase research when phases share architectural decisions
+
+### Cost Observations
+- Model mix: ~70% sonnet (executors, verifiers, checkers, plan-checkers), ~25% opus (planners), ~5% sonnet (researchers)
+- Sessions: 1 long autonomous run (~2.5 hours wall clock)
+- Notable: 16 plans executed sequentially. Each executor ~3-5 min wall + ~50K subagent tokens. Verifiers ~2 min wall + ~50K tokens. Planners ~7 min wall + ~150K tokens.
+
+---
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 | v4.0 | v5.6.0 | v5.7.0 |
-|--------|------|------|------|------|------|------|------|--------|--------|
-| Phases | 13 | 8 | 5 | 3 | 3 | 6 | 7 | 5 | 3 |
-| Plans | 17 | 19 | 11 | 5 | 5 | 11 | 14 | 6 | 3 |
+| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 | v4.0 | v5.6.0 | v5.7.0 | v5.8.0 |
+|--------|------|------|------|------|------|------|------|--------|--------|--------|
+| Phases | 13 | 8 | 5 | 3 | 3 | 6 | 7 | 5 | 3 | 5 |
+| Plans | 17 | 19 | 11 | 5 | 5 | 11 | 14 | 6 | 3 | 16 |
 | Requirements | 79 | 8 | 13 | 5 | 9 | 33 | 22 | 9 | 6 |
 | Tests | 150 | ~50 | ~20 | ~30 | ~30 | ~60 | 0 (rename only) | ~10 | 0 (prompt only) |
 | LOC | 4,323 | ~7,000 | ~7,500 | ~8,000 | ~9,000 | ~12,000 | ~41,600 | ~48,000 | ~48,000 |

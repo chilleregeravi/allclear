@@ -160,11 +160,20 @@ async function loadLatestFindings(repoPath) {
   const repoRow = db.prepare("SELECT id FROM repos WHERE path = ? LIMIT 1").get(repoPath);
   if (!repoRow) throw new Error(`repo ${repoPath} not indexed — run /arcanon:map`);
 
-  const services = db
+  const servicesRaw = db
     .prepare(
-      "SELECT name, root_path, language, type, boundary_entry FROM services WHERE repo_id = ?",
+      "SELECT id, name, root_path, language, type, boundary_entry FROM services WHERE repo_id = ?",
     )
     .all(repoRow.id);
+
+  // HUB-01: attach per-service deps. getDependenciesForService returns []
+  // gracefully on pre-migration-010 DBs (Phase 93-02 contract), so this is
+  // safe to call unconditionally — the feature flag determines whether the
+  // payload actually emits them.
+  const services = servicesRaw.map((s) => ({
+    ...s,
+    dependencies: qe.getDependenciesForService(s.id),
+  }));
 
   const connections = db
     .prepare(
@@ -184,6 +193,7 @@ async function cmdUpload(flags) {
   const cfg = readProjectConfig();
   const projectSlug =
     flags.project || cfg?.hub?.["project-slug"] || cfg?.["project-name"];
+  const libraryDepsEnabled = Boolean(cfg?.hub?.beta_features?.library_deps);
 
   let findings;
   try {
@@ -199,6 +209,7 @@ async function cmdUpload(flags) {
     projectSlug,
     apiKey: flags["api-key"],
     hubUrl: flags["hub-url"],
+    libraryDepsEnabled,  // HUB-03 feature flag — gates v1.1 emission
     log: flags.verbose ? (lvl, msg, data) => console.error(`[${lvl}] ${msg}`, data || "") : undefined,
   });
 

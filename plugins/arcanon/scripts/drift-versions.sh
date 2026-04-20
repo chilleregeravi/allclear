@@ -118,6 +118,160 @@ extract_versions() {
       ' "${repo_dir}/pyproject.toml" 2>/dev/null || true
     fi
   fi
+
+  # ---- pom.xml (Maven — parent + dependencyManagement resolution) ----------
+  if [[ -f "${repo_dir}/pom.xml" ]]; then
+    local mvn_vermap
+    mvn_vermap=$(mktemp -t arcanon-mvn.XXXX) || return 0
+    # Helper awk: extract <dependencyManagement> entries from a given pom file
+    _mvn_dm_extract() {
+      local pom_file="$1"
+      awk '
+        /<dependencyManagement>/{in_dm=1}
+        /<\/dependencyManagement>/{in_dm=0}
+        in_dm && /<dependency>/{in_dep=1; g=""; a=""; v=""}
+        in_dm && /<\/dependency>/{if(g && a && v) print g":"a"="v; in_dep=0}
+        in_dep && match($0,/<groupId>[^<]+/){g=substr($0,RSTART+9,RLENGTH-9)}
+        in_dep && match($0,/<artifactId>[^<]+/){a=substr($0,RSTART+12,RLENGTH-12)}
+        in_dep && match($0,/<version>[^<]+/){v=substr($0,RSTART+9,RLENGTH-9)}
+      ' "$pom_file" 2>/dev/null
+    }
+    # Resolve <parent> relativePath (default ../pom.xml)
+    local parent_rel parent_abs
+    parent_rel=$(awk '
+      /<parent>/{in_p=1}
+      in_p && /<relativePath>/{match($0,/<relativePath>[^<]+/); if(RSTART){print substr($0,RSTART+14,RLENGTH-14)}; exit}
+      /<\/parent>/{exit}
+    ' "${repo_dir}/pom.xml" 2>/dev/null)
+    [[ -z "$parent_rel" ]] && parent_rel="../pom.xml"
+    parent_abs="${repo_dir}/${parent_rel}"
+    if [[ -f "$parent_abs" ]]; then
+      _mvn_dm_extract "$parent_abs" >> "$mvn_vermap"
+    fi
+    # Child dependencyManagement wins (appended last, tac reverses so child is found first)
+    _mvn_dm_extract "${repo_dir}/pom.xml" >> "$mvn_vermap"
+    # Extract leaf <dependency> entries (outside <dependencyManagement>)
+    awk '
+      /<dependencyManagement>/{skip=1}
+      /<\/dependencyManagement>/{skip=0; next}
+      skip{next}
+      /<dependency>/{in_dep=1; g=""; a=""; v=""}
+      /<\/dependency>/{if(g && a) print g":"a"="v; in_dep=0}
+      in_dep && match($0,/<groupId>[^<]+/){g=substr($0,RSTART+9,RLENGTH-9)}
+      in_dep && match($0,/<artifactId>[^<]+/){a=substr($0,RSTART+12,RLENGTH-12)}
+      in_dep && match($0,/<version>[^<]+/){v=substr($0,RSTART+9,RLENGTH-9)}
+    ' "${repo_dir}/pom.xml" 2>/dev/null | while IFS='=' read -r key raw_ver; do
+      [[ -z "$key" ]] && continue
+      local ver="$raw_ver"
+      if [[ -z "$ver" ]]; then
+        ver=$(tac "$mvn_vermap" | awk -F= -v k="$key" '$1==k{print $2; exit}')
+      fi
+      [[ -z "$ver" ]] && ver="MANAGED"
+      printf '%s=%s\n' "$key" "$ver"
+    done || true
+    rm -f "$mvn_vermap"
+  fi
+
+  # ---- build.gradle (Gradle Groovy DSL — MF-02, MF-03) --------------------
+  if [[ -f "${repo_dir}/build.gradle" ]]; then
+    local gradle_catalog
+    gradle_catalog=$(mktemp -t arcanon-gradle.XXXX) || return 0
+    if [[ -f "${repo_dir}/gradle/libs.versions.toml" ]]; then
+      awk '
+        /^\[versions\]/{in_v=1; next}
+        /^\[/{in_v=0}
+        in_v && /=/ {
+          n=$1; sub(/[[:space:]]*=.*/,"",n)
+          v=$0; sub(/^[^=]*=[[:space:]]*"/,"",v); sub(/"[[:space:]]*$/,"",v)
+          if(n && v) print n"="v
+        }
+      ' "${repo_dir}/gradle/libs.versions.toml" > "$gradle_catalog"
+    fi
+    # Groovy DSL: single-quote string literals  group:artifact:version
+    grep -hE "^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|platform)\s*[('][^)']*['\"]([^'\"]+):([^'\"]+):([^'\"]+)['\"]" \
+      "${repo_dir}/build.gradle" 2>/dev/null \
+      | sed -E "s/.*['\"]([^:'\"]+):([^:'\"]+):([^'\"]+)['\"].*/\1:\2=\3/" \
+      | grep -v '^=' || true
+    # Emit BOM catalog aliases so operator sees managed deps
+    if [[ -s "$gradle_catalog" ]]; then
+      awk -F= '{print "BOM:"$1"="$2}' "$gradle_catalog"
+    fi
+    rm -f "$gradle_catalog"
+  fi
+
+  # ---- build.gradle.kts (Gradle Kotlin DSL — MF-02, MF-03) ----------------
+  if [[ -f "${repo_dir}/build.gradle.kts" ]]; then
+    local gradle_catalog_kts
+    gradle_catalog_kts=$(mktemp -t arcanon-gradle.XXXX) || return 0
+    if [[ -f "${repo_dir}/gradle/libs.versions.toml" ]]; then
+      awk '
+        /^\[versions\]/{in_v=1; next}
+        /^\[/{in_v=0}
+        in_v && /=/ {
+          n=$1; sub(/[[:space:]]*=.*/,"",n)
+          v=$0; sub(/^[^=]*=[[:space:]]*"/,"",v); sub(/"[[:space:]]*$/,"",v)
+          if(n && v) print n"="v
+        }
+      ' "${repo_dir}/gradle/libs.versions.toml" > "$gradle_catalog_kts"
+    fi
+    # Kotlin DSL: double-quote string literals with mandatory parentheses
+    grep -hE '^\s*(implementation|api|compileOnly|runtimeOnly|testImplementation|platform)\s*\(\s*"[^"]*:[^"]*:[^"]*"' \
+      "${repo_dir}/build.gradle.kts" 2>/dev/null \
+      | sed -E 's/.*"([^:]+):([^:]+):([^"]+)".*/\1:\2=\3/' \
+      | grep -v '^=' || true
+    # Emit BOM catalog aliases
+    if [[ -s "$gradle_catalog_kts" ]]; then
+      awk -F= '{print "BOM:"$1"="$2}' "$gradle_catalog_kts"
+    fi
+    rm -f "$gradle_catalog_kts"
+  fi
+
+  # ---- *.csproj / Directory.Packages.props (NuGet + CPM — MF-04) -----------
+  if compgen -G "${repo_dir}/*.csproj" > /dev/null 2>&1; then
+    local cpm_map
+    cpm_map=$(mktemp -t arcanon-cpm.XXXX) || return 0
+    if [[ -f "${repo_dir}/Directory.Packages.props" ]]; then
+      grep -hE '<PackageVersion[[:space:]]+Include=' "${repo_dir}/Directory.Packages.props" 2>/dev/null \
+        | sed -E 's/.*Include="([^"]+)".*Version="([^"]+)".*/\1=\2/' \
+        > "$cpm_map"
+    fi
+    find "${repo_dir}" -maxdepth 3 -name '*.csproj' 2>/dev/null | while IFS= read -r csproj; do
+      grep -hE '<PackageReference[[:space:]]+Include=' "$csproj" 2>/dev/null | while IFS= read -r line; do
+        # Skip Update= entries (CPM transitive overrides — Pitfall 4)
+        echo "$line" | grep -qE 'Update="' && continue
+        local pkg_name inline_ver resolved
+        pkg_name=$(echo "$line" | sed -nE 's/.*Include="([^"]+)".*/\1/p')
+        inline_ver=$(echo "$line" | sed -nE 's/.*Version="([^"]+)".*/\1/p')
+        if [[ -n "$inline_ver" ]]; then
+          echo "${pkg_name}=${inline_ver}"
+        elif [[ -s "$cpm_map" ]]; then
+          resolved=$(awk -F= -v k="$pkg_name" '$1==k{print $2; exit}' "$cpm_map")
+          [[ -n "$resolved" ]] && echo "${pkg_name}=${resolved}" || echo "${pkg_name}=MANAGED"
+        else
+          echo "${pkg_name}=MANAGED"
+        fi
+      done
+    done || true
+    rm -f "$cpm_map"
+  fi
+
+  # ---- Gemfile.lock (Bundler — GEM + GIT + PATH sections — MF-05) ---------
+  if [[ -f "${repo_dir}/Gemfile.lock" ]]; then
+    awk '
+      /^GEM$/    { section="GEM"; next }
+      /^GIT$/    { section="GIT"; next }
+      /^PATH$/   { section="PATH"; next }
+      /^[A-Z]+$/ { section=""; next }
+      /^$/       { in_specs=0; next }
+      section && /^  specs:/ { in_specs=1; next }
+      in_specs && /^    [a-zA-Z0-9_-]+ \([0-9]/ {
+        name=$1
+        ver=$2
+        gsub(/[()]/,"",ver)
+        print name"="ver
+      }
+    ' "${repo_dir}/Gemfile.lock" 2>/dev/null | sort -u || true
+  fi
 }
 
 # ---------------------------------------------------------------------------

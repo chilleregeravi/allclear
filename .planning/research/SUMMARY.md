@@ -1,256 +1,313 @@
 # Project Research Summary
 
-**Project:** Ligamen v5.3.0 — Scan Intelligence & Enrichment
-**Domain:** Claude Code plugin — post-scan enrichment pipeline, schema surfacing, confidence/evidence persistence, service ownership and auth/DB metadata
-**Researched:** 2026-03-21
-**Confidence:** HIGH (based on direct codebase inspection plus verified ecosystem patterns)
+**Project:** arcanon Claude Code plugin — v5.8.0 Library Drift & Language Parity
+**Domain:** Claude Code plugin extension — SQLite persistence, shell manifest parsing, Node.js enrichment
+**Researched:** 2026-04-19
+**Confidence:** HIGH (all findings grounded in direct codebase inspection)
+
+---
 
 ## Executive Summary
 
-Ligamen v5.3.0 is a subsequent-milestone enrichment layer added to an already-shipping Claude Code plugin. The core scan pipeline (MCP server with 8 tools, SQLite with migrations 001-008, Fastify HTTP server, Canvas graph UI, agent-driven scanning with beginScan/endScan brackets) is fully validated and unchanged. This milestone's goal is to close four specific gaps: (1) confidence and evidence fields that the agent already emits but the DB silently drops, (2) schemas and fields already collected but never displayed in the UI, (3) ownership, auth mechanism, and DB backend metadata that currently has no extraction path, and (4) a quality-gate spin-out. The right approach is an additive post-scan enrichment pass that writes side-car data to the existing `node_metadata` table — never touching the primary scan tables, never triggering scan brackets.
+v5.8.0 adds three Linear tickets (THE-1019, THE-1020, THE-1021) to an already-shipping plugin. THE-1020 (Java/C#/Ruby language parity) and THE-1021 (drift dispatcher + shell cleanup) are largely additive, extending established patterns with no structural changes. THE-1019 (library dependency persistence) is the only ticket that introduces a new DB table, a new enrichment module, and a payload schema version bump — it is the critical path and must be sequenced carefully inside the existing scan pipeline. The combined scope is achievable without any new runtime dependencies: every parser uses POSIX awk, grep, or sed already present in the plugin's shell layer, and the Node.js layer stays entirely within better-sqlite3 and the standard library.
 
-The recommended architecture is a sequential enrichment pass (codeowners.js, auth-db-extractor.js) wired into manager.js between parseAgentOutput() and persistFindings(), with a single Migration 009 that adds `confidence TEXT` and `evidence TEXT` to the `connections` table plus denormalized `owner`, `auth_mechanism`, and `db_backend` columns to `services`. The only new production dependency is `picomatch ^4.0.3` for CODEOWNERS glob matching — everything else is Node.js built-ins and existing packages. Schema visualization uses two new DB tables (`schemas`, `schema_fields`) already implied by the existing schema but not yet wired into the `/graph` API or detail panel.
+The recommended approach is to build in three batches. Batch 1 is fully parallel: the new manifest parsers, detect.sh language branches, `lib/worker-restart.sh`, and `scripts/drift.sh` are all new files or purely additive edits with zero cross-dependencies. Batch 2 wires batch-1 foundations into the enrichment layer (auth-db-extractor.js signals for Java/Ruby, and the session-start/worker-start shell refactor). Batch 3 is THE-1019's internal chain: migration 010 -> `query-engine.js upsertDependency()` -> `dep-collector.js` -> `manager.js` Phase B loop -> `payload.js` v1.1 -- each step depends on the previous and the whole chain is independent of batches 1 and 2. THE-1019 and THE-1020/1021 can therefore be worked in parallel by different developers.
 
-The critical risk class for this milestone is pipeline completeness: confidence and evidence were validated for years but never persisted; the same pattern threatens to repeat unless each new field is verified end-to-end (agent output — findings.js — upsert — DB column — getGraph() — detail panel) before shipping. A secondary risk is schema data payload size — embedding schemas in the `/graph` response would bloat a 30-node graph from ~10KB to ~200KB and inject schema data into the D3 simulation worker on every tick. The mitigation is strict: schema data must never enter `getGraph()` as per-node data; instead it is attached as a top-level `schemas_by_connection` map.
+The primary risks are correctness risks in the manifest parsers, not architectural risks. Maven `<parent>` inheritance, Gradle's dual Groovy/Kotlin DSL, Gemfile.lock's three-section format, and NuGet Central Package Management (`Directory.Packages.props`) are all "looks done but isn't" traps where a parser passes a simple fixture but silently drops real-world dependencies. The DB schema for `service_dependencies` must include a `dep_kind` discriminant column (direct vs. transient) and a four-column UNIQUE constraint `(service_id, ecosystem, name, manifest_file)` from the initial migration -- retrofitting either after data is in production is a HIGH-cost recovery. The payload v1.1 `dependencies` field must be gated behind a feature flag until hub THE-1018 ships; emitting it unconditionally risks silent data loss at older hub instances.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack is unchanged: Node.js >=20 ESM, better-sqlite3 ^12.8.0, Fastify ^5.8.2, zod ^3.25.0, @modelcontextprotocol/sdk ^1.27.1. The only new production dependency is `picomatch ^4.0.3` for CODEOWNERS glob matching (zero dependencies, actively maintained, used by fast-glob/jest/chokidar — already likely an indirect dep; check before adding explicitly). Auth and DB detection require only `fs.readFileSync` + regex — no AST parsing, no new libraries. The enrichment pass orchestration uses a simple `for...of` async loop, not a queue library.
+**Decision already made: zero new runtime dependencies.** All new functionality is implemented with tools already required by the plugin. The shell layer uses POSIX awk, grep, and sed. The Node.js layer uses `node:fs`, `node:path`, and the already-present `better-sqlite3`. No `npm install` is required. The `yq` optional fast-path for Cargo/pypi is irrelevant here -- it cannot parse XML, so Maven/NuGet parsers are pure POSIX awk/grep regardless. `jq` (already required per PLGN-07) is unchanged.
 
-See `.planning/research/STACK.md` for full detail including code-level patterns and alternatives considered.
+**Core technologies for v5.8.0 additions:**
 
-**Core technologies:**
-- `picomatch ^4.0.3`: CODEOWNERS glob matching — zero-dep, CJS imported via `createRequire(import.meta.url)` in ESM context, handles matchBase/dotfiles/double-glob correctly; avoids minimatch v10 ESM chain issue and the abandoned `codeowners-utils` package
-- `node:fs` + `node:readline` (built-in): CODEOWNERS file discovery (three-location probe: `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS`) and line-by-line parse — ~30 lines of code, no library needed
-- `better-sqlite3 ^12.8.0` (existing): Migration 009 adds 2 new tables and 3 new columns to services; no breaking changes to existing queries
-- `zod ^3.25.0` (existing): Optionally reuse for enricher result validation; enrichers can also return plain objects
+- **POSIX awk (state machine)** -- `pom.xml` and `Gemfile.lock` parsing; 20-25 lines per parser; no xmlstarlet required
+- **grep + awk/sed** -- Gradle (both DSL flavours) and NuGet `.csproj` parsing; simpler than awk state machine for line-oriented formats
+- **better-sqlite3** -- `service_dependencies` table upserts via `ON CONFLICT DO UPDATE`; established project decision, row-ID stability preserved
+- **POSIX sh / Bash 4+** -- `drift.sh` dispatcher and `worker-restart.sh`; new files, additive only
+- **node:test** -- unit test framework for all new Node.js modules; existing pattern in the codebase
 
-**What NOT to use:**
-- `codeowners-utils`: CJS-only, last published 2020 (5 years ago), no ESM export
-- `minimatch v10+`: brace-expansion ESM chain breaking issue (GH #257); picomatch is safer with zero deps
-- Tree-sitter: native binaries per language grammar (10-15MB each), overkill for regex-level auth detection
-- Bull/BullMQ: queue overhead pointless for <10 enrichers per service; adds Redis dep for zero benefit
-- `"unknown"` stored in DB: keep DB truthful (NULL = not yet detected); normalize to `"unknown"` string at HTTP layer with `?? 'unknown'`
-- Separate worker thread for enrichment: enrichers are I/O-bound (file reads, DB writes), not CPU-bound; same worker process is correct
+**Version decisions:**
+- SQLite migration sequence: next is `010_service_dependencies.js` (migrations 001-009 confirmed shipped)
+- `ScanPayloadV1` bumps to `"1.1"` only when `dependencies` array is non-empty; falls back to `"1.0"` unconditionally when empty -- Hub receives valid v1.0 for all existing scans
 
 ### Expected Features
 
-See `.planning/research/FEATURES.md` for full dependency graph and prioritization matrix.
+**Must ship (v5.8.0 table stakes):**
+- User can see which library version each service uses -- requires `service_dependencies` table + scan-time manifest parsing (THE-1019 critical path)
+- `/arcanon:drift versions` shows Maven (pom.xml) packages -- Java is the highest-volume language gap
+- `/arcanon:drift versions` shows NuGet (.csproj) packages -- .NET is the second-highest-volume gap
+- `/arcanon:drift versions` shows Bundler (Gemfile.lock) packages -- Gemfile.lock gives pinned resolved versions; never parse `Gemfile` (ranges only)
+- `/arcanon:upload` includes `dependencies` in payload (v1.1) -- once deps are persisted locally, omitting them from upload makes persistence feel pointless
+- Plugin emits v1.0 payload when no deps are stored -- non-negotiable backwards compat
+- Auth mechanism + DB backend visible in detail panel for Java services (Spring Security / Spring Data)
+- Auth mechanism + DB backend visible in detail panel for C# services (ASP.NET Identity / EF Core)
+- Auth mechanism + DB backend visible in detail panel for Ruby services (Devise / ActiveRecord)
+- Single `/arcanon:drift` entry point dispatches to all checks -- unified DX for polyglot orgs
+- No regressions in existing npm/go/cargo/pypi drift output
 
-**Must have (table stakes — required for v5.3.0 to be complete):**
-- Migration 009 — `confidence TEXT` and `evidence TEXT` on `connections`; `owner`, `auth_mechanism`, `db_backend` on `services`; new `schemas` and `schema_fields` tables with indexes
-- Persist confidence + evidence — currently validated by findings.js but silently dropped at the upsert step; upsertConnection() must write both columns
-- Enrichment pass architecture — `runEnrichmentPass(findings, repoPath, queryEngine)` framework wired into manager.js after parseAgentOutput(); each enricher is an isolated module; any enricher failure must be silent and graceful (try/catch in enricher.js, never abort the scan)
-- CODEOWNERS enrichment pass — probe CODEOWNERS file locations; last-match-wins per GitHub spec; write to `node_metadata(view='scan', key='owner')`; denormalize first owner into `services.owner`; handle missing file gracefully
-- Auth mechanism extraction — regex over entry-point files and known subdirectories (routes/, middleware/, auth/); per-language signal table covering Python, Node.js, Go, Rust; write `auth_mechanism` and `auth_confidence` to `node_metadata`; denormalize into `services.auth_mechanism`
-- DB backend extraction — probe `schema.prisma` first, then `.env`/`docker-compose.yml` DATABASE_URL, then ORM imports; write `db_backend` to `node_metadata`; denormalize into `services.db_backend`
-- Schema storage and display — store `schemas[]` from findings into `schemas` table + `schema_fields` join table; include in `/graph` response as `schemas_by_connection` (top-level map, not per-node); render in detail panel with field name/type/required columns
-- Agent prompt improvements (source_file/target_file) — update `agent-prompt-common.md` with explicit guidance; null only acceptable for genuinely external targets
-- Show "unknown" for missing metadata — normalize at HTTP layer using `?? 'unknown'`; never store `"unknown"` in DB
-- Quality-gate spin-out — remove `commands/quality-gate.sh` and `skills/quality-gate.md` from this plugin; fully independent of enrichment work
+**Should ship (competitive differentiators):**
+- Unified drift dispatcher with reserved subcommand slots (`licenses`, `security`) -- clean extension points, no implementation needed yet
+- `dep_kind` discriminant in `service_dependencies` schema -- required for correct future transient-dep handling; zero cost to add now
 
-**Should have (add in v5.3.x patch if time allows):**
-- Confidence badge in detail panel — color-coded high/low per connection; requires migration 009 data to be present
-- Evidence snippet in detail panel — expandable `<code>` block with the agent-cited code snippet; trigger: first user feedback that "I can't tell if this connection is real"
-- Ownership filter in filter panel — filter graph by CODEOWNERS team; trigger: teams with >10 services
+**Defer to v5.9.x / future:**
+- `/arcanon:drift types` for Java class / C# interface name mismatches -- P2, lower urgency than version parity
+- `--include-dev` flag for devDependencies in persistence -- current npm extractor includes dev deps in drift-versions.sh (low harm), but `service_dependencies` stores production only by default
+- MCP tool `list_service_deps` -- P2, enables agent-autonomous dep analysis
+- Transitive dependency trees -- hub-side feature (THE-1018), not plugin-side; would bloat SQLite with 500-2000 rows per service
+- CVE alerts, license conflict checks -- require external feeds; violate no-external-service-deps constraint
 
-**Defer (v6+):**
-- Generic `node_metadata` viewer in detail panel — needed when STRIDE/vuln views are being built
-- Multi-owner display as tag list — trigger: multi-team ownership patterns surface as user pain
-- Per-connection confidence timeline — requires scan version history correlation
+**Anti-features (do not build):**
+- `xmlstarlet` or AST parsers (JavaParser, Roslyn, tree-sitter) -- violate zero-external-dep and agent-first constraints
+- `mvn`/`gradle`/`dotnet list` invocations -- require buildable project; fail on bare clones
+- Resolve `^1.2.3` ranges to pinned versions at scan time -- requires `npm install` / `bundle install`; breaks offline/air-gapped environments
+- Auto-upgrade PRs -- out of scope per project constraints; plugin has write access, unsafe without review
 
-### Architecture Approach
+**Open questions for requirements phase:**
+1. `devDependencies` in `service_dependencies`? Features says production-only by default; drift-versions.sh currently includes them. Requirements must align both layers or accept divergence.
+2. Transient deps in scope? Pitfalls says add `dep_kind` column now but no transient parsing in v5.8.0. Requirements must confirm column-in, parsing-out.
+3. Spring Security 5 vs 6 -- ship both patterns? Pitfalls + Stack both say yes (both already in Stack researcher's AUTH_SIGNALS.java). Requirements must make explicit.
+4. Gemfile vs Gemfile.lock -- Stack + Features converged: Gemfile.lock only. Decision is made, not an open question.
 
-The enrichment pipeline slots between `parseAgentOutput()` and `persistFindings()` in manager.js. This pre-persist position lets enrichment annotate the findings object before it hits the DB, avoiding temporal coupling between enrichment and scan bracket cleanup. Enrichment data flows exclusively to `node_metadata` (via a new `upsertNodeMetadata()` method) and to denormalized nullable columns in `services` — it never touches core tables via the primary scan upsert path. The `/graph` API continues the "embed everything at load" pattern established in v2.3, but schema data attaches as a separate `schemas_by_connection` key at the graph level to keep per-node payload size bounded.
+### Architecture Integration Points
 
-See `.planning/research/ARCHITECTURE.md` for full data flow diagrams, component integration points, build order, and anti-pattern analysis.
+The following file:line anchors are exact edit locations derived from direct codebase inspection (ARCHITECTURE.md, HIGH confidence):
 
-**Major components and their v5.3.0 changes:**
-1. `scan/enrichment/enricher.js` (NEW) — orchestrates enrichment pass; called by manager.js after parseAgentOutput(); receives queryEngine for DB writes; wraps all passes in try/catch; never throws
-2. `scan/enrichment/codeowners.js` (NEW) — pure file-system utility; reads CODEOWNERS; returns owner string per service root_path using picomatch; last-match-wins per GitHub spec
-3. `scan/enrichment/auth-db-extractor.js` (NEW) — regex-based; scans entry-point and known middleware files; returns `{auth_mechanism, auth_confidence, db_backend}` per service; explicitly excludes test fixtures and example files
-4. `db/migrations/009_enrichment.js` (NEW) — ALTER TABLE connections for confidence/evidence; ALTER TABLE services for owner/auth_mechanism/db_backend; CREATE TABLE schemas and schema_fields with indexes
-5. `db/query-engine.js` (MODIFIED) — new `upsertNodeMetadata()` method; extend `persistFindings()` to write confidence/evidence; extend `getGraph()` to include schemas_by_connection and pivot node_metadata to per-service fields; add `?? 'unknown'` normalization in http.js
-6. `ui/modules/detail-panel.js` (MODIFIED) — schema section, confidence badge per connection, owner/auth/db rows, "unknown" fallbacks, escapeHtml() on all new field renderings
-7. `server/http.js` (NOT MODIFIED) — /graph route passes through getGraph(); no route changes needed
+**THE-1019 -- Library Dependency Persistence:**
 
-**Build order (dependency-driven):**
-1. Migration 009 + `upsertNodeMetadata()` — foundation; all other work depends on columns/tables existing
-2. `codeowners.js` and `auth-db-extractor.js` — pure utilities; build and test in isolation
-3. `enricher.js` — composes utilities; depends on step 2; receives queryEngine from manager.js
-4. `manager.js` modification — wire enrichment pass; single try/catch insertion point
-5. `persistFindings()` modification — write confidence/evidence; depends on migration 009
-6. `getGraph()` modification — include schemas_by_connection, confidence/evidence on edges, enrichment fields on services; depends on steps 1 and 5
-7. `detail-panel.js` and `utils.js` — UI-only; depends on step 6; can develop against mock graph payload
-8. Quality-gate spin-out — fully independent; no conflicts with steps 1-7
+| File | Location | Change |
+|------|----------|--------|
+| `worker/db/migrations/010_service_dependencies.js` | NEW | `service_dependencies` table + 3 indexes |
+| `worker/scan/enrichment/dep-collector.js` | NEW | Reads manifests -> normalised array -> `queryEngine.upsertDependency()` |
+| `worker/db/query-engine.js` | add method + prepared statement in constructor | `upsertDependency()` via `ON CONFLICT DO UPDATE` |
+| `worker/scan/manager.js` | line 776 -- after `runEnrichmentPass` in Phase B loop | `await collectDependencies(...)` call |
+| `worker/hub-sync/payload.js` | line 93 (`buildFindingsBlock`) + line 201 (`buildScanPayload`) | `deps` array + `schemaVersion` field; conditional `version` field |
+
+Critical constraint: `dep-collector.js` MUST NOT call `beginScan`/`endScan`. It runs after `endScan()` has closed the bracket (line 766). The existing `services` query at manager.js line 773 already selects `root_path` -- no second query needed. `ON DELETE CASCADE` from `services(id)` means `endScan()` stale-service cleanup automatically removes orphan dep rows; no new cleanup statements in `endScan` needed.
+
+**THE-1020 -- Three New Language Ecosystems:**
+
+| File | Location | Change |
+|------|----------|--------|
+| `lib/detect.sh` | lines 29-42, 48-56, 10-23 | `java`/`dotnet`/`ruby` branches; banner-only, safe to land anytime |
+| `worker/scan/discovery.js` | lines 23-29 (MANIFESTS array) | Add `build.gradle`, `build.gradle.kts`, `Gemfile` -- repo link-suggestion UI only |
+| `worker/scan/enrichment/auth-db-extractor.js` | lines 193-200 (LANG_EXTENSIONS) + AUTH_SIGNALS + DB_SOURCE_SIGNALS | Java (`.java`), Ruby (`.rb`), C# (`.cs`) entries |
+
+Note: `manager.js` `detectRepoType()` at lines 226-238 already handles `build.gradle`/`build.gradle.kts` for Java -- no change needed there. The `discovery.js` MANIFESTS list and `detectRepoType()` are independent.
+
+**THE-1021 -- Unified Drift Dispatcher + Shell Cleanup:**
+
+| File | Location | Change |
+|------|----------|--------|
+| `lib/worker-restart.sh` | NEW | `should_restart_worker()` + `restart_worker_if_stale()` functions |
+| `scripts/drift.sh` | NEW | Thin subcommand router -- `exec bash` for single commands, plain `bash` for `all` |
+| `scripts/session-start.sh` | lines 43-68 | Replace inline restart logic with `source worker-restart.sh` + `restart_worker_if_stale` |
+| `scripts/worker-start.sh` | lines 28-61 | Same replacement |
+
+Dispatcher must use `bash "${SCRIPT_DIR}/subcommand.sh" "$@"` (subprocess), never `source`. The `drift-common.sh` `return 0` guard (not `exit`) must not be changed -- subcommands are called as subshells, each sources drift-common.sh independently.
+
+**`EXCLUDED_DIRS` additions (auth-db-extractor.js):**
+- Add `target` (Maven build output) -- currently missing; allows traversal of `target/generated-sources/*.java`
+- Add `obj` and `bin` (MSBuild output) -- currently missing; allows traversal of generated `.cs` files
+
+**`detectDbFromEnv()` addition:**
+- Add `config/database.yml` to probed files list; match `adapter:` key for Rails DB backend detection (not just `DATABASE_URL`)
 
 ### Critical Pitfalls
 
-See `.planning/research/PITFALLS.md` for full coverage including 10 critical pitfalls, technical debt patterns, integration gotchas, security mistakes, UX pitfalls, recovery strategies, and a "looks done but isn't" verification checklist.
+The five pitfalls the roadmapper must explicitly schedule into phases:
 
-1. **Enrichment stomps primary scan data** — if enrichment triggers a scan bracket (beginScan/endScan), the stale cleanup deletes services not re-confirmed by the enrichment pass. Prevention: enrichment never calls beginScan/endScan; all writes go to `node_metadata` or additive nullable columns; wrap entire enrichment call in try/catch in manager.js so any failure returns original un-enriched findings. Verify: `SELECT COUNT(*) FROM services` must not decrease after an enrichment run.
+**1. Maven `<parent>` inheritance silently drops managed deps (CRITICAL -- Phase 1)**
+Naive single-file pom.xml parsing produces `pkg=` lines with empty version right-hand sides, which the existing `[[ -z "${ver:-}" ]] && continue` guard silently drops. Fix: parse `<parent>/<relativePath>`, build a version map from `<dependencyManagement>`, resolve leaf deps against it. Emit `MANAGED` as sentinel for unresolved. Write a two-level pom fixture test. Phase 1 correctness -- wrong parse output feeds wrong DB rows downstream.
 
-2. **Confidence and evidence drop at the upsert boundary** — both fields have been validated by findings.js for multiple milestones but `_stmtUpsertConnection` never included them; they silently fall off. Prevention: add both columns in Migration 009 AND update the upsert statement atomically; verify end-to-end with `SELECT confidence FROM connections WHERE confidence IS NOT NULL LIMIT 5` returning real rows before shipping.
+**2. Gradle dual DSL -- Groovy single-quote vs. Kotlin double-quote (CRITICAL -- Phase 1)**
+One regex cannot match both `implementation 'g:a:v'` (Groovy) and `implementation("g:a:v")` (Kotlin). Additionally `platform(libs.spring.bom)` version-catalog entries have no inline version. Fix: two separate awk/grep passes, one per DSL. Parse `gradle/libs.versions.toml` `[versions]` section as secondary source; emit `BOM:alias=version` lines. Two-DSL test fixture required from day one.
 
-3. **Schema data in getGraph() bloats response and enters simulation worker** — a 30-node graph with schemas goes from ~10KB to ~200KB; if that data passes to the D3 Web Worker it gets serialized on every simulation tick (60Hz). Prevention: schemas attach as `schemas_by_connection` at graph level, not per-node; simulation worker receives only node IDs and positions; add a payload size assertion to integration tests.
+**3. `dep_kind` discriminant missing from migration 010 -- unrecoverable without migration 011 (CRITICAL -- Phase 2)**
+Without `dep_kind TEXT NOT NULL CHECK(dep_kind IN ('direct', 'transient'))`, `endScan()` cleanup cannot distinguish direct-only from transient scans. When transient parsing lands later, the first scan silently deletes prior transient rows. Recovery requires ALTER TABLE + full backfill (HIGH cost). Fix: include `dep_kind` in migration 010 from the start even though transient parsing ships later.
 
-4. **Auth extraction stores credential values** — regex over source files can extract actual JWT tokens, database URLs, and API keys from test fixtures and `.env.example`. Prevention: explicitly exclude `*.test.*`, `*.example`, `*.sample` files; store only mechanism type and pattern name (never the credential value); add a validator that rejects any extracted value matching common credential patterns (length >40 random chars, `Bearer [A-Za-z0-9+/=]{20,}`).
+**4. THE-1019 vs. THE-1020 ordering gap -- partial dep coverage silent in hub payload (HIGH -- Phase 1 + Phase 2)**
+If THE-1020 shell parsers (maven/nuget/bundler) land before THE-1019 worker-side `dep-collector.js` gains parity, `/arcanon:map` persists only 4 ecosystems while `drift-versions.sh` reports 7. Java/C#/Ruby services show 0 deps in hub, visually indistinguishable from "not yet scanned," with no warning. Fix: `dep-collector.js` must emit `slog('WARN', 'dep-scan: unsupported manifest skipped', { file, ecosystem })` for any manifest it cannot parse. Add `ecosystems_scanned` array to dep scan result so coverage gaps are visible in logs immediately.
 
-5. **Migration guard try/catch silently drops columns** — the existing fallback pattern catches failed prepare statements but provides no observable signal if a column is missing. Prevention: after Migration 009 runs, verify with `PRAGMA table_info(connections)` that all expected columns are present; if not, throw with a clear message rather than silently falling back.
+**5. Bash 3.2 x `declare -A` -- silent failure on macOS system bash (HIGH -- Phase 1 + Phase 3)**
+`drift-types.sh` lines 129 and 148 already use `declare -A` (Bash 4+ only). macOS `/bin/bash` is 3.2; `#!/usr/bin/env bash` picks up Homebrew Bash 5 only if installed. On 3.2, `declare -A` silently creates a regular variable. Fix: use the `$WORK_DIR/<pkg_safe>` tmpdir key-value pattern already established in `drift-versions.sh` for all new parsers. Or add Bash version guard at top of any script using associative arrays. Prefer tmpdir pattern for consistency.
+
+**Additional pitfalls for phase scheduling (lower urgency):**
+- **NuGet Central Package Management** (`Directory.Packages.props`) -- `.csproj` with no `Version=` produces empty dep lists unless props file is parsed first (Phase 1)
+- **Gemfile.lock GIT + PATH sections** -- parser covering only `GEM > specs:` misses git-sourced and path-sourced gems (Phase 1)
+- **Spring Security 6 `SecurityFilterChain` bean pattern** -- `@EnableWebSecurity` alone misses all Spring Boot 3+ services, producing false "no auth" (Phase 3)
+- **C# `partial class`** -- type body lives across multiple files; body comparison always diverges on fragment (Phase 3)
+- **Hub payload v1.1 before THE-1018** -- emit `library_deps` unconditionally risks silent drop at older hub instances; gate behind `hub.beta_features.library_deps` config flag (Phase 5)
+
+---
 
 ## Implications for Roadmap
 
-Based on combined research, the build order is strictly dictated by data flow dependencies. Each phase unblocks the next and cannot be safely reordered (except quality-gate which is fully independent throughout).
+The Architecture and Pitfalls researchers converged on the same build order. The phasing below reflects that convergence.
 
-### Phase 1: Foundation — Migration 009 + Storage Plumbing
+### Phase 1: Manifest Parser Foundation (THE-1020 shell layer)
 
-**Rationale:** Everything else depends on the DB schema being correct. Migration 009 is additive-only (ALTER TABLE ADD COLUMN for nullable columns; CREATE TABLE for schemas/schema_fields) — the lowest-risk phase. `upsertNodeMetadata()` is a new method with no changes to existing methods. These two items are the prerequisite for all enrichment, confidence/evidence, and schema work.
+**Rationale:** All downstream work -- DB persistence, hub payload, auth/db enrichment, drift dispatcher -- depends on correct manifest parsing. Wrong parse output feeds wrong DB rows. Must be test-driven from day one with two-dialect, two-section, and two-manifest-file fixtures. Can land and be validated independently of the DB work.
 
-**Delivers:** DB schema with confidence/evidence columns on connections; owner/auth_mechanism/db_backend on services; schemas and schema_fields tables with indexes; `upsertNodeMetadata()` method in query-engine.js
+**Parallelism:** THE-1020 shell work (Phase 1) and THE-1019 DB schema work (Phase 2) are independent -- two developers can work them simultaneously.
 
-**Addresses:** Migration 009 (critical table stakes); Pitfalls 2, 3, 9 prevention (pipeline completeness, schema stale cleanup, migration guard)
+**Delivers:** `drift-versions.sh` extended with Maven, Gradle (Groovy + Kotlin DSL), NuGet, and Bundler parsers. `detect.sh` and `discovery.js` updated with Java/dotnet/ruby language branches. Validated against multi-level pom, dual-DSL Gradle, all three Gemfile.lock section types, and Directory.Packages.props.
 
-**Avoids:** Silently dropped confidence/evidence data; schema data having nowhere to persist; try/catch migration guard hiding column omissions; picomatch package should be added to package.json in this phase
+**Addresses:** Maven drift versions, NuGet drift versions, Bundler drift versions, language detection
 
-**Research flag:** Standard patterns — SQLite ALTER TABLE convention established in 001-008; no additional research needed
+**Avoids:** Maven `<parent>` (P1), Gradle dual DSL (P2), Gemfile.lock sections (P3), NuGet CPM (P4), Bash 3.2 `declare -A` (P9)
 
-### Phase 2: Enrichment Architecture + CODEOWNERS Pass
+**Edit locations:**
+- `scripts/drift-versions.sh` -- new `extract_java_versions`, `extract_dotnet_versions`, `extract_ruby_versions` functions
+- `lib/detect.sh` -- lines 29-42, 48-56, 10-23
+- `worker/scan/discovery.js` -- lines 23-29
 
-**Rationale:** The enrichment framework (enricher.js) must exist before any individual enricher can be wired in. CODEOWNERS is the simplest enricher (pure file-system read + picomatch pattern match, no regex fragility) and validates the enricher signature contract and manager.js wiring before adding auth/DB complexity.
+---
 
-**Delivers:** `enricher.js` orchestrator wired into manager.js post-parseAgentOutput(); `codeowners.js` with picomatch glob matching; owner written to node_metadata and services.owner; enrichment is graceful-failure by design (never aborts scan)
+### Phase 2: DB Schema + Dep Collector (THE-1019 internal chain, serialized)
 
-**Addresses:** Enrichment pass architecture; CODEOWNERS extraction; ownership string normalization (store canonical GitHub handle formatted as lowercase-hyphenated `owner_key`; reject free-form strings)
+**Rationale:** Migration 010 must exist before any write code. `query-engine.js` upsert must exist before `dep-collector.js`. `dep-collector.js` must exist before `manager.js` calls it. The chain is strictly serialized. The `dep_kind` discriminant and four-column UNIQUE constraint must be in migration 010 -- not retrofittable.
 
-**Avoids:** Pitfall 1 (enrichment stomps primary scan data) — enforced by try/catch wrapper and node_metadata-only writes; Pitfall 6 (unstructured ownership strings) — enforced by normalization at extraction time; Pitfall 7 (two-phase scan partial state) — enrichment runs synchronously within the primary scan bracket, not as a separate pass
+**Parallelism:** Runs in parallel with Phase 1. Blocked only by its own internal ordering: migration -> QE -> collector -> manager.
 
-**Research flag:** Standard patterns — CODEOWNERS format documented by GitHub/GitLab; picomatch API is well-documented; no additional research needed
+**Delivers:** `service_dependencies` table in SQLite with `dep_kind`, `version_raw`, `scope`, `manifest_file`, and correct `UNIQUE(service_id, ecosystem, name, manifest_file)`. `dep-collector.js` reads ecosystem manifests, writes production deps. `manager.js` Phase B loop calls `collectDependencies` after `runEnrichmentPass`. WARN logged for unsupported manifest types.
 
-### Phase 3: Auth/DB Enrichment Pass
+**Addresses:** Library persistence (THE-1019), dep count in scan output, `ecosystems_scanned` coverage field
 
-**Rationale:** Auth and DB extraction follow the same enricher contract from Phase 2. The complexity is in the regex signal table (per-language patterns for JWT/OAuth2/session/API-key and postgres/mysql/sqlite/mongodb detection). Keeping this as a separate phase isolates auth/DB pattern iteration from the framework.
+**Avoids:** `dep_kind` discriminant (P6), UNIQUE constraint correctness (P5), scan bracket violation (dep-collector must not call beginScan/endScan), THE-1019 vs THE-1020 ordering gap (P14)
 
-**Delivers:** `auth-db-extractor.js` with per-language regex signal tables; auth_mechanism and db_backend written to node_metadata and denormalized into services columns; auth_confidence (high/low based on whether pattern found in boundary_entry vs secondary file); credential extraction prevention
+**Edit locations (serialized):**
+1. NEW: `worker/db/migrations/010_service_dependencies.js`
+2. EDIT: `worker/db/query-engine.js` -- `upsertDependency()` + prepared statement
+3. NEW: `worker/scan/enrichment/dep-collector.js`
+4. EDIT: `worker/scan/manager.js` -- line 776 (after `runEnrichmentPass`)
 
-**Addresses:** Auth mechanism extraction; DB backend extraction; credential value exclusion via file-scope filtering and value-pattern validator
+---
 
-**Avoids:** Pitfall 4 (auth extraction stores credential values) — prevent by excluding test fixture files and validating that no extracted value matches credential patterns before DB write
+### Phase 3: Auth/DB Extractor Expansion (THE-1020 Node.js layer)
 
-**Research flag:** Likely needs post-implementation tuning — regex signal table is per-language and per-framework; real-world testing on diverse repos may reveal missing patterns; plan for a tuning iteration after initial integration tests run on actual repos
+**Rationale:** Depends on Phase 1 language detection being in place (language tags must be established before signal dispatch can be keyed on them). Blocked by Phase 2 only if type extraction writes to `service_dependencies` -- it does not. Auth/DB enrichment writes to the existing `services` table columns.
 
-### Phase 4: Confidence + Evidence Pipeline Completion
+**Delivers:** `AUTH_SIGNALS`, `DB_SOURCE_SIGNALS`, and `LANG_EXTENSIONS` entries for `java`, `csharp`, and `ruby` in `auth-db-extractor.js`. `EXCLUDED_DIRS` updated with `target`, `obj`, `bin`. `detectDbFromEnv()` updated with `config/database.yml` probe. Type extractors for Java (`extract_java_types`) and C# (`extract_cs_types`) in `drift-types.sh`.
 
-**Rationale:** Migration 009 added the columns (Phase 1); this phase wires the data through persistFindings(). The agent already emits confidence and evidence in validated findings.js — this is only a upsert statement change plus getGraph() SELECT change. Low code volume, high correctness value. Must include end-to-end verification.
+**Addresses:** Java auth/DB enrichment (Spring Security 5 + 6, Spring Data), C# auth/DB enrichment (ASP.NET Identity + EF Core), Ruby auth/DB enrichment (Devise + ActiveRecord)
 
-**Delivers:** confidence and evidence written by persistFindings(); returned by getGraph() on each connection object; pipeline verified end-to-end with a SELECT assertion (`SELECT confidence FROM connections WHERE confidence IS NOT NULL LIMIT 5` must return rows)
+**Avoids:** Spring Security 6 `SecurityFilterChain` pattern (P10), EF Core minimal API `AddDbContext<T>()` (P11), Ruby open-class false positives (P12), C# partial class false positives (P13), Bash 3.2 `declare -A` in new scripts (P9)
 
-**Addresses:** Persist confidence + evidence (critical table-stakes feature that has been dropping silently for multiple milestones)
+**Edit locations:**
+- EDIT: `worker/scan/enrichment/auth-db-extractor.js` -- lines 193-200 + signal objects + EXCLUDED_DIRS
+- EDIT: `scripts/drift-types.sh` -- new extractor functions + `detect_repo_language` branches
 
-**Avoids:** Pitfall 2 (confidence never reaches DB) and Pitfall 3 (evidence never reaches DB) — both closed by updating `_stmtUpsertConnection` to include the new columns
+---
 
-**Research flag:** Standard patterns — mechanical change; add two fields to existing upsert; no research needed
+### Phase 4: Shell Cleanup + Unified Dispatcher (THE-1021)
 
-### Phase 5: Schema Storage + /graph API Extension
+**Rationale:** Fully independent of Phases 1-3. Can land at any point. The dispatcher is a thin router with no logic of its own -- safest to implement after the parsers it dispatches are stable. The worker-restart refactor is purely internal; no visible behaviour change.
 
-**Rationale:** schemas and schema_fields tables exist after Phase 1. The scan already collects schema data. The gap is that getGraph() does not include it and stale cleanup correctness is unverified. This phase closes both gaps before building any UI on top.
+**Delivers:** `lib/worker-restart.sh` with `should_restart_worker` + `restart_worker_if_stale`. `scripts/drift.sh` unified dispatcher with `versions|types|openapi|all` subcommands and reserved `licenses|security` slots. `session-start.sh` lines 43-68 and `worker-start.sh` lines 28-61 replaced with sourced calls.
 
-**Delivers:** `schemas_by_connection` in /graph response; stale schema cleanup verified (re-scan removes deleted fields); getGraph() includes owner/auth_mechanism/db_backend pivoted from node_metadata; `?? 'unknown'` normalization in http.js for all enrichment fields; response payload size assertion added to confirm schemas_by_connection does not inflate per-node data
+**Addresses:** Unified drift entry point, no-duplicate restart logic
 
-**Addresses:** Schema storage; API extension for all enrichment data; "unknown" normalization at HTTP layer; anti-pattern prevention (schema data stays out of simulation worker)
+**Avoids:** Dispatcher using `source` instead of `bash` subprocess (P7), drift-common.sh `return 0` guard change (P7), new worker-start.sh logic above PID-file mutex (P8)
 
-**Avoids:** Pitfall 5 (stale schema data accumulates across re-scans) — verify scan_version_id on schemas/schema_fields before shipping; Pitfall 10 (schema data in getGraph() bloats response) — schemas attach as top-level map keyed by connection_id, not embedded per-node
+**Edit locations:**
+- NEW: `lib/worker-restart.sh`
+- NEW: `scripts/drift.sh`
+- EDIT: `scripts/session-start.sh` -- lines 43-68
+- EDIT: `scripts/worker-start.sh` -- lines 28-61
 
-**Research flag:** Storage audit required — verify that schemas and schema_fields tables have scan_version_id in migration 001; if missing, add in this phase and test stale cleanup before building the UI
+---
 
-### Phase 6: Detail Panel UI
+### Phase 5: Hub Payload v1.1 + Feature Flag (THE-1019 hub-sync)
 
-**Rationale:** All data is now in the graph response. This phase is pure UI: schema section rendering, confidence badge per connection, owner/auth/db rows, "unknown" fallbacks, and escapeHtml() coverage for TypeScript generics and special characters.
+**Rationale:** Must land last. Depends on Phase 2 (table populated). Requires a feature flag gate (`hub.beta_features.library_deps`) so default uploads remain v1.0 until hub THE-1018 ships. Changing `payload.js` before the table is populated would emit empty `dependencies` arrays with no value.
 
-**Delivers:** Schema section in detail panel (collapsible, field table with name/type/required); owner/auth/db rows with "unknown" fallback; confidence badge per connection (high=green, low=amber, null=gray); evidence snippet (expandable `<code>` block); `getConfidenceColor()` helper in utils.js
+**Delivers:** `buildFindingsBlock` in `payload.js` emits `dependencies` array and derives `schemaVersion` ("1.0" or "1.1"). `buildScanPayload` uses `schemaVersion` for the `version` field. Conditional inclusion: `dependencies` key absent from payload when array is empty or feature flag is off. Default config = v1.0 behaviour.
 
-**Addresses:** Schema display in detail panel; confidence badge (P2); evidence snippet (P2); show "unknown" for missing metadata
+**Addresses:** `/arcanon:upload` includes library deps, v1.0 fallback on empty deps, backwards compat with older hub
 
-**Avoids:** Pitfall 10 detail panel concern — escapeHtml() must cover all new field renderings; TypeScript generics (`Array<Record<string, unknown>>`) must render as literal characters in the panel, not as invisible HTML tags
+**Avoids:** Hub v1.1 before THE-1018 (P15) -- feature flag gate; flag off always produces v1.0 regardless of deps array content
 
-**Research flag:** Standard patterns — detail-panel.js patterns (innerHTML + escapeHtml) are established and well-understood throughout the existing UI codebase; no additional research needed
+**Edit locations:**
+- EDIT: `worker/hub-sync/payload.js` -- line 93 (`buildFindingsBlock`) + line 201 (`buildScanPayload`)
 
-### Phase 7: Agent Prompt Improvements + Quality-Gate Spin-Out
-
-**Rationale:** Two independent cleanup tasks. Agent prompt improvements for source_file/target_file are low-risk markdown edits with no DB or API changes. Quality-gate spin-out is a removal-only change fully decoupled from enrichment. Grouped here because they share the property of being independent of all other phases.
-
-**Delivers:** agent-prompt-common.md updated with source_file/target_file guidance and examples; null only accepted for genuinely external targets; `commands/quality-gate.sh` and `skills/quality-gate.md` removed from this plugin; README updated to reference the standalone plugin
-
-**Addresses:** Agent prompt improvements (THE-942); Quality-gate spin-out (THE-937)
-
-**Avoids:** Pitfall 8 (quality gate process coupling) — quality gate shell commands must remain pure read-only; if quality gate MCP tools are added later they must use SELECT-only queries and never intersect scan brackets
-
-**Research flag:** Standard patterns — markdown edits and file removal; no research needed
+---
 
 ### Phase Ordering Rationale
 
-- **Migration first:** All enrichment, confidence, evidence, and schema work requires the DB schema to exist first; any work done without Migration 009 must later be revisited when schema changes invalidate assumptions
-- **Framework before enrichers:** enricher.js must exist and be tested before individual enrichers (codeowners.js, auth-db-extractor.js) can be registered into it; CODEOWNERS validates the framework with simpler logic before auth/DB adds regex complexity
-- **Confidence/evidence pipeline after framework:** the data pipeline change is small but benefits from being tested alongside enrichment so both can be verified in the same integration context
-- **API before UI:** detail-panel.js reads from `state.graphData` populated from /graph; UI can be developed against a mock graph payload but must be verified against real getGraph() output before shipping
-- **Quality-gate and prompt improvements last:** fully decoupled; no reason to block enrichment work on them
+- **Phases 1 and 2 run in parallel** -- shell manifest parsers and DB schema chain share no dependencies; two developers can work simultaneously
+- **Phase 3 follows Phase 1** -- auth/DB extractor language dispatch is keyed on language tags from detect.sh; signal tables before language detection is premature
+- **Phase 4 is free-floating** -- THE-1021 has zero dependencies on THE-1019 or THE-1020; placed after Phase 3 to avoid wiring the dispatcher before parsers it dispatches are stable
+- **Phase 5 is a strict last step** -- payload v1.1 requires table populated (Phase 2) and feature flag gate implemented simultaneously
+- **THE-1019 internal chain (Phase 2) is strictly serialized:** migration 010 -> `upsertDependency()` -> `dep-collector.js` -> manager.js Phase B loop; no step can be written before the previous defines its interface
 
 ### Research Flags
 
-Phases needing attention during planning:
-- **Phase 3 (Auth/DB enrichment):** Regex signal table is per-language and per-framework; real-world testing will likely reveal missing patterns; plan for a tuning iteration after initial integration tests; the credential-value exclusion logic must be verified on an actual repo containing `.env.example` before release
-- **Phase 5 (Schema storage/API):** Verify whether `schemas` and `schema_fields` tables have `scan_version_id` in migration 001; if missing, stale cleanup will not work and old fields will accumulate silently across re-scans
+**Phases needing closer attention during requirements / planning:**
+- **Phase 1 (manifest parsers):** Four separate parsers with known edge cases. Each needs a dedicated fixture test covering the non-obvious path (parent POM, Kotlin DSL, GIT section, CPM). Explicit acceptance criteria per parser required before implementation.
+- **Phase 2 (DB schema):** `dep_kind` column and `UNIQUE(service_id, ecosystem, name, manifest_file)` four-column key must be locked in requirements before migration is written. Schema mistakes are HIGH-cost to recover post-shipping.
+- **Phase 3 (auth/DB extractor):** Spring Security 5 vs. 6 dual-pattern decision and C# partial class handling both need explicit requirements sign-off.
+- **Phase 5 (payload v1.1):** The `hub.beta_features.library_deps` flag path, its config schema location, and the test assertion ("default config upload does not contain `library_deps`") must be requirements-defined.
 
-Phases with well-documented standard patterns (skip research-phase):
-- **Phase 1 (Migration 009):** SQLite ALTER TABLE patterns established by 8 prior migrations in this codebase
-- **Phase 2 (CODEOWNERS):** GitHub CODEOWNERS format is documented; picomatch API is straightforward; last-match-wins semantics are confirmed by both GitHub and GitLab docs
-- **Phase 4 (Confidence/evidence pipeline):** Mechanical change — add two fields to existing upsert statement
-- **Phase 6 (Detail panel UI):** detail-panel.js patterns are established across the existing codebase
-- **Phase 7 (Prompt improvements / quality-gate):** Markdown edits and removal-only change
+**Phases with standard patterns (skip research-phase):**
+- **Phase 4 (shell cleanup):** Dispatcher pattern is straightforward `case` routing. Worker-restart extraction is a refactor of existing code. Architecture researcher provided minimum API surface and exact caller sites.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Direct inspection of existing codebase + npm registry for picomatch; all rejections (codeowners-utils, minimatch, Tree-sitter, Bull) have clear rationale from primary sources |
-| Features | HIGH | Features derived from direct codebase inspection of agent-schema.json, findings.js, migrations 001-008, detail-panel.js confirming exactly what exists and what is missing |
-| Architecture | HIGH | Build order and component boundaries from direct code reading of query-engine.js, manager.js, http.js, detail-panel.js; existing patterns clearly identified; integration points confirmed |
-| Pitfalls | HIGH | Grounded in 8-milestone retrospective documents from this exact codebase, not generic advice; specific symptoms, verification checklists, and recovery strategies included per pitfall |
+| Stack | HIGH | Zero new deps confirmed by Stack + Pitfalls researchers. All tool choices (POSIX awk, grep+sed) verified against existing plugin patterns. `ON CONFLICT DO UPDATE` is established project decision per PROJECT.md. |
+| Features | HIGH | Based on direct codebase inspection of all affected files. Competitive differentiation grounded in project memory. devDependencies and transient dep scope questions are real open items, not confidence gaps. |
+| Architecture | HIGH | All file:line anchors derived from direct inspection of manager.js (854 lines), query-engine.js (1505 lines), payload.js (248 lines), and all shell scripts. Build order convergence between Architecture and Pitfalls researchers strengthens confidence. |
+| Pitfalls | HIGH (parser pitfalls) / MEDIUM (signal regex accuracy) | Parser pitfalls (Maven parent, Gradle DSL, Gemfile.lock sections, NuGet CPM) are code-grounded and confirmed by format documentation. Auth/DB signal regex for Java/C# are MEDIUM -- Spring Security 5 vs. 6 transition patterns are from doc review, not live test corpus. |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH**
 
-### Gaps to Address
+### Gaps to Address in Requirements Phase
 
-- **Auth/DB regex signal completeness:** The signal table covers Python, Node.js, Go, and Rust. Repos using Ruby (Rails/Devise), Java (Spring Security), PHP (Laravel Sanctum), or Kotlin are not covered. This is acceptable for v5.3.0 given the current supported language set, but enrichers should return `null` (not a false positive) when the language is unrecognized — handle this with an early-return guard in auth-db-extractor.js.
+1. **devDependencies scope in `service_dependencies`:** Features says production-only by default with optional `--include-dev` flag. Existing `drift-versions.sh` npm extractor includes dev deps -- behaviour divergence between shell drift layer and DB persistence layer. Requirements must choose: (a) align both on production-only, (b) accept divergence with documentation, or (c) add `--include-dev` flag to both layers together.
 
-- **Schema stale cleanup verification:** ARCHITECTURE.md assumes schemas/schema_fields have scan_version_id but flags it as needing direct confirmation in migration 001. This must be verified before Phase 5 begins; if the column is absent, add it to Migration 009 and test stale cleanup before building any UI that depends on schema accuracy.
+2. **Transient deps -- column in but parsing out:** Requirements must explicitly state that `dep_kind = 'direct'` is the only value populated in v5.8.0. Column must exist in migration 010 but transient parsing is deferred. Must be written into migration comment and `endScan` cleanup query so future transient work lands without a schema change.
 
-- **picomatch CJS import in ESM context:** picomatch v4.0.3 ships CJS (`"main": "index.js"` without `"type":"module"`). The import pattern `createRequire(import.meta.url)` is validated in STACK.md but should be tested in a minimal ESM file in the existing worker context before the CODEOWNERS enricher ships.
+3. **Spring Security 5 vs. 6 auth signal:** Requirements must confirm both `@EnableWebSecurity` (Boot 2.x) and `SecurityFilterChain` bean (Boot 3.x) are shipped in `AUTH_SIGNALS.java`. Stack researcher's AUTH_SIGNALS.java definition already includes `SecurityFilterChain` -- the two research files agree; requirements just needs to make it explicit.
 
-- **Incremental scan enrichment policy:** STACK.md recommends skipping enrichment when `getChangedFiles` returns an empty set. The exact integration point with the incremental scan path in manager.js needs to be confirmed during Phase 2 implementation — the changed-files detection API shape may differ from what research assumed.
+4. **Four-column UNIQUE constraint vs. three-column:** Stack researcher proposed `UNIQUE(service_id, name, ecosystem)` (three columns). Pitfalls researcher identified this as insufficient when the same package appears in two manifests (e.g., root `pom.xml` and child `build.gradle`). Requirements must resolve: include `manifest_file` as fourth column (Pitfalls recommendation) or accept that duplicate manifest entries overwrite via upsert (simpler, acceptable if mono-manifest assumption holds for v5.8.0 scope).
+
+5. **`schemaVersion` conditional logic with feature flag:** Architecture researcher proposes `schemaVersion` derived inside `buildFindingsBlock`. Requirements must confirm the feature flag (`hub.beta_features.library_deps`) interacts correctly: flag off = always v1.0 regardless of deps array; flag on = v1.0 when empty, v1.1 when non-empty.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase inspection: `worker/scan/agent-schema.json`, `worker/scan/findings.js`, `worker/db/query-engine.js`, `worker/db/migrations/001-008`, `worker/scan/manager.js`, `worker/ui/modules/detail-panel.js`, `worker/server/http.js` — confirmed current state of all integration points and gaps
-- `.planning/RETROSPECTIVE.md` (v2.0, v2.2, v2.3, v3.0 lessons) — grounded all pitfalls in actual project history; not generic advice
-- [GitHub CODEOWNERS syntax docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) — last-match-wins semantics, owner format, file locations
-- [GitLab CODEOWNERS reference](https://docs.gitlab.com/user/project/codeowners/reference/) — cross-platform confirmation of last-pattern-wins semantics
-- [github.com/micromatch/picomatch](https://github.com/micromatch/picomatch) — v4.0.3, zero deps, CJS build confirmed
+- Direct codebase inspection: `plugins/arcanon/worker/scan/manager.js` (854 lines) -- Phase B loop lines 733-782, enrichment loop lines 771-782
+- Direct codebase inspection: `plugins/arcanon/worker/db/query-engine.js` (1505 lines) -- `_stmtDeleteStaleServices` line 816, `node_metadata` pattern as precedent
+- Direct codebase inspection: `plugins/arcanon/worker/hub-sync/payload.js` (248 lines) -- `buildFindingsBlock` line 93, `buildScanPayload` line 201
+- Direct codebase inspection: `plugins/arcanon/worker/scan/enrichment/auth-db-extractor.js` (lines 1-350) -- LANG_EXTENSIONS lines 193-200, signal dispatch lines 267-270
+- Direct codebase inspection: `plugins/arcanon/worker/db/migrations/009_confidence_enrichment.js` -- canonical migration pattern
+- Direct codebase inspection: `plugins/arcanon/lib/detect.sh` -- lines 29-42, 48-56, 10-23
+- Direct codebase inspection: `plugins/arcanon/scripts/session-start.sh` -- restart logic lines 44-67
+- Direct codebase inspection: `plugins/arcanon/scripts/worker-start.sh` -- PID-file mutex line 30
+- Direct codebase inspection: `plugins/arcanon/scripts/drift-types.sh` -- `declare -A` lines 129/148
+- Direct codebase inspection: `plugins/arcanon/scripts/drift-common.sh` -- `return 0` guard
+- SQLite UPSERT: https://sqlite.org/lang_upsert.html
+- NuGet PackageReference: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files
+- Gemfile.lock format: https://blog.saeloun.com/2022/08/16/understanding-gemfile-and-gemfile-lock/
+- Java record (JEP 440): https://openjdk.org/jeps/440
+- ASP.NET Core Identity / JWT: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
+- Devise (Ruby): https://github.com/heartcombo/devise
+- Gradle dependency string format: https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html
 
 ### Secondary (MEDIUM confidence)
-- [FastAPI JWT auth docs](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) — Python auth regex pattern rationale
-- [Django REST Framework auth guide](https://www.django-rest-framework.org/api-guide/authentication/) — Python auth pattern taxonomy
-- [actix.rs middleware docs](https://actix.rs/docs/middleware/) — Rust auth pattern rationale
-- [npmjs.com/package/codeowners-utils](https://www.npmjs.com/package/codeowners-utils) — rejection rationale confirmed (CJS-only, 5 years unmaintained)
-- [Nemesis 2.x enrichment architecture](https://specterops.io/blog/2026/03/10/the-nemesis-2-x-development-guide/) — ELT enrichment pass pattern; side-car write model
-- [Grafana SDG panel](https://grafana.com/grafana/plugins/novatec-sdg-panel/) — detail panel UX patterns for dependency graph tools; schema-in-detail-panel (not on graph edges) is the established pattern
-
-### Tertiary (lower confidence — needs validation during implementation)
-- [github.com/isaacs/minimatch/issues/257](https://github.com/isaacs/minimatch/issues/257) — minimatch v10 ESM chain issue; may be resolved in newer versions but picomatch is preferred regardless
-- Node.js Web Worker postMessage structured clone behavior — documented behavior but not tested in this codebase's specific D3 worker setup; the schema-in-worker concern is sound as a principle; exact performance threshold needs measurement in Phase 5
+- Spring Boot JWT patterns (2025): https://www.javacodegeeks.com/2025/05/how-to-secure-rest-apis-with-spring-security-and-jwt-2025-edition.html -- jjwt + spring-security-oauth2-jose signals
+- pom.xml awk parsing: https://commandlinefanatic.com/cgi-bin/showarticle.cgi?article=art020 -- awk feasibility for XML parsing
 
 ---
-*Research completed: 2026-03-21*
+*Research completed: 2026-04-19*
 *Ready for roadmap: yes*

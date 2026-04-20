@@ -87,10 +87,15 @@ export function deriveGitMetadata(repoPath) {
  * services not in the `services` array are dropped with a warning. The hub's
  * Pydantic validator 422s on orphan connections, so we filter proactively.
  *
+ * When `opts.libraryDepsEnabled` is true AND at least one service carries a
+ * non-empty `dependencies` array, per-service `dependencies` are emitted and
+ * `schemaVersion = "1.1"` is set. Otherwise returns v1.0 shape unchanged.
+ *
  * @param {{ services: Array, connections?: Array, schemas?: Array }} findings
- * @returns {{ services: Array, connections: Array, schemas: Array, actors: Array, warnings: string[] }}
+ * @param {{ libraryDepsEnabled?: boolean }} [opts]
+ * @returns {{ services: Array, connections: Array, schemas: Array, actors: Array, schemaVersion: "1.0"|"1.1", warnings: string[] }}
  */
-export function buildFindingsBlock(findings) {
+export function buildFindingsBlock(findings, opts = {}) {
   const services = Array.isArray(findings?.services) ? findings.services : [];
   const connections = Array.isArray(findings?.connections) ? findings.connections : [];
   const schemas = Array.isArray(findings?.schemas) ? findings.schemas : [];
@@ -106,6 +111,16 @@ export function buildFindingsBlock(findings) {
     return true;
   });
 
+  // Library deps (HUB-01, HUB-02, HUB-03):
+  // Emit per-service `dependencies` key + bump schemaVersion to 1.1 ONLY when
+  // the feature flag is on AND at least one service has a non-empty deps array.
+  // Flag off → v1.0 regardless of data. Flag on + all empty → v1.0 fallback.
+  const libraryDepsEnabled = opts.libraryDepsEnabled === true;
+  const anyServiceHasDeps =
+    libraryDepsEnabled &&
+    services.some((s) => Array.isArray(s.dependencies) && s.dependencies.length > 0);
+  const schemaVersion = anyServiceHasDeps ? "1.1" : "1.0";
+
   return {
     services: services.map((s) => ({
       name: s.name,
@@ -115,6 +130,12 @@ export function buildFindingsBlock(findings) {
       ...(s.boundary_entry ? { boundary_entry: s.boundary_entry } : {}),
       ...(s.confidence ? { confidence: s.confidence } : {}),
       exposes: Array.isArray(s.exposes) ? s.exposes : [],
+      // Per-service dependencies are only emitted when the envelope is v1.1.
+      // At v1.0 (flag off OR every service empty) the key is omitted entirely
+      // — this is the HUB-05 byte-identical guarantee for existing callers.
+      ...(anyServiceHasDeps
+        ? { dependencies: Array.isArray(s.dependencies) ? s.dependencies : [] }
+        : {}),
     })),
     connections: validConnections.map((c) => ({
       source: c.source,
@@ -128,6 +149,7 @@ export function buildFindingsBlock(findings) {
     })),
     schemas,
     actors: Array.isArray(findings?.actors) ? findings.actors : [],
+    schemaVersion,
     warnings,
   };
 }
@@ -147,6 +169,7 @@ export function buildFindingsBlock(findings) {
  * @param {Date|string} [opts.startedAt] — ISO 8601 timestamp, defaults to now
  * @param {Date|string} [opts.completedAt] — ISO 8601 timestamp, defaults to now
  * @param {number} [opts.filesScanned]
+ * @param {boolean} [opts.libraryDepsEnabled=false] — HUB-03 feature flag; when true AND services carry non-empty `dependencies`, emits v1.1 payload
  * @returns {{payload: object, warnings: string[]}}
  * @throws {PayloadError} if required fields cannot be derived
  */
@@ -163,6 +186,7 @@ export function buildScanPayload(opts) {
     startedAt,
     completedAt,
     filesScanned,
+    libraryDepsEnabled = false,  // NEW — HUB-03 feature flag passthrough
   } = opts || {};
 
   if (!findings || typeof findings !== "object") {
@@ -189,7 +213,7 @@ export function buildScanPayload(opts) {
     throw new PayloadError("repo_name could not be derived", { field: "repo_name" });
   }
 
-  const findingsBlock = buildFindingsBlock(findings);
+  const findingsBlock = buildFindingsBlock(findings, { libraryDepsEnabled });
   if (findingsBlock.services.length === 0) {
     throw new PayloadError("findings.services must contain at least one entry", {
       field: "findings.services",
@@ -199,7 +223,7 @@ export function buildScanPayload(opts) {
   const toIso = (v) => (v instanceof Date ? v.toISOString() : v || new Date().toISOString());
 
   const payload = {
-    version: "1.0",
+    version: findingsBlock.schemaVersion,   // "1.0" or "1.1" — derived by buildFindingsBlock
     metadata: {
       tool,
       tool_version: readPluginVersion(),

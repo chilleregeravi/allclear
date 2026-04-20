@@ -1,0 +1,30 @@
+GIT
+  remote: https://github.com/example/internal-lib.git
+  revision: abc123
+  specs:
+    internal-lib (0.1.0)
+      activesupport (>= 6.0)
+
+PATH
+  remote: ../local-gem
+  specs:
+    local-gem (0.2.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activesupport (7.1.2)
+      concurrent-ruby (~> 1.0)
+    rails (7.1.2)
+      activesupport (= 7.1.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  internal-lib!
+  local-gem!
+  rails (~> 7.1)
+
+BUNDLED WITH
+   2.4.22

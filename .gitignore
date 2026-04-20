@@ -1,1 +1,15 @@
 node_modules/
+
+# OS / editor cruft
+.DS_Store
+.superset/
+
+# Presentation / internal docs (not part of the plugin)
+*.pptx
+~$*.pptx
+*.xlsx
+~$*.xlsx
+
+# Local Claude Code config (per-machine, not for distribution)
+.claude/
+AGENTS.md

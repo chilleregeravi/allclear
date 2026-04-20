@@ -1,5 +1,15 @@
 # Milestones
 
+## v5.8.0 Library Drift & Language Parity (Shipped: 2026-04-19)
+
+**Phases completed:** 0 phases, 0 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v5.7.0 Scan Accuracy (Shipped: 2026-03-23)
 
 **Phases completed:** 3 phases, 3 plans, 5 tasks

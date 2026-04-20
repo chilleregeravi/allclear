@@ -19,6 +19,7 @@
 - ✅ **v5.5.0 Security & Data Integrity Hardening** — Phases 80-83 (shipped 2026-03-22)
 - ✅ **v5.6.0 Logging & Observability** — Phases 84-88 (shipped 2026-03-23)
 - ✅ **v5.7.0 Scan Accuracy** — Phases 89-91 (shipped 2026-03-23)
+- ✅ **v5.8.0 Library Drift & Language Parity** — Phases 92-96 (shipped 2026-04-19)
 
 ## Phases
 
@@ -172,6 +173,15 @@ Full details: `.planning/milestones/v5.6.0-ROADMAP.md`
 - [x] Phase 89-91: 3 phases, 3 plans — three-value crossing semantics, post-scan reconciliation, mono-repo detection, client_files discovery schema, version bump
 
 Full details: `.planning/milestones/v5.7.0-ROADMAP.md`
+
+</details>
+
+<details>
+<summary>✅ v5.8.0 Library Drift & Language Parity (Phases 92-96) — SHIPPED 2026-04-19</summary>
+
+- [x] Phase 92-96: 5 phases, 16 plans — Maven/Gradle/NuGet/Bundler parsers, Java/C#/Ruby language parity, service_dependencies persistence, drift dispatcher unification, hub payload v1.1 with feature flag
+
+Full details: `.planning/milestones/v5.8.0-ROADMAP.md`
 
 </details>
 
@@ -658,3 +668,4 @@ Plans:
 | 80-83 | v5.5.0 | 9/9 | Complete | 2026-03-22 |
 | 84-88 | v5.6.0 | 6/6 | Complete | 2026-03-23 |
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
+| 92-96 | v5.8.0 | 16/16 | Complete | 2026-04-19 |

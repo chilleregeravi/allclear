@@ -32,6 +32,7 @@ import os from "node:os";
 
 import { parseAgentOutput } from "./findings.js";
 import { registerEnricher, runEnrichmentPass } from "./enrichment.js";
+import { collectDependencies } from "./enrichment/dep-collector.js";
 import { createCodeownersEnricher } from "./codeowners.js";
 import { resolveDataDir } from "../lib/data-dir.js";
 import { resolveConfigPath } from "../lib/config-path.js";
@@ -54,9 +55,10 @@ function _readHubConfig() {
       hubAutoUpload: Boolean(cfg?.hub?.["auto-upload"]),
       hubUrl: cfg?.hub?.url,
       projectSlug: cfg?.hub?.["project-slug"] || cfg?.["project-name"],
+      libraryDepsEnabled: Boolean(cfg?.hub?.beta_features?.library_deps),
     };
   } catch {
-    return { hubAutoUpload: false, hubUrl: undefined, projectSlug: undefined };
+    return { hubAutoUpload: false, hubUrl: undefined, projectSlug: undefined, libraryDepsEnabled: false };
   }
 }
 
@@ -765,6 +767,22 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     queryEngine.persistFindings(r.repoId, r.findings, r.currentHead, r.scanVersionId);
     queryEngine.endScan(r.repoId, r.scanVersionId);
 
+    // 10a. Back-fill DB ids onto r.findings.services so the hub auto-upload
+    // loop (step HUB-01) can call getDependenciesForService(svc.id).
+    // persistFindings builds a name→id map internally but does not write ids
+    // back onto the findings objects. We resolve them here via a single SELECT.
+    if (Array.isArray(r.findings?.services) && r.findings.services.length > 0) {
+      const dbServices = queryEngine._db
+        .prepare('SELECT id, name FROM services WHERE repo_id = ?')
+        .all(r.repoId);
+      const nameToId = new Map(dbServices.map((s) => [s.name, s.id]));
+      for (const svc of r.findings.services) {
+        if (svc.name && nameToId.has(svc.name)) {
+          svc.id = nameToId.get(svc.name);
+        }
+      }
+    }
+
     // 11. Run enrichment pass per service — post-scan, after bracket closes
     // ENRICH-01: enrichment runs after core scan. Bracket is already closed above.
     // Enrichment MUST NOT call beginScan/endScan — never opens a new bracket.
@@ -772,11 +790,57 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       const services = queryEngine._db
         .prepare('SELECT id, root_path, language, boundary_entry FROM services WHERE repo_id = ?')
         .all(r.repoId);
+      let totalDeps = 0;
+      const ecosystemsSeen = new Set();
       for (const service of services) {
         await runEnrichmentPass(service, queryEngine._db, _logger, r.repoPath);
+
+        // DEP-09: collect library deps after enrichment — MUST NOT touch scan bracket.
+        // Runs AFTER endScan() has closed the bracket (line ~766 above). Stale
+        // cleanup for dep rows is handled by ON DELETE CASCADE from services(id)
+        // when the NEXT scan's endScan() removes a stale service.
+        try {
+          const { rows, ecosystems_scanned } = await collectDependencies({
+            repoPath: r.repoPath,
+            rootPath: service.root_path,
+            logger: _logger,
+          });
+          for (const row of rows) {
+            try {
+              queryEngine.upsertDependency({
+                ...row,
+                service_id: service.id,
+                scan_version_id: r.scanVersionId,
+              });
+              totalDeps++;
+            } catch (err) {
+              slog('WARN', 'dep-scan: upsert failed', {
+                repoPath: r.repoPath,
+                service: service.id,
+                package: row.package_name,
+                error: err.message,
+              });
+            }
+          }
+          for (const eco of ecosystems_scanned) ecosystemsSeen.add(eco);
+        } catch (err) {
+          // DEP-09: any throw from the collector is swallowed — the scan completes
+          slog('WARN', 'dep-scan: collector error', {
+            repoPath: r.repoPath,
+            service: service.id,
+            error: err.message,
+          });
+        }
       }
       // SCAN-02: Log enrichment done with number of services enriched
       slog('INFO', 'enrichment done', { repoPath: r.repoPath, enricherCount: services.length });
+      // DEP-06: Log dep-scan coverage — ecosystems_scanned makes gaps visible
+      slog('INFO', 'dep-scan done', {
+        repoPath: r.repoPath,
+        serviceCount: services.length,
+        totalDeps,
+        ecosystemsSeen: [...ecosystemsSeen].sort(),
+      });
     } catch (err) {
       slog('WARN', 'enrichment pass error', { repoPath: r.repoPath, error: err.message });
     }
@@ -788,7 +852,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   // HUB-01: Optional Arcanon Hub sync — opt-in via ARCANON_API_KEY or config.hub.autoUpload.
   // Runs per-repo, fire-and-log — a hub failure never fails the scan.
   try {
-    const { hubAutoUpload, hubUrl, projectSlug } = _readHubConfig();
+    const { hubAutoUpload, hubUrl, projectSlug, libraryDepsEnabled } = _readHubConfig();
     // Credential check spans env vars AND ~/.arcanon/config.json so that
     // users who ran /arcanon:login (without exporting an env var) still
     // get auto-uploads.
@@ -803,6 +867,16 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     if (hasCredentials() && hubAutoUpload) {
       for (const r of results) {
         if (!r.findings) continue;
+        // HUB-01 / HUB-03: when the feature flag is on, attach per-service deps
+        // fetched from the local DB. When the flag is off, skip the DB read entirely
+        // and let buildFindingsBlock emit v1.0 unchanged.
+        if (libraryDepsEnabled && Array.isArray(r.findings.services)) {
+          for (const svc of r.findings.services) {
+            if (typeof svc.id === 'number') {
+              svc.dependencies = queryEngine.getDependenciesForService(svc.id);
+            }
+          }
+        }
         try {
           const outcome = await syncFindings({
             findings: r.findings,
@@ -810,6 +884,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
             projectSlug,
             hubUrl,
             scanMode: r.mode,
+            libraryDepsEnabled,   // HUB-03 feature flag — gates v1.1 emission
             log: (level, msg, data) => slog(level, `hub-sync: ${msg}`, data),
           });
           if (outcome.ok) {

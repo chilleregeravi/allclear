@@ -486,6 +486,29 @@ export class QueryEngine {
       // node_metadata table not present (pre-migration-008 db)
       this._stmtUpsertNodeMetadata = null;
     }
+
+    // --- service_dependencies statement (migration 010) ---
+    this._stmtUpsertDependency = null;
+    try {
+      this._stmtUpsertDependency = db.prepare(`
+        INSERT INTO service_dependencies (
+          service_id, scan_version_id, ecosystem, package_name,
+          version_spec, resolved_version, manifest_file, dep_kind
+        )
+        VALUES (
+          @service_id, @scan_version_id, @ecosystem, @package_name,
+          @version_spec, @resolved_version, @manifest_file, @dep_kind
+        )
+        ON CONFLICT(service_id, ecosystem, package_name, manifest_file) DO UPDATE SET
+          version_spec     = excluded.version_spec,
+          resolved_version = excluded.resolved_version,
+          scan_version_id  = excluded.scan_version_id,
+          dep_kind         = excluded.dep_kind
+      `);
+    } catch {
+      // service_dependencies table not present (pre-migration-010 db)
+      this._stmtUpsertDependency = null;
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -712,6 +735,77 @@ export class QueryEngine {
       value: value ?? null,
     });
     return result.lastInsertRowid;
+  }
+
+  /**
+   * Inserts or updates a dependency row for a service.
+   *
+   * Uses ON CONFLICT DO UPDATE on the 4-column UNIQUE
+   * (service_id, ecosystem, package_name, manifest_file) so the row id
+   * is preserved across re-scans — callers that chain the id for FK
+   * references get stable identifiers.
+   *
+   * MUST NOT call beginScan/endScan - this is invoked from dep-collector
+   * which runs AFTER the scan bracket closes (see manager.js Phase B loop).
+   *
+   * @param {object} row
+   * @param {number} row.service_id
+   * @param {number|null} row.scan_version_id
+   * @param {string} row.ecosystem - one of npm|pypi|go|cargo|maven|nuget|rubygems
+   * @param {string} row.package_name
+   * @param {string|null} row.version_spec - raw manifest token (e.g., "^1.2.3")
+   * @param {string|null} row.resolved_version - lockfile-pinned version if available
+   * @param {string} row.manifest_file - relative path from service root
+   * @param {string} [row.dep_kind='direct'] - 'direct' or 'transient'
+   * @returns {number|null} service_dependencies.id, or null if table absent (pre-mig-010)
+   */
+  upsertDependency(row) {
+    if (!this._stmtUpsertDependency) return null;
+    const params = {
+      service_id:       row.service_id,
+      scan_version_id:  row.scan_version_id ?? null,
+      ecosystem:        row.ecosystem,
+      package_name:     row.package_name,
+      version_spec:     row.version_spec ?? null,
+      resolved_version: row.resolved_version ?? null,
+      manifest_file:    row.manifest_file,
+      dep_kind:         row.dep_kind ?? 'direct',
+    };
+    const result = this._stmtUpsertDependency.run(params);
+    // lastInsertRowid is 0 on pure UPDATE path in better-sqlite3 — fetch the
+    // existing row id so callers always receive the stable identifier.
+    if (result.changes > 0 && result.lastInsertRowid > 0) {
+      return Number(result.lastInsertRowid);
+    }
+    // UPDATE path — look up existing id by the 4-col UNIQUE tuple
+    const existing = this._db.prepare(`
+      SELECT id FROM service_dependencies
+      WHERE service_id = ? AND ecosystem = ? AND package_name = ? AND manifest_file = ?
+    `).get(params.service_id, params.ecosystem, params.package_name, params.manifest_file);
+    return existing ? Number(existing.id) : null;
+  }
+
+  /**
+   * Returns all service_dependencies rows for a given service, sorted by
+   * ecosystem then package_name. Returns [] if the table is absent
+   * (pre-migration-010 database).
+   *
+   * @param {number} serviceId
+   * @returns {Array<{id:number, service_id:number, scan_version_id:number|null, ecosystem:string, package_name:string, version_spec:string|null, resolved_version:string|null, manifest_file:string, dep_kind:string}>}
+   */
+  getDependenciesForService(serviceId) {
+    try {
+      return this._db.prepare(`
+        SELECT id, service_id, scan_version_id, ecosystem, package_name,
+               version_spec, resolved_version, manifest_file, dep_kind
+        FROM service_dependencies
+        WHERE service_id = ?
+        ORDER BY ecosystem, package_name
+      `).all(serviceId);
+    } catch {
+      // service_dependencies table absent — pre-migration-010 db
+      return [];
+    }
   }
 
   /**

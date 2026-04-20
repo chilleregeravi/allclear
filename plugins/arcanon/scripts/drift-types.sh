@@ -4,6 +4,12 @@
 # Reports CRITICAL when a shared type has differing field lists.
 set -euo pipefail
 
+# Require bash 4+ for associative arrays (declare -A)
+if (( BASH_VERSINFO[0] < 4 )); then
+  echo "drift-types: requires bash 4 or later (found bash ${BASH_VERSION})" >&2
+  exit 1
+fi
+
 # Source shared helpers (sets PLUGIN_ROOT, SHOW_INFO, LINKED_REPOS, emit_finding, parse_drift_args)
 source "$(dirname "${BASH_SOURCE[0]}")/drift-common.sh"
 
@@ -22,6 +28,12 @@ detect_repo_language() {
     echo "py"
   elif [[ -f "${repo_dir}/Cargo.toml" ]]; then
     echo "rs"
+  elif [[ -f "${repo_dir}/pom.xml" || -f "${repo_dir}/build.gradle" || -f "${repo_dir}/build.gradle.kts" ]]; then
+    echo "java"
+  elif compgen -G "${repo_dir}/*.csproj" > /dev/null 2>&1 || compgen -G "${repo_dir}/*.sln" > /dev/null 2>&1; then
+    echo "cs"
+  elif [[ -f "${repo_dir}/Gemfile" ]]; then
+    echo "rb"
   else
     echo "unknown"
   fi
@@ -79,6 +91,60 @@ extract_rs_structs() {
     sort -u
 }
 
+# extract_java_types REPO_DIR
+# Prints Java public type names (interface|class|record|enum), one per line.
+# Handles generic bounds: `public class Foo<T extends Bar>` captures "Foo".
+extract_java_types() {
+  local repo_dir="$1"
+  local search_dirs=()
+  [[ -d "${repo_dir}/src" ]] && search_dirs+=("${repo_dir}/src")
+  search_dirs+=("${repo_dir}")
+  for d in "${search_dirs[@]}"; do
+    find "$d" -maxdepth 10 -name "*.java" 2>/dev/null | while IFS= read -r f; do
+      grep -hE "^[[:space:]]*public[[:space:]]+(final[[:space:]]+|abstract[[:space:]]+|sealed[[:space:]]+)?(interface|class|record|enum)[[:space:]]+[A-Z][A-Za-z0-9_]+" "$f" 2>/dev/null
+    done
+  done |
+    sed -E 's/^[[:space:]]*public[[:space:]]+(final[[:space:]]+|abstract[[:space:]]+|sealed[[:space:]]+)?(interface|class|record|enum)[[:space:]]+//' |
+    awk '{print $1}' |
+    sed -E 's/[<({].*//' |
+    grep -E '^[A-Z][A-Za-z0-9_]+$' |
+    sort -u
+}
+
+# extract_cs_types REPO_DIR
+# Prints C# public type names (interface|class|record|struct|enum), one per line.
+# NOTE: `partial class Foo` is captured as `Foo` — fragments across multiple files
+# are treated as separate types in v5.8.0 (PITFALLS.md P13: documented limitation,
+# not fixed here; out of Phase 92 scope).
+extract_cs_types() {
+  local repo_dir="$1"
+  find "$repo_dir" -maxdepth 10 -name "*.cs" 2>/dev/null | while IFS= read -r f; do
+    grep -hE "^[[:space:]]*public[[:space:]]+(static[[:space:]]+|abstract[[:space:]]+|sealed[[:space:]]+|partial[[:space:]]+)?(interface|class|record|struct|enum)[[:space:]]+[A-Z][A-Za-z0-9_]+" "$f" 2>/dev/null
+  done |
+    sed -E 's/^[[:space:]]*public[[:space:]]+(static[[:space:]]+|abstract[[:space:]]+|sealed[[:space:]]+|partial[[:space:]]+)?(interface|class|record|struct|enum)[[:space:]]+//' |
+    awk '{print $1}' |
+    sed -E 's/[<({:].*//' |
+    grep -E '^[A-Z][A-Za-z0-9_]+$' |
+    sort -u
+}
+
+# extract_ruby_types REPO_DIR
+# Prints Ruby class and module names from top-level definitions only (indentation=0).
+# Excludes stdlib names to avoid monkey-patch false positives (PITFALLS.md P12).
+extract_ruby_types() {
+  local repo_dir="$1"
+  # Match class/module at column 0 (top-level, not nested inside module block via indentation)
+  find "$repo_dir" -maxdepth 10 -name "*.rb" 2>/dev/null | while IFS= read -r f; do
+    grep -hE "^(class|module)[[:space:]]+[A-Z][A-Za-z0-9_]+" "$f" 2>/dev/null
+  done |
+    sed -E 's/^(class|module)[[:space:]]+//' |
+    awk '{print $1}' |
+    sed -E 's/[<({:;].*//' |
+    grep -E '^[A-Z][A-Za-z0-9_]+$' |
+    grep -vE '^(String|Array|Hash|Integer|Symbol|Numeric|Object|BasicObject|Float|Range|Regexp|IO|File|Proc|Thread|Module|Class|Comparable|Enumerable|Kernel|NilClass|TrueClass|FalseClass|Exception|StandardError|RuntimeError)$' |
+    sort -u
+}
+
 # extract_type_names REPO_DIR LANGUAGE
 # Dispatches to the correct extractor for the given language
 extract_type_names() {
@@ -89,6 +155,9 @@ extract_type_names() {
     go) extract_go_structs "$repo_dir" ;;
     py) extract_py_classes "$repo_dir" ;;
     rs) extract_rs_structs "$repo_dir" ;;
+    java) extract_java_types "$repo_dir" ;;
+    cs) extract_cs_types "$repo_dir" ;;
+    rb) extract_ruby_types "$repo_dir" ;;
   esac
 }
 
@@ -125,6 +194,19 @@ extract_type_body() {
   esac
 }
 
+# ---------------------------------------------------------------------------
+# Main comparison loop
+# Skip when --test-only is passed (allows sourcing from tests to call extractor functions)
+# ---------------------------------------------------------------------------
+for _arg in "$@"; do
+  if [[ "$_arg" == "--test-only" ]]; then
+    export -f detect_repo_language extract_ts_types extract_go_structs extract_py_classes \
+      extract_rs_structs extract_java_types extract_cs_types extract_ruby_types \
+      extract_type_names extract_type_body
+    return 0 2>/dev/null || exit 0
+  fi
+done
+
 # Group linked repos by language
 declare -A lang_repos  # lang_repos["ts"] = "repo1 repo2 ..."
 
@@ -145,6 +227,8 @@ for lang in "${!lang_repos[@]}"; do
   [[ "$repo_count" -lt 2 ]] && continue
 
   # Collect type names from all repos in this language group
+  # unset first to prevent key leakage from a previous language iteration
+  unset type_repos
   declare -A type_repos  # type_repos["TypeName"] = "repo1 repo2 ..."
 
   for repo in $repos; do

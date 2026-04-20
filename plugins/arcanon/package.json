@@ -1,6 +1,6 @@
 {
   "name": "@arcanon/plugin",
-  "version": "6.0.0",
+  "version": "0.1.0",
   "description": "Arcanon — cross-repo service dependency scanner for Claude Code",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -34,8 +34,9 @@
     "@chroma-core/default-embed": "^1.0.0"
   },
   "scripts": {
-    "test": "node --test tests/",
-    "test:storage": "node --test tests/storage/query-engine.test.js",
-    "test:hub-sync": "node --test worker/hub-sync/**/*.test.js"
+    "test": "find worker -name '*.test.js' -not -path '*/node_modules/*' -print0 | xargs -0 node --test",
+    "test:storage": "node --test worker/db/query-engine-*.test.js",
+    "test:hub-sync": "find worker/hub-sync -name '*.test.js' -print0 | xargs -0 node --test",
+    "test:migrations": "node --test worker/db/migration-*.test.js worker/db/migrations.test.js"
   }
 }

@@ -149,9 +149,26 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Mono-repo detection via multi-manifest subdirectory scanning (THE-951) — v5.7.0
 - ✓ client_files field in discovery schema for outbound HTTP call identification (THE-951) — v5.7.0
 
+- ✓ Maven `pom.xml` parser with `<parent>` inheritance + `<dependencyManagement>` resolution (MF-01) — v5.8.0
+- ✓ Gradle parsers for Groovy + Kotlin DSL + `libs.versions.toml` catalog (MF-02, MF-03) — v5.8.0
+- ✓ NuGet parser with Central Package Management (`Directory.Packages.props`) (MF-04) — v5.8.0
+- ✓ Bundler `Gemfile.lock` parser covering GEM/GIT/PATH sections (MF-05) — v5.8.0
+- ✓ Java/.NET/Ruby language detection in `detect.sh` + `discovery.js` MANIFESTS (LANG-01..03) — v5.8.0
+- ✓ Java/C#/Ruby type extractors in `drift-types.sh` with tmpdir pattern (TYPE-01..05) — v5.8.0
+- ✓ Migration 010 `service_dependencies` table with `dep_kind` discriminant + 4-col UNIQUE + ON DELETE CASCADE (DEP-01..04) — v5.8.0
+- ✓ `dep-collector.js` enrichment module covering 7 ecosystems (npm/pypi/go/cargo/maven/nuget/rubygems) production-deps-only (DEP-05..07) — v5.8.0
+- ✓ QueryEngine `upsertDependency` + `getDependenciesForService` with row-id stability (DEP-08) — v5.8.0
+- ✓ `manager.js` Phase B loop wired to dep-collector with cascade-based stale cleanup (DEP-09..11) — v5.8.0
+- ✓ Auth/DB enrichment for Java (Spring Security 5+6, Spring Data), C# (ASP.NET Identity, EF Core minimal API), Ruby (Devise, ActiveRecord, `config/database.yml` adapter probe) (ENR-01..09) — v5.8.0
+- ✓ Unified `scripts/drift.sh` dispatcher with reserved `licenses|security` slots (DSP-01..04, DSP-08) — v5.8.0
+- ✓ `lib/worker-restart.sh` extracted from session-start + worker-start with PID-file mutex preserved (DSP-05..07) — v5.8.0
+- ✓ Shell bug fixes: bc fork removed, declare -A leak fixed, global stderr suppression removed, Bash 4+ floor (DSP-09..12) — v5.8.0
+- ✓ Dead code removed: `impact.sh classify_match()`, `lint.sh npm bin` fallback (DSP-13) — v5.8.0
+- ✓ Hub Payload v1.1 with feature flag `hub.beta_features.library_deps` (default off, v1.0 fallback always works) (HUB-01..05) — v5.8.0
+
 ### Active
 
-(No active requirements — start next milestone with `/gsd:new-milestone`)
+(No active requirements — start next milestone with `/gsd-new-milestone`)
 
 ### Out of Scope
 
@@ -165,14 +182,14 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ## Context
 
-Shipped v5.7.0 with ~48,000 LOC (Node.js worker, Canvas UI, shell scripts, bats tests). 91 phases across 18 milestones, 156 plans. Repo restructured as Claude Code marketplace — plugin source lives under `plugins/ligamen/`, installable via `claude plugin marketplace add` + `claude plugin install`. MCP server has 8 tools (5 impact + 3 drift). Runtime deps installed automatically on first session via SessionStart hook + self-healing MCP wrapper. Post-scan enrichment architecture extracts team ownership (CODEOWNERS), auth mechanisms, and database backends. Confidence/evidence on connections, schema/field data in detail panel.
+Shipped v5.8.0 — 96 phases across 19 milestones, 172 plans. Library-level drift now flows end-to-end on the plugin side (hub-side companion THE-1018 still pending for full deployment). Repo restructured as Claude Code marketplace — plugin source lives under `plugins/ligamen/`, installable via `claude plugin marketplace add` + `claude plugin install`. MCP server has 8 tools (5 impact + 3 drift). Runtime deps installed automatically on first session via SessionStart hook + self-healing MCP wrapper. Post-scan enrichment architecture extracts team ownership (CODEOWNERS), auth mechanisms, and database backends. Confidence/evidence on connections, schema/field data in detail panel.
 
 Architecture: commands/ for user-invoked features, skills/ for auto-invoked knowledge, hooks/ for formatting/linting/guarding, worker/ for Node.js daemon (db/, server/, scan/, mcp/, ui/ subdirectories), lib/ for shared bash/JS libraries. Two-phase scan pipeline: discovery agent (Phase 1) detects languages/frameworks/entry-points, then deep scan agent (Phase 2) receives discovery context via {{DISCOVERY_JSON}} for language-aware analysis. Agent prompts modularized into type-specific variants (service, library, infra) with shared common component and multi-language examples. Parallel scan fan-out with retry-once error handling. Three-value crossing semantics (external/cross-service/internal) with post-scan reconciliation that downgrades false externals. Graph UI uses deterministic layered layout with boundary grouping, actor dedup filter, and protocol-differentiated edges. Filter panel provides protocol, layer, boundary, language, mismatch, and isolated-node toggles. Production-grade logging with size-based rotation, structured error logging with stack traces across all modules, and scan lifecycle observability.
 
 Known tech debt: db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-03-31 after v5.7.0 milestone*
+*Last updated: 2026-04-19 — v5.8.0 Library Drift & Language Parity shipped*
 
 ## Constraints
 
@@ -237,4 +254,4 @@ Known tech debt: db/database.js has console.log in script-mode guard, getQueryEn
 | Mono-repo detection via subdirectory manifests | Simple heuristic (one level deep) catches common layouts without recursive scan | ✓ Good |
 
 ---
-*Last updated: 2026-03-31 after v5.7.0 milestone*
+*Last updated: 2026-04-19 — v5.8.0 Library Drift & Language Parity shipped*
