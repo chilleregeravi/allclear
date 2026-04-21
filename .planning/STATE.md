@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.1.1
 milestone_name: Command Cleanup + Update + Ambient Hooks
-status: executing
-stopped_at: Completed 97-command-cleanup/97-02-PLAN.md
-last_updated: "2026-04-21T18:29:33.813Z"
+status: verifying
+stopped_at: Completed 97-03-PLAN.md
+last_updated: "2026-04-21T18:36:21.815Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 36
   completed_phases: 0
   total_plans: 12
-  completed_plans: 2
-  percent: 17
+  completed_plans: 3
+  percent: 25
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 Phase: 97 (Command Cleanup) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-21
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -53,6 +53,8 @@ Progress: [██░░░░░░░░] 17%
 - Merge-then-delete sequencing for cross-impact: absorb all capabilities into impact.md first (Wave 1), then delete cross-impact.md (Wave 2) gated on bats serialization guard
 - upload.md stub shells into hub.sh upload (not hub.sh sync) to preserve exact v0.1.0 code path for one version until v0.2.0
 - Deprecated stub pattern established: [DEPRECATED] frontmatter + printf >&2 + $ARGUMENTS passthrough + v0.2.0 removal anchor
+- Use typeof newKey !== 'undefined' (not ??) to preserve false values in two-read config fallback
+- Guard hub.js main() behind import.meta.url === process.argv[1] to enable ESM import in tests
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-21T18:29:33.805Z
-Stopped at: Completed 97-command-cleanup/97-02-PLAN.md
+Last session: 2026-04-21T18:36:21.807Z
+Stopped at: Completed 97-03-PLAN.md
 Resume file: None

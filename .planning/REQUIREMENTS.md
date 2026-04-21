@@ -19,9 +19,12 @@ Remove legacy surface, merge redundant commands, migrate config key.
 **: Default `/arcanon:sync` with no flags does upload-then-drain (push current repo's latest scan, then drain queue)
 - [x] **CLN-05
 **: `/arcanon:upload` kept for one version as deprecated stub that forwards to `/arcanon:sync` with a stderr deprecation warning
-- [ ] **CLN-06**: Plugin config rename `auto_upload` → `auto_sync` in `.claude-plugin/plugin.json` userConfig
-- [ ] **CLN-07**: Worker `hub.js` line 114 + `manager.js` line 55 use two-read pattern `cfg?.hub?.["auto-sync"] ?? cfg?.hub?.["auto-upload"]`
-- [ ] **CLN-08**: Deprecation warning emitted to stderr when legacy `auto-upload` key is read
+- [x] **CLN-06
+**: Plugin config rename `auto_upload` → `auto_sync` in `.claude-plugin/plugin.json` userConfig
+- [x] **CLN-07
+**: Worker `hub.js` line 114 + `manager.js` line 55 use two-read pattern `cfg?.hub?.["auto-sync"] ?? cfg?.hub?.["auto-upload"]`
+- [x] **CLN-08
+**: Deprecation warning emitted to stderr when legacy `auto-upload` key is read
 - [x] **CLN-09
 **: bats regression test — existing commands still work (`/arcanon:map`, `/arcanon:drift`, `/arcanon:impact`, `/arcanon:sync`, `/arcanon:login`, `/arcanon:status`, `/arcanon:export`)
 - [x] **CLN-10
