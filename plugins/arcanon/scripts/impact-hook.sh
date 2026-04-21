@@ -142,19 +142,180 @@ case "$BASENAME" in
 esac
 
 if [[ "$_tier1_match" == "true" ]]; then
-  # Emit a SKELETON warning. Plan 03 will enrich this with real consumer data.
-  # For now: exit 0 with a generic message proving the hook fires.
-  # Plan 03 replaces this block with the consumer query + staleness check.
-  printf '{"systemMessage": "Arcanon: schema file %s edited — cross-repo consumers may be impacted. Run /arcanon:impact for details."}\n' "$BASENAME"
+  _TIER1_MSG="Arcanon: schema file ${BASENAME} edited — cross-repo consumers may be impacted. Run /arcanon:impact for details."
+  printf '{"systemMessage": %s}\n' "$(jq -Rn --arg v "$_TIER1_MSG" '$v' 2>/dev/null || printf '"%s"' "${_TIER1_MSG//\"/\\\"}")"
   _debug_trace "$FILE" true null null
   exit 0
 fi
 
 # ---------------------------------------------------------------------------
-# Tier 2 SQLite classification — IMPLEMENTED IN PLAN 03
-# Anchor marker so Plan 03 knows where to insert its block.
+# HOK-02 Tier 2 — SQLite root_path prefix match + HOK-03 trailing-slash norm
+# HOK-09 — All errors exit 0 silently
 # ---------------------------------------------------------------------------
-# <TIER_2_ANCHOR — do not delete; Plan 03 inserts Tier 2 + consumer query here>
+
+# Resolve project root by walking up from the edited file.
+# Looks for arcanon.config.json -> .arcanon/ -> .git/ (in that order)
+_find_project_root() {
+  local dir
+  dir=$(dirname "$1")
+  while [[ "$dir" != "/" && "$dir" != "" ]]; do
+    if [[ -f "$dir/arcanon.config.json" ]] || [[ -d "$dir/.arcanon" ]] || [[ -d "$dir/.git" ]]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
+  done
+  return 1
+}
+
+PROJECT_ROOT=$(_find_project_root "$FILE" 2>/dev/null) || {
+  _debug_trace "$FILE" false null null
+  exit 0
+}
+
+DB_PATH=$(resolve_project_db_path "$PROJECT_ROOT" 2>/dev/null) || {
+  _debug_trace "$FILE" false null null
+  exit 0
+}
+
+if [[ ! -f "$DB_PATH" ]]; then
+  # No impact-map for this project — hook has nothing to say
+  _debug_trace "$FILE" false null null
+  exit 0
+fi
+
+# sqlite3 must be available (already required by existing plugin scripts)
+if ! command -v sqlite3 &>/dev/null; then
+  _debug_trace "$FILE" false null null
+  exit 0
+fi
+
+# Query: tab-separated name\tabsolute_prefix rows.
+# root_path is relative (pre-flight Finding 3) — JOIN repos to get absolute prefix.
+# Bare "." means the repo root itself is the service root.
+# -readonly prevents accidental writes; ".timeout 500" caps to 500ms.
+_SERVICE_ROWS=$(sqlite3 -readonly -cmd ".timeout 500" -separator $'\t' "$DB_PATH" \
+  "SELECT s.name, r.path || '/' || s.root_path FROM services s JOIN repos r ON s.repo_id = r.id;" \
+  2>/dev/null) || {
+  _debug_trace "$FILE" false null null
+  exit 0
+}
+
+SERVICE=""
+# Read tab-separated rows; find first prefix match with trailing-slash normalization
+# (HOK-03: "auth-legacy" must not match "auth" — trailing-slash norm prevents it)
+while IFS=$'\t' read -r _svc_name _svc_abs; do
+  [[ -z "$_svc_name" || -z "$_svc_abs" ]] && continue
+  _svc_abs_norm="${_svc_abs%/}"
+  # Handle bare "." case: repo root itself is the service root_path
+  if [[ "$_svc_abs_norm" == *"/." ]]; then
+    _svc_abs_norm="${_svc_abs_norm%/.}"
+  fi
+  # Prefix match with trailing slash — prevents "services/auth-legacy" matching "services/auth"
+  if [[ "$FILE" == "${_svc_abs_norm}/"* ]]; then
+    SERVICE="$_svc_name"
+    break
+  fi
+done <<< "$_SERVICE_ROWS"
+
+if [[ -z "$SERVICE" ]]; then
+  # No Tier 2 match — allow silently
+  _debug_trace "$FILE" false null null
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# HOK-08 — Staleness prefix: prepend [stale map — scanned Xd ago] when DB mtime > 48h
+# ---------------------------------------------------------------------------
+_STALE_PREFIX=""
+if [[ -f "$DB_PATH" ]]; then
+  # Portable mtime: GNU stat (-c %Y) vs BSD stat (-f %m)
+  _db_mtime=$(stat -c %Y "$DB_PATH" 2>/dev/null || stat -f %m "$DB_PATH" 2>/dev/null || echo 0)
+  _now=$(date +%s 2>/dev/null || echo 0)
+  if [[ "$_db_mtime" -gt 0 && "$_now" -gt "$_db_mtime" ]]; then
+    _age_sec=$(( _now - _db_mtime ))
+    _age_hours=$(( _age_sec / 3600 ))
+    if [[ "$_age_hours" -gt 48 ]]; then
+      _age_days=$(( _age_hours / 24 ))
+      _STALE_PREFIX="[stale map — scanned ${_age_days}d ago] "
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# HOK-04 — Consumer query: worker HTTP primary, direct SQLite fallback
+# ---------------------------------------------------------------------------
+
+# Source worker-client (safe to re-source; functions just redefine)
+# shellcheck source=../lib/worker-client.sh
+source "${_LIB_DIR}/worker-client.sh" 2>/dev/null || true
+
+CONSUMERS=""
+CONSUMER_COUNT=0
+
+_query_consumers_via_worker() {
+  # URL-encode project and change via jq @uri (jq is already required by this hook)
+  local proj_q chg_q resp
+  proj_q=$(jq -rn --arg v "$PROJECT_ROOT" '$v | @uri' 2>/dev/null) || return 1
+  chg_q=$(jq -rn --arg v "$SERVICE" '$v | @uri' 2>/dev/null) || return 1
+  resp=$(worker_call "/impact?project=${proj_q}&change=${chg_q}" 2>/dev/null) || return 1
+  # Extract consumer names — support both response shapes defensively
+  # Shape A: { "consumers": [ { "name": "svc-a" }, ... ] }
+  # Shape B: [ { "name": "svc-a" }, ... ]
+  # Shape C: { "impacted": [ ... ] } (fallback if worker emits this key)
+  printf '%s' "$resp" | jq -r '
+    (.consumers // .impacted // . // []) |
+    if type == "array" then .[] | (.name // .service // empty) else empty end
+  ' 2>/dev/null
+}
+
+_query_consumers_via_sqlite() {
+  # Fallback: direct sqlite3. A "consumer" of service S = any service with a
+  # connection where target_service_id = S's id. Return unique source service names.
+  # SQL injection mitigation: SERVICE name is escaped via sed s/'/''/g (T-100-09)
+  local _svc_escaped
+  _svc_escaped=$(printf '%s' "$SERVICE" | sed "s/'/''/g")
+  sqlite3 -readonly -cmd ".timeout 500" "$DB_PATH" <<SQL 2>/dev/null
+SELECT DISTINCT src.name
+FROM connections c
+JOIN services tgt ON tgt.id = c.target_service_id
+JOIN services src ON src.id = c.source_service_id
+WHERE tgt.name = '${_svc_escaped}';
+SQL
+}
+
+# Primary: worker HTTP (~5ms warm)
+_consumer_list=""
+if worker_running 2>/dev/null; then
+  _consumer_list=$(_query_consumers_via_worker) || _consumer_list=""
+fi
+
+# Fallback: direct sqlite3 (~5-15ms)
+if [[ -z "$_consumer_list" ]]; then
+  _consumer_list=$(_query_consumers_via_sqlite) || _consumer_list=""
+fi
+
+# Normalize: strip blank lines, count, build comma-separated preview (max 3 names)
+if [[ -n "$_consumer_list" ]]; then
+  CONSUMER_COUNT=$(printf '%s\n' "$_consumer_list" | grep -vcE '^\s*$' 2>/dev/null || echo 0)
+  CONSUMERS=$(printf '%s\n' "$_consumer_list" | grep -vE '^\s*$' | head -3 | paste -sd ',' -)
+fi
+
+# ---------------------------------------------------------------------------
+# HOK-05 — Emit warning (warn-only, never block)
+# ---------------------------------------------------------------------------
+_MSG=""
+if [[ "$CONSUMER_COUNT" -gt 0 ]]; then
+  _MSG="${_STALE_PREFIX}Arcanon: ${SERVICE} has ${CONSUMER_COUNT} consumer(s): ${CONSUMERS}. Run /arcanon:impact for details."
+else
+  # Service identified but no consumers (or query failed) — still useful to surface
+  _MSG="${_STALE_PREFIX}Arcanon: editing service ${SERVICE}. Run /arcanon:impact for cross-repo impact."
+fi
+
+# jq-escape message body to produce valid JSON (handles quotes, backslashes, newlines)
+printf '{"systemMessage": %s}\n' "$(jq -Rn --arg v "$_MSG" '$v' 2>/dev/null || printf '"%s"' "${_MSG//\"/\\\"}")"
+_debug_trace "$FILE" true "$SERVICE" "$CONSUMER_COUNT"
+exit 0
 
 # ---------------------------------------------------------------------------
 # Default: allow silently
