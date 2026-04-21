@@ -82,6 +82,102 @@ if [[ -n "$WORKER_CLIENT_LIB" ]]; then
   fi
 fi
 
+# SSE-01..07: ARCANON_ENRICHMENT — impact-map stats suffix injected into session banner.
+# SSE-01/02: fresh map => full suffix. SSE-03: stale (48h<age<7d) => stale prefix.
+# SSE-04/07: any failure (missing DB, corrupt DB, query error, hub down) => ENRICHMENT=""
+# SSE-05: non-Arcanon dir (no DB) => silent no-op. SSE-06: total overhead < 200ms.
+# The entire block runs in a subshell so failures never leak to the outer script.
+ENRICHMENT=""
+ENRICHMENT="$(
+  set -euo pipefail
+
+  # Require non-empty CWD
+  [[ -n "${CWD:-}" ]] || exit 0
+
+  # Resolve sha256 hasher (macOS: shasum; Linux: sha256sum)
+  if command -v shasum >/dev/null 2>&1; then
+    HASHER="shasum -a 256"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    HASHER="sha256sum"
+  else
+    exit 0
+  fi
+
+  # Compute project hash: printf '%s' (no newline) matches Node crypto.createHash('sha256').update(cwd)
+  PROJECT_HASH="$(printf '%s' "$CWD" | $HASHER 2>/dev/null | awk '{print $1}' | cut -c1-12)"
+  [[ -n "$PROJECT_HASH" ]] || exit 0
+
+  # Resolve data dir: use sourced resolve_arcanon_data_dir if available, else env/default
+  if declare -f resolve_arcanon_data_dir >/dev/null 2>&1; then
+    DATA_DIR="$(resolve_arcanon_data_dir 2>/dev/null || echo "")"
+  else
+    DATA_DIR="${ARCANON_DATA_DIR:-${LIGAMEN_DATA_DIR:-$HOME/.arcanon}}"
+  fi
+  [[ -n "$DATA_DIR" ]] || exit 0
+
+  DB_PATH="${DATA_DIR}/projects/${PROJECT_HASH}/impact-map.db"
+  [[ -f "$DB_PATH" ]] || exit 0  # SSE-05: non-Arcanon dir — silent no-op
+
+  # Validate DB integrity before any real query (SSE-04: corrupt DB => silent fallback)
+  sqlite3 "$DB_PATH" "PRAGMA quick_check;" 2>/dev/null | grep -q '^ok$' || exit 0
+
+  # Run the three stat queries (SSE-01/03)
+  SVC_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM services;" 2>/dev/null)
+  LB_COUNT=$(sqlite3 "$DB_PATH" \
+    "SELECT COUNT(DISTINCT source_file) FROM connections WHERE source_file IS NOT NULL AND source_file != '';" 2>/dev/null)
+  LAST_SCAN_ISO=$(sqlite3 "$DB_PATH" \
+    "SELECT MAX(completed_at) FROM scan_versions WHERE completed_at IS NOT NULL;" 2>/dev/null)
+
+  [[ -n "$SVC_COUNT" && -n "$LAST_SCAN_ISO" ]] || exit 0
+
+  # Age calculation (portable: GNU date -d first, then BSD date -jf)
+  NOW_EPOCH=$(date -u +%s 2>/dev/null) || exit 0
+  SCAN_EPOCH=$(date -u -d "$LAST_SCAN_ISO" +%s 2>/dev/null) \
+    || SCAN_EPOCH=$(date -ju -f '%Y-%m-%d %H:%M:%S' "$LAST_SCAN_ISO" +%s 2>/dev/null) \
+    || exit 0
+  [[ -n "$SCAN_EPOCH" ]] || exit 0
+
+  AGE_HOURS=$(( (NOW_EPOCH - SCAN_EPOCH) / 3600 ))
+  # SSE-01: map > 7 days old => no enrichment (silent)
+  (( AGE_HOURS >= 168 )) && exit 0
+
+  SCAN_DATE="$(printf '%s' "$LAST_SCAN_ISO" | cut -c1-10)"
+
+  # Hub status (SSE-04: any failure => "unknown")
+  HUB_STATUS="unknown"
+  HUB_SH=""
+  if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && [[ -x "${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh" ]]; then
+    HUB_SH="${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh"
+  else
+    _SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}" 2>/dev/null || echo "")"
+    [[ -x "${_SCRIPT_DIR}/hub.sh" ]] && HUB_SH="${_SCRIPT_DIR}/hub.sh"
+  fi
+  if [[ -n "$HUB_SH" ]]; then
+    HUB_JSON="$(bash "$HUB_SH" status --json 2>/dev/null)" || HUB_JSON=""
+    if [[ -n "$HUB_JSON" ]]; then
+      CREDS="$(printf '%s' "$HUB_JSON" | jq -r '.credentials // "missing"' 2>/dev/null)" || CREDS="missing"
+      AUTO="$(printf '%s' "$HUB_JSON" | jq -r '.hub_auto_upload // false' 2>/dev/null)" || AUTO="false"
+      case "${CREDS}:${AUTO}" in
+        present:true)  HUB_STATUS="auto-sync on" ;;
+        present:false) HUB_STATUS="manual" ;;
+        missing:*)     HUB_STATUS="offline" ;;
+        *)             HUB_STATUS="unknown" ;;
+      esac
+    fi
+  fi
+
+  # Assemble enrichment suffix (SSE-01)
+  ENRICHMENT_VAL="${SVC_COUNT} services mapped. ${LB_COUNT:-0} load-bearing files. Last scan: ${SCAN_DATE}. Hub: ${HUB_STATUS}."
+
+  # SSE-03: stale map (48h <= age < 168h) => prepend stale prefix
+  if (( AGE_HOURS >= 48 )); then
+    DAYS=$(( AGE_HOURS / 24 ))
+    ENRICHMENT_VAL="[stale map — last scanned ${DAYS}d ago] ${ENRICHMENT_VAL}"
+  fi
+
+  printf '%s' "$ENRICHMENT_VAL"
+)" 2>/dev/null || ENRICHMENT=""
+
 # SSTH-02: Project detection — source shared library
 # Use CLAUDE_PLUGIN_ROOT if set, otherwise fall back to script-relative path
 DETECT_LIB=""
@@ -113,6 +209,7 @@ if [[ -n "$PROJECT_TYPES" ]]; then
 fi
 CONTEXT="${CONTEXT} Commands: /arcanon:map, /arcanon:drift, /arcanon:impact, /arcanon:login, /arcanon:upload, /arcanon:status, /arcanon:sync, /arcanon:export."
 [[ -n "$WORKER_STATUS" ]] && CONTEXT="${CONTEXT} ${WORKER_STATUS}"
+[[ -n "${ENRICHMENT:-}" ]] && CONTEXT="${CONTEXT} ${ENRICHMENT}"
 
 # SSTH-01: Output hookSpecificOutput.additionalContext JSON to stdout
 # Use jq -Rs . for safe escaping of the context string (handles quotes, backslashes, newlines)

@@ -148,9 +148,10 @@ print(d['hookSpecificOutput']['additionalContext'])
 
   ctx="$(extract_context "$output")"
 
-  # Must start with stale prefix
-  echo "$ctx" | grep -qE '^\[stale map — last scanned [0-9]+d ago\]' \
-    || { echo "Expected '[stale map — last scanned Xd ago]' prefix in: $ctx"; return 1; }
+  # Must contain stale prefix (the ENRICHMENT suffix starts with the stale tag,
+  # appended after the commands string in the full context)
+  echo "$ctx" | grep -qE '\[stale map — last scanned [0-9]+d ago\]' \
+    || { echo "Expected '[stale map — last scanned Xd ago]' in: $ctx"; return 1; }
 
   # Must still contain enrichment data
   [[ "$ctx" == *"5 services mapped."* ]]    || { echo "Missing '5 services mapped.' in stale: $ctx"; return 1; }
