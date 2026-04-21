@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.1.1
 milestone_name: Command Cleanup + Update + Ambient Hooks
-status: verifying
-stopped_at: Completed 97-01-PLAN.md
-last_updated: "2026-04-21T18:40:25.102Z"
+status: executing
+stopped_at: Completed 98-update-command/98-01-PLAN.md
+last_updated: "2026-04-21T18:57:39.733Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 36
   completed_phases: 1
   total_plans: 12
-  completed_plans: 4
-  percent: 33
+  completed_plans: 5
+  percent: 42
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 97 — Command Cleanup
+**Current focus:** Phase 98 — /arcanon:update Command
 
 ## Current Position
 
-Phase: 97 (Command Cleanup) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 98 (/arcanon:update Command) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-21
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 42%
 
 ## Performance Metrics
 
@@ -56,6 +56,9 @@ Progress: [███░░░░░░░] 33%
 - Use typeof newKey !== 'undefined' (not ??) to preserve false values in two-read config fallback
 - Guard hub.js main() behind import.meta.url === process.argv[1] to enable ESM import in tests
 - 97-01: Outright kill of /arcanon:cross-impact with no migration stub — /arcanon:impact is canonical, docs already mark cross-impact legacy
+- semver present transitively in node_modules — no package.json edit needed for 98-01
+- claude plugin update --yes flag absent — 98-02 must handle interactive reinstall prompt
+- node exit-code capture via || NODE_EXIT=$? guards ERR trap on intentional non-zero exits
 
 ### Pending Todos
 
@@ -69,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-21T18:40:25.094Z
-Stopped at: Completed 97-01-PLAN.md
+Last session: 2026-04-21T18:57:39.725Z
+Stopped at: Completed 98-update-command/98-01-PLAN.md
 Resume file: None
