@@ -31,10 +31,10 @@
       "required": false,
       "default": "https://api.arcanon.dev"
     },
-    "auto_upload": {
-      "title": "Auto-upload scans to hub",
+    "auto_sync": {
+      "title": "Auto-sync scans to hub",
       "type": "boolean",
-      "description": "Upload scan findings to Arcanon Hub automatically after every /arcanon:map. Requires api_token.",
+      "description": "Automatically push scan findings to Arcanon Hub and drain the offline queue after every /arcanon:map. Requires api_token.",
       "required": false,
       "default": false
     },
