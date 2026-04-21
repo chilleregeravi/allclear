@@ -20,10 +20,7 @@ MODE="${1:-}"
 case "$MODE" in
   --check|--kill) ;;  # fall through to mode-specific logic below
   --prune-cache) ;;  # fall through to prune logic below
-  --verify)
-    echo "{\"error\":\"mode --verify not yet implemented (pending Task 2 of 98-03)\"}" >&2
-    exit 1
-    ;;
+  --verify) ;;  # fall through to verify logic below
   *)
     echo "usage: update.sh --check|--kill|--prune-cache|--verify" >&2
     exit 1
@@ -142,6 +139,59 @@ if [[ "$MODE" == "--prune-cache" ]]; then
   printf '{"status":"pruned","current_version":"%s","pruned":%s,"kept":%s,"locked":%s}\n' \
     "$CURRENT_VER" "$PRUNED_JSON" "$KEPT_JSON" "$LOCKED_JSON"
   exit 0
+fi
+
+# ─── --verify mode (REQ UPD-10, UPD-12) ─────────────────────────────────────
+if [[ "$MODE" == "--verify" ]]; then
+  # shellcheck source=../lib/data-dir.sh
+  source "${PLUGIN_ROOT}/lib/data-dir.sh"
+  DATA_DIR="$(resolve_arcanon_data_dir)"
+
+  # Target version = the newly installed plugin version
+  TARGET_VER=$(jq -r '.version // empty' "${PLUGIN_ROOT}/.claude-plugin/plugin.json" 2>/dev/null || true)
+  if [[ -z "$TARGET_VER" ]]; then
+    TARGET_VER=$(jq -r '.version // empty' "${PLUGIN_ROOT}/package.json" 2>/dev/null || true)
+  fi
+  [[ -z "$TARGET_VER" ]] && TARGET_VER="unknown"
+
+  # Start a fresh worker (98-02 --kill left the worker down).
+  # worker-start.sh is idempotent-on-stale and quick to return.
+  bash "${PLUGIN_ROOT}/scripts/worker-start.sh" >/dev/null 2>&1 || true
+
+  PORT_FILE="${DATA_DIR}/worker.port"
+
+  # Poll /api/version up to 10 times at 1s intervals (REQ UPD-10).
+  # First iteration sleeps before checking — worker needs time to spawn.
+  RUNNING_VER=""
+  ELAPSED=0
+  for i in $(seq 1 10); do
+    sleep 1
+    ELAPSED=$i
+    if [[ ! -f "$PORT_FILE" ]]; then
+      continue  # port file not yet written
+    fi
+    PORT=$(cat "$PORT_FILE" 2>/dev/null || true)
+    [[ -z "$PORT" ]] && continue
+
+    RUNNING_VER=$(curl -s --max-time 1 "http://127.0.0.1:${PORT}/api/version" 2>/dev/null \
+      | jq -r '.version // empty' 2>/dev/null || true)
+
+    if [[ -n "$RUNNING_VER" && "$RUNNING_VER" != "unknown" && "$RUNNING_VER" == "$TARGET_VER" ]]; then
+      printf '{"status":"verified","target":"%s","running":"%s","elapsed_s":%d}\n' \
+        "$TARGET_VER" "$RUNNING_VER" "$ELAPSED"
+      exit 0
+    fi
+  done
+
+  # Fell through — either the worker never came up, or it's running a different version.
+  if [[ -z "$RUNNING_VER" ]]; then
+    printf '{"status":"verify_failed","reason":"no_response","target":"%s","elapsed_s":%d,"message":"Worker did not respond within 10s."}\n' \
+      "$TARGET_VER" "$ELAPSED"
+  else
+    printf '{"status":"verify_failed","reason":"version_mismatch","target":"%s","running":"%s","elapsed_s":%d,"message":"Worker is running v%s but target is v%s."}\n' \
+      "$TARGET_VER" "$RUNNING_VER" "$ELAPSED" "$RUNNING_VER" "$TARGET_VER"
+  fi
+  exit 0  # Pitfall 11: graceful failure — plugin is installed, just not yet serving.
 fi
 
 # ─── --check mode ───────────────────────────────────────────────────────────
