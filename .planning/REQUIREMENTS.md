@@ -105,7 +105,8 @@ Ambient protection when Claude Edit/Writes service-load-bearing files.
 - [ ] **HOK-09**: On any error (db missing, worker down, query timeout), hook exits 0 silently — NEVER blocks an edit
 - [ ] **HOK-10**: `ARCANON_IMPACT_DEBUG=1` env var writes one-line JSONL trace per fire to `$DATA_DIR/logs/impact-hook.jsonl` with `{ts, file, classified, service, consumer_count, latency_ms}`
 - [ ] **HOK-11**: `ARCANON_DISABLE_HOOK=1` env var short-circuits the hook (exits 0 silently) — escape hatch for users who don't want the ambient warnings
-- [ ] **HOK-12**: New `lib/db-path.sh` helper that resolves per-project DB path from CWD using the exact same hash algorithm as `worker/lib/data-dir.js`
+- [x] **HOK-12
+**: New `lib/db-path.sh` helper that resolves per-project DB path from CWD using the exact same hash algorithm as `worker/lib/data-dir.js`
 - [ ] **HOK-13**: bats test fixtures:
   - Tier 1 match (edit `*.proto` → hook fires with warning)
   - Tier 2 match (edit file inside a tracked service's root_path → hook fires)

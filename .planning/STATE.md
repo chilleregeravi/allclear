@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.1.1
 milestone_name: Command Cleanup + Update + Ambient Hooks
-status: verifying
-stopped_at: Completed 99-01-PLAN.md (SessionStart enrichment block + bats tests)
-last_updated: "2026-04-21T19:25:38.913Z"
+status: executing
+stopped_at: Completed 100-01-PLAN.md
+last_updated: "2026-04-21T19:32:08.677Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 36
   completed_phases: 3
   total_plans: 12
-  completed_plans: 8
-  percent: 67
+  completed_plans: 9
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-21)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 99 — SessionStart Enrichment
+**Current focus:** Phase 100 — PreToolUse Impact Hook
 
 ## Current Position
 
-Phase: 99 (SessionStart Enrichment) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
+Phase: 100 (PreToolUse Impact Hook) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-04-21
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -65,6 +65,9 @@ Progress: [███████░░░] 67%
 - --verify always exits 0 regardless of poll outcome (Pitfall 11 graceful failure); caller reads .status to format user message
 - Subshell capture pattern for ARCANON_ENRICHMENT block: entire block runs in $(...) subshell preserving set -euo pipefail discipline; failures exit silently via exit 0
 - Stale prefix appended to ENRICHMENT suffix (not full context string): banner reads 'Arcanon active. Commands: ... [stale map — last scanned 3d ago] 5 services mapped.'
+- systemMessage is the PreToolUse output key for soft-warns (not additionalContext)
+- printf '%s' (no newline) used for sha256 input to match JS hash byte-for-byte
+- root_path in production DBs is always relative; Plan 03 joins repos.path for absolute match
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-21T19:25:38.905Z
-Stopped at: Completed 99-01-PLAN.md (SessionStart enrichment block + bats tests)
+Last session: 2026-04-21T19:32:08.669Z
+Stopped at: Completed 100-01-PLAN.md
 Resume file: None
