@@ -166,21 +166,23 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Dead code removed: `impact.sh classify_match()`, `lint.sh npm bin` fallback (DSP-13) — v5.8.0
 - ✓ Hub Payload v1.1 with feature flag `hub.beta_features.library_deps` (default off, v1.0 fallback always works) (HUB-01..05) — v5.8.0
 
+- ✓ `/arcanon:cross-impact` merged into `/arcanon:impact` (absorbed `--exclude`, `--changed`, 3-state degradation) (CLN-01, 02, 10..13) — v0.1.1
+- ✓ `/arcanon:sync` absorbs `/arcanon:upload` semantics with `--drain`/`--repo`/`--dry-run`/`--force` (CLN-03, 04, 09) — v0.1.1
+- ✓ `/arcanon:upload` deprecated stub forwarding to `/arcanon:sync` with stderr warning (CLN-05) — v0.1.1
+- ✓ Plugin config rename `auto_upload` → `auto_sync` with two-read fallback + stderr deprecation warning (CLN-06..08) — v0.1.1
+- ✓ `/arcanon:update` self-update command with `--check`/`--kill`/`--prune-cache`/`--verify` modes (UPD-01..13) — v0.1.1
+- ✓ SessionStart banner enrichment: service count + load-bearing files + last scan + hub status with stale prefix (SSE-01..07) — v0.1.1
+- ✓ PreToolUse impact hook: Tier 1 schema patterns + Tier 2 SQLite root_path prefix + worker HTTP fallback + self-exclusion + debug JSONL (HOK-01..13) — v0.1.1
+
 ### Active
 
-## Current Milestone: v0.1.1 Command Cleanup + Update + Ambient Hooks
+## Next Milestone Goals
 
-**Goal:** Reduce command surface from 9 to 8, add a clean self-update flow, and introduce ambient cross-repo impact protection via hooks — so Arcanon's value surfaces automatically during implementation without requiring users to memorize commands.
+v0.1.1 shipped 2026-04-21. Planning the next milestone is open — candidate themes below, to be refined in `/gsd-new-milestone`:
 
-**Target features:**
-- Command consolidation: remove `/arcanon:cross-impact`, merge `/arcanon:upload` into `/arcanon:sync` (with `--dry-run`/`--repo`/`--force`/`--drain` flags), rename config `auto_upload` → `auto_sync` (honor legacy for one version)
-- New `/arcanon:update` command: check remote, confirm with user, reinstall, kill stale worker, prune old cache, verify
-- PreToolUse impact hook: ambient protection — when Claude Edit/Writes service-load-bearing files (proto, OpenAPI, known service entry-points), inject cross-repo consumer context BEFORE the edit
-- SessionStart enrichment: inject impact-map summary into every new session so Claude has global awareness of the project's service topology
-
-Explicitly deferred to v0.2.0: skills layer, agents, MCP-tool-wrapping skills. Ship hooks first, observe real firing behavior, design skills on top later.
-
-Directly addresses: the v0.1.0 → v6.0.0 stale-worker incident (solved by `/arcanon:update`), and the "Claude doesn't know Arcanon exists mid-implementation" gap (solved by PreToolUse hook).
+- **v0.2.0 Skills & Agents** — Design the skills layer on top of shipped hooks, refactor inline `Explore` agent calls, add MCP-tool-composing investigator agent. Intentionally deferred from v0.1.1.
+- **Scan quality** (THE-1022 and related Linear tickets) — High-priority items surfaced by external review of v0.1.0.
+- **UX polish & integration improvements** (THE-1023..1026) — Read-only command polish, scan ops, UX improvements, integration coverage.
 
 ### Out of Scope
 
@@ -194,14 +196,16 @@ Directly addresses: the v0.1.0 → v6.0.0 stale-worker incident (solved by `/arc
 
 ## Context
 
-Shipped v5.8.0 — 96 phases across 19 milestones, 172 plans. Library-level drift now flows end-to-end on the plugin side (hub-side companion THE-1018 still pending for full deployment). Repo restructured as Claude Code marketplace — plugin source lives under `plugins/ligamen/`, installable via `claude plugin marketplace add` + `claude plugin install`. MCP server has 8 tools (5 impact + 3 drift). Runtime deps installed automatically on first session via SessionStart hook + self-healing MCP wrapper. Post-scan enrichment architecture extracts team ownership (CODEOWNERS), auth mechanisms, and database backends. Confidence/evidence on connections, schema/field data in detail panel.
+Shipped v0.1.1 (Arcanon) — 100 phases across 20 milestones, 184 plans. Command surface is clean: `/arcanon:cross-impact` merged into `/arcanon:impact` (with `--exclude`, `--changed`, 3-state degradation preserved), `/arcanon:upload` deprecated (stub forwards to `/arcanon:sync`), new `/arcanon:update` flow handles self-update with version check / scan-lock guard / kill / prune / verify. Ambient cross-repo awareness wired via SessionStart banner enrichment (`N services mapped. K load-bearing files. Last scan: date. Hub: status.`) and PreToolUse impact hook (Tier 1 schema patterns + Tier 2 SQLite root_path prefix match + worker HTTP fallback, p99 <50ms Linux target, 130ms macOS). Config key `auto_upload` renamed to `auto_sync` with two-read fallback.
+
+Prior foundations carried forward from v5.8.0: library-level drift end-to-end (Maven/Gradle/NuGet/Bundler/Ruby parsers, Java/C#/Ruby type parity, service_dependencies persistence), marketplace structure with plugin source under `plugins/arcanon/`, MCP server with 8 tools (5 impact + 3 drift), auto-deps install via SessionStart hook + self-healing MCP wrapper, post-scan enrichment extracting CODEOWNERS ownership, auth mechanisms, and database backends, confidence/evidence on connections, schema/field data in detail panel.
 
 Architecture: commands/ for user-invoked features, skills/ for auto-invoked knowledge, hooks/ for formatting/linting/guarding, worker/ for Node.js daemon (db/, server/, scan/, mcp/, ui/ subdirectories), lib/ for shared bash/JS libraries. Two-phase scan pipeline: discovery agent (Phase 1) detects languages/frameworks/entry-points, then deep scan agent (Phase 2) receives discovery context via {{DISCOVERY_JSON}} for language-aware analysis. Agent prompts modularized into type-specific variants (service, library, infra) with shared common component and multi-language examples. Parallel scan fan-out with retry-once error handling. Three-value crossing semantics (external/cross-service/internal) with post-scan reconciliation that downgrades false externals. Graph UI uses deterministic layered layout with boundary grouping, actor dedup filter, and protocol-differentiated edges. Filter panel provides protocol, layer, boundary, language, mismatch, and isolated-node toggles. Production-grade logging with size-based rotation, structured error logging with stack traces across all modules, and scan lifecycle observability.
 
 Known tech debt: db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-04-21 — v0.1.1 milestone started (Command Cleanup + Update + Ambient Hooks)*
+*Last updated: 2026-04-21 — v0.1.1 SHIPPED (Command Cleanup + Update + Ambient Hooks)*
 
 ## Constraints
 
@@ -264,6 +268,12 @@ Known tech debt: db/database.js has console.log in script-mode guard, getQueryEn
 | Three-value crossing semantics | external/cross-service/internal captures nuance that binary external/internal missed | ✓ Good |
 | Post-scan reconciliation over prompt-only fix | Agents can't know what other repos contain; post-scan has full context | ✓ Good |
 | Mono-repo detection via subdirectory manifests | Simple heuristic (one level deep) catches common layouts without recursive scan | ✓ Good |
+| Merge cross-impact INTO impact (not just delete) — v0.1.1 | External review flagged `--exclude` and `--changed` as load-bearing features that would regress on hard delete; serialization guard runs merge before delete in same wave | ✓ Good |
+| Deprecated stub for `/arcanon:upload` — v0.1.1 | Hard-remove would break hard-coded CI pipelines; one-release stub with stderr warning buys migration time | ✓ Good |
+| Two-read config fallback (`auto-sync ?? auto-upload`) — v0.1.1 | Users with legacy `auto_upload: true` would silently lose auto-sync on upgrade; fallback + stderr warning prevents quiet breakage | ✓ Good |
+| Pure-bash PreToolUse hook (no Node cold-start) — v0.1.1 | Node cold-start is 80-150ms alone; pure bash + curl + sqlite3 CLI keeps p99 <50ms on Linux | ⚠️ Revisit (macOS 130ms p99 — BSD fork overhead) |
+| SessionStart banner enrichment (not /arcanon:status) — v0.1.1 | Claude needs ambient awareness; users forget to run status; banner is the always-on context channel | ✓ Good |
+| Defer skills and agents to v0.2.0 — v0.1.1 | Ship hooks first; observe real firing behavior for a release; only then design skills that layer on top | ✓ Good |
 
 ---
-*Last updated: 2026-04-21 — v0.1.1 milestone started (Command Cleanup + Update + Ambient Hooks)*
+*Last updated: 2026-04-21 — v0.1.1 SHIPPED (Command Cleanup + Update + Ambient Hooks)*
