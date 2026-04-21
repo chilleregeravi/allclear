@@ -92,19 +92,25 @@ Extend existing `session-start.sh` with impact-map context when available.
 
 Ambient protection when Claude Edit/Writes service-load-bearing files.
 
-- [ ] **HOK-01**: New `hooks/hooks.json` entry registers `scripts/impact-hook.sh` on PreToolUse matcher `Edit|Write` AFTER the existing `file-guard.sh` entry
-- [ ] **HOK-02**: Hook implements two-tier file classification:
+- [x] **HOK-01
+**: New `hooks/hooks.json` entry registers `scripts/impact-hook.sh` on PreToolUse matcher `Edit|Write` AFTER the existing `file-guard.sh` entry
+- [x] **HOK-02
+**: Hook implements two-tier file classification:
   - **Tier 1** (pure bash, ~0ms): file matches `*.proto`, `openapi.yaml|yml|json`, `swagger.yaml|yml|json`
   - **Tier 2** (SQLite prefix match, ~5-15ms): file path starts with any `services.root_path` value from impact-map.db
 - [ ] **HOK-03**: `root_path` prefix match must normalize trailing slashes: `[[ "$FILE" == "${root_path%/}/"* ]]` — prevents `services/auth` falsely matching `services/auth-legacy`
 - [ ] **HOK-04**: When file classified as service-load-bearing, hook queries consumer count via worker HTTP `GET /impact?change=<service>` (fall back to direct SQLite if worker down)
 - [ ] **HOK-05**: Hook output format: `{"systemMessage": "Arcanon: <service> has N consumers: svc-a, svc-b, svc-c. Run /arcanon:impact for details."}` + exit 0 (warn-only, never block)
 - [ ] **HOK-06**: NO Node cold-start in hot path — hook is pure bash + curl + sqlite3 CLI. p99 latency < 50ms (bats-benchmarked).
-- [ ] **HOK-07**: Self-exclusion: hook exits 0 silently when edited file is inside `$CLAUDE_PLUGIN_ROOT` (prevents hook-storm when developing Arcanon itself)
+- [x] **HOK-07
+**: Self-exclusion: hook exits 0 silently when edited file is inside `$CLAUDE_PLUGIN_ROOT` (prevents hook-storm when developing Arcanon itself)
 - [ ] **HOK-08**: Staleness signal in warning text: prepend `[stale map — scanned Xd ago]` when impact-map is > 48h old
-- [ ] **HOK-09**: On any error (db missing, worker down, query timeout), hook exits 0 silently — NEVER blocks an edit
-- [ ] **HOK-10**: `ARCANON_IMPACT_DEBUG=1` env var writes one-line JSONL trace per fire to `$DATA_DIR/logs/impact-hook.jsonl` with `{ts, file, classified, service, consumer_count, latency_ms}`
-- [ ] **HOK-11**: `ARCANON_DISABLE_HOOK=1` env var short-circuits the hook (exits 0 silently) — escape hatch for users who don't want the ambient warnings
+- [x] **HOK-09
+**: On any error (db missing, worker down, query timeout), hook exits 0 silently — NEVER blocks an edit
+- [x] **HOK-10
+**: `ARCANON_IMPACT_DEBUG=1` env var writes one-line JSONL trace per fire to `$DATA_DIR/logs/impact-hook.jsonl` with `{ts, file, classified, service, consumer_count, latency_ms}`
+- [x] **HOK-11
+**: `ARCANON_DISABLE_HOOK=1` env var short-circuits the hook (exits 0 silently) — escape hatch for users who don't want the ambient warnings
 - [x] **HOK-12
 **: New `lib/db-path.sh` helper that resolves per-project DB path from CWD using the exact same hash algorithm as `worker/lib/data-dir.js`
 - [ ] **HOK-13**: bats test fixtures:
