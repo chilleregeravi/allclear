@@ -118,54 +118,53 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLN-01 | — | Pending |
-| CLN-02 | — | Pending |
-| CLN-03 | — | Pending |
-| CLN-04 | — | Pending |
-| CLN-05 | — | Pending |
-| CLN-06 | — | Pending |
-| CLN-07 | — | Pending |
-| CLN-08 | — | Pending |
-| CLN-09 | — | Pending |
-| UPD-01 | — | Pending |
-| UPD-02 | — | Pending |
-| UPD-03 | — | Pending |
-| UPD-04 | — | Pending |
-| UPD-05 | — | Pending |
-| UPD-06 | — | Pending |
-| UPD-07 | — | Pending |
-| UPD-08 | — | Pending |
-| UPD-09 | — | Pending |
-| UPD-10 | — | Pending |
-| UPD-11 | — | Pending |
-| UPD-12 | — | Pending |
-| UPD-13 | — | Pending |
-| SSE-01 | — | Pending |
-| SSE-02 | — | Pending |
-| SSE-03 | — | Pending |
-| SSE-04 | — | Pending |
-| SSE-05 | — | Pending |
-| SSE-06 | — | Pending |
-| SSE-07 | — | Pending |
-| HOK-01 | — | Pending |
-| HOK-02 | — | Pending |
-| HOK-03 | — | Pending |
-| HOK-04 | — | Pending |
-| HOK-05 | — | Pending |
-| HOK-06 | — | Pending |
-| HOK-07 | — | Pending |
-| HOK-08 | — | Pending |
-| HOK-09 | — | Pending |
-| HOK-10 | — | Pending |
-| HOK-11 | — | Pending |
-| HOK-12 | — | Pending |
-| HOK-13 | — | Pending |
+| CLN-01 | 97 | Pending |
+| CLN-02 | 97 | Pending |
+| CLN-03 | 97 | Pending |
+| CLN-04 | 97 | Pending |
+| CLN-05 | 97 | Pending |
+| CLN-06 | 97 | Pending |
+| CLN-07 | 97 | Pending |
+| CLN-08 | 97 | Pending |
+| CLN-09 | 97 | Pending |
+| UPD-01 | 98 | Pending |
+| UPD-02 | 98 | Pending |
+| UPD-03 | 98 | Pending |
+| UPD-04 | 98 | Pending |
+| UPD-05 | 98 | Pending |
+| UPD-06 | 98 | Pending |
+| UPD-07 | 98 | Pending |
+| UPD-08 | 98 | Pending |
+| UPD-09 | 98 | Pending |
+| UPD-10 | 98 | Pending |
+| UPD-11 | 98 | Pending |
+| UPD-12 | 98 | Pending |
+| UPD-13 | 98 | Pending |
+| SSE-01 | 99 | Pending |
+| SSE-02 | 99 | Pending |
+| SSE-03 | 99 | Pending |
+| SSE-04 | 99 | Pending |
+| SSE-05 | 99 | Pending |
+| SSE-06 | 99 | Pending |
+| SSE-07 | 99 | Pending |
+| HOK-01 | 100 | Pending |
+| HOK-02 | 100 | Pending |
+| HOK-03 | 100 | Pending |
+| HOK-04 | 100 | Pending |
+| HOK-05 | 100 | Pending |
+| HOK-06 | 100 | Pending |
+| HOK-07 | 100 | Pending |
+| HOK-08 | 100 | Pending |
+| HOK-09 | 100 | Pending |
+| HOK-10 | 100 | Pending |
+| HOK-11 | 100 | Pending |
+| HOK-12 | 100 | Pending |
+| HOK-13 | 100 | Pending |
 
 **Coverage:**
 - v1 requirements: 41 total
-- Mapped to phases: 0 (roadmapper pending)
-- Unmapped: 41 ⚠️ (expected until roadmap is generated)
+- Mapped to phases: 41, Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-21*
-*Last updated: 2026-04-21 after initial definition*
+*Last updated: 2026-04-21 after roadmap generation*

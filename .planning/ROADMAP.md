@@ -20,6 +20,7 @@
 - ✅ **v5.6.0 Logging & Observability** — Phases 84-88 (shipped 2026-03-23)
 - ✅ **v5.7.0 Scan Accuracy** — Phases 89-91 (shipped 2026-03-23)
 - ✅ **v5.8.0 Library Drift & Language Parity** — Phases 92-96 (shipped 2026-04-19)
+- 🟡 **v0.1.1 Command Cleanup + Update + Ambient Hooks** — Phases 97-100 (in progress)
 
 ## Phases
 
@@ -184,6 +185,13 @@ Full details: `.planning/milestones/v5.7.0-ROADMAP.md`
 Full details: `.planning/milestones/v5.8.0-ROADMAP.md`
 
 </details>
+
+### v0.1.1 Command Cleanup + Update + Ambient Hooks (Phases 97-100) — IN PROGRESS
+
+- [ ] **Phase 97: Command Cleanup** — Remove `/arcanon:cross-impact`, merge upload into sync, rename config key
+- [ ] **Phase 98: /arcanon:update Command** — Deterministic self-update flow: version check, confirm, reinstall, kill, prune, verify
+- [ ] **Phase 99: SessionStart Enrichment** — Inject impact-map summary into session banner when map exists and is fresh
+- [ ] **Phase 100: PreToolUse Impact Hook** — Ambient cross-repo consumer warning on service-load-bearing file edits
 
 ## Phase Details
 
@@ -647,6 +655,61 @@ Plans:
 
 </details>
 
+---
+
+### Phase 97: Command Cleanup
+**Goal**: Users face a clean command surface — `/arcanon:cross-impact` is gone, `/arcanon:sync` is the canonical upload+drain verb, and the `auto_upload` config key silently migrates to `auto_sync` without breaking existing users
+**Depends on**: Phase 96 (v5.8.0 complete)
+**Requirements**: CLN-01, CLN-02, CLN-03, CLN-04, CLN-05, CLN-06, CLN-07, CLN-08, CLN-09
+**Success Criteria** (what must be TRUE):
+  1. `commands/cross-impact.md` is deleted; all banner and doc references to `/arcanon:cross-impact` are scrubbed from `session-start.sh`, `README.md`, and `docs/commands.md`
+  2. `/arcanon:sync` accepts `--drain`, `--repo <path>`, `--dry-run`, and `--force` flags; running it with no flags performs upload-then-drain
+  3. `/arcanon:upload` still exists as a deprecated stub that exits 0, forwards to sync, and emits a deprecation warning to stderr — existing CI pipelines do not break
+  4. `worker/cli/hub.js` and `worker/scan/manager.js` use the two-read pattern `cfg?.hub?.["auto-sync"] ?? cfg?.hub?.["auto-upload"]`; reading the legacy `auto-upload` key emits a deprecation warning to stderr
+  5. bats regression passes: all seven surviving commands (`/arcanon:map`, `/arcanon:drift`, `/arcanon:impact`, `/arcanon:sync`, `/arcanon:login`, `/arcanon:status`, `/arcanon:export`) behave correctly
+**Plans**: TBD
+
+### Phase 98: /arcanon:update Command
+**Goal**: Users can run `/arcanon:update` to check for a newer version, confirm, and get a clean plugin update — stale workers are killed safely, old cache is pruned, and the user is told exactly what to do next
+**Depends on**: Phase 97
+**Requirements**: UPD-01, UPD-02, UPD-03, UPD-04, UPD-05, UPD-06, UPD-07, UPD-08, UPD-09, UPD-10, UPD-11, UPD-12, UPD-13
+**Success Criteria** (what must be TRUE):
+  1. Running `/arcanon:update` when already on the latest version prints "Arcanon v{version} is the latest release." and exits cleanly
+  2. Running `/arcanon:update` when a newer version is available shows 2-4 CHANGELOG lines from the remote, asks for confirmation (default No), and does nothing if the user declines
+  3. Semver comparison correctly handles `0.9.0 < 0.10.0`, `0.1.0 < 0.1.1`, and `1.0.0 == 1.0.0` — the bats test matrix passes
+  4. When a scan is in progress at update time, the command aborts with a user prompt rather than killing the worker mid-scan
+  5. Worker shutdown uses SIGTERM → 5s wait → SIGKILL (kill-only, does NOT invoke `restart_worker_if_stale`)
+  6. After update completes, the command prints "Restart Claude Code to activate v{newver}"
+  7. When the marketplace fetch fails (curl --max-time 5 timeout), the command exits 0 with "could not reach update server, current version is X.Y.Z"
+**Plans**: TBD
+
+### Phase 99: SessionStart Enrichment
+**Goal**: Every new Claude session in an Arcanon-scanned project automatically receives a concise impact-map summary — so Claude has ambient cross-repo awareness without the user having to run any command
+**Depends on**: Phase 97 (session-start.sh touched by Phase 97 at line 114; Phase 99 must follow to avoid textual conflict)
+**Requirements**: SSE-01, SSE-02, SSE-03, SSE-04, SSE-05, SSE-06, SSE-07
+**Success Criteria** (what must be TRUE):
+  1. Starting a Claude session in a directory with a fresh (< 48h) impact-map.db produces a session banner enrichment suffix: "N services mapped. K load-bearing files. Last scan: date. Hub: status." capped at ~200 chars
+  2. When the impact-map is 48h–7d old, the enrichment suffix is prepended with `[stale map — last scanned Xd ago]`
+  3. When the impact-map is missing, > 7 days old, or the worker is down, the existing minimal banner is shown with no error — the session is never broken
+  4. Starting a session in a directory where Arcanon has never scanned produces no enrichment suffix (inject-only-when-scanned behavior)
+  5. Total SessionStart overhead stays under 200ms; the bats fixture test passes for fresh/stale/missing cases
+**Plans**: TBD
+
+### Phase 100: PreToolUse Impact Hook
+**Goal**: When Claude edits a service-load-bearing file (proto/openapi definitions or a tracked service entry-point), it automatically receives a cross-repo consumer warning before making the change — ambient protection without any user command
+**Depends on**: Phase 99 (lib/db-path.sh created in this phase is needed; phase ordering also avoids hooks.json conflicts)
+**Requirements**: HOK-01, HOK-02, HOK-03, HOK-04, HOK-05, HOK-06, HOK-07, HOK-08, HOK-09, HOK-10, HOK-11, HOK-12, HOK-13
+**Success Criteria** (what must be TRUE):
+  1. Editing a `*.proto`, `openapi.yaml`, `openapi.json`, `swagger.yaml`, or `swagger.json` file triggers a `{"systemMessage": "Arcanon: <service> has N consumers: svc-a, svc-b. Run /arcanon:impact for details."}` output before the edit proceeds
+  2. Editing a file whose path starts with a tracked service's `root_path` (Tier 2 match) also triggers the consumer warning; `services/auth-legacy` does NOT trigger the warning when only `services/auth` is tracked (false-positive guard passes)
+  3. Editing a file inside `$CLAUDE_PLUGIN_ROOT` produces no output — self-exclusion prevents hook-storm during Arcanon development
+  4. When the worker is down, the hook queries SQLite directly and still produces the warning (worker-down fallback); on any other error the hook exits 0 silently and never blocks an edit
+  5. Hook p99 latency is < 50ms (bats benchmark passes); no Node subprocess is spawned in the hot path
+  6. All 6 bats fixtures pass: Tier 1 match, Tier 2 match, false-positive guard, self-exclusion, worker-down fallback, latency benchmark
+  7. `ARCANON_DISABLE_HOOK=1` short-circuits the hook silently; `ARCANON_IMPACT_DEBUG=1` writes a one-line JSONL trace to `$DATA_DIR/logs/impact-hook.jsonl`
+**Plans**: TBD
+**Note**: Four empirical pre-flight validations required before writing code — see SUMMARY.md Phase 4 Research Flags: (1) `additionalContext` vs `systemMessage` output key for PreToolUse; (2) `db-path.sh` hash algorithm from `worker/lib/data-dir.js`; (3) `root_path` absolute vs relative convention in production DB; (4) `/impact` HTTP endpoint parameter signature from `worker/server/http.js`.
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -669,3 +732,7 @@ Plans:
 | 84-88 | v5.6.0 | 6/6 | Complete | 2026-03-23 |
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
 | 92-96 | v5.8.0 | 16/16 | Complete | 2026-04-19 |
+| 97 | v0.1.1 | 0/TBD | Not started | - |
+| 98 | v0.1.1 | 0/TBD | Not started | - |
+| 99 | v0.1.1 | 0/TBD | Not started | - |
+| 100 | v0.1.1 | 0/TBD | Not started | - |

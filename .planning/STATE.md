@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v0.1.1
 milestone_name: Command Cleanup + Update + Ambient Hooks
 status: active
-stopped_at: "Defining requirements"
-last_updated: "2026-04-21T10:00:00.000Z"
+stopped_at: "Ready to plan first phase"
+last_updated: "2026-04-21T00:00:00.000Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-21)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 97 of 100 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-21 — Milestone v0.1.1 started
+Status: Ready to plan first phase
+Last activity: 2026-04-21 — Roadmap created
 
 Progress: [          ] 0%
 
@@ -59,9 +59,10 @@ None.
 
 - `/arcanon:update` depends on Claude Code CLI shape for plugin install/uninstall; if CLI changes, the command breaks. Mitigation: try CLI path first, fall back to "here are the manual commands" diagnostic if auto-flow fails.
 - PreToolUse hook adds latency to Edit/Write on service files. Need to keep the impact-query path fast (<100ms target) via prepared SQLite statements.
+- Phase 100 requires four empirical pre-flight validations before writing code: (1) `additionalContext` vs `systemMessage` output key for PreToolUse; (2) `db-path.sh` hash algorithm from `worker/lib/data-dir.js`; (3) `root_path` absolute vs relative convention in production DB; (4) `/impact` HTTP endpoint parameter signature from `worker/server/http.js`.
 
 ## Session Continuity
 
 Last session: 2026-04-21
-Stopped at: Defining requirements
+Stopped at: Ready to plan first phase
 Resume file: None
