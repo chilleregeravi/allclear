@@ -24,7 +24,7 @@ const QUERY_TIMEOUT_MS = 30_000;
 let _mcpLogLevel = 'INFO';
 try {
   const _settings = JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8'));
-  if (_settings.LIGAMEN_LOG_LEVEL) _mcpLogLevel = _settings.LIGAMEN_LOG_LEVEL;
+  if (_settings.ARCANON_LOG_LEVEL) _mcpLogLevel = _settings.ARCANON_LOG_LEVEL;
 } catch { /* settings absent — use default */ }
 
 const logger = createLogger({ dataDir, logLevel: _mcpLogLevel, component: 'mcp' });
@@ -43,8 +43,8 @@ function resolveDbPath(projectRoot = process.cwd()) {
 }
 
 const dbPath =
-  process.env.LIGAMEN_DB_PATH ||
-  resolveDbPath(process.env.LIGAMEN_PROJECT_ROOT || process.cwd());
+  process.env.ARCANON_DB_PATH ||
+  resolveDbPath(process.env.ARCANON_PROJECT_ROOT || process.cwd());
 
 /**
  * Open the SQLite database in read-only mode.
@@ -76,7 +76,7 @@ export function openDb() {
  */
 export function resolveDb(project) {
   if (!project) {
-    const root = process.env.LIGAMEN_PROJECT_ROOT || process.cwd();
+    const root = process.env.ARCANON_PROJECT_ROOT || process.cwd();
     return getQueryEngine(root);
   }
   // Absolute path → validate it resolves within <dataDir>/projects/ (~/.arcanon or legacy ~/.ligamen)
