@@ -5,7 +5,6 @@
  *   1. opts.apiKey (explicit argument — used by /arcanon:login test flows)
  *   2. process.env.ARCANON_API_KEY
  *   3. ~/.arcanon/config.json  { "api_key": "arc_..." }
- *   4. ~/.ligamen/config.json  (legacy)
  *
  * Hub URL precedence:
  *   1. opts.hubUrl
@@ -44,8 +43,7 @@ function readJsonSafe(file) {
 function readHomeConfig() {
   const home = os.homedir();
   const current = path.join(home, ".arcanon", "config.json");
-  const legacy = path.join(home, ".ligamen", "config.json");
-  return readJsonSafe(current) || readJsonSafe(legacy) || {};
+  return readJsonSafe(current) || {};
 }
 
 /**
