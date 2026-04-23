@@ -97,7 +97,7 @@ async function createHttpServer(queryEngine, options = {}) {
     if (!qe) {
       return reply.code(503).send({
         error:
-          "No map data yet. Pass ?project=/path/to/repo or run /ligamen:map first.",
+          "No map data yet. Pass ?project=/path/to/repo or run /arcanon:map first.",
       });
     }
     try {
@@ -175,7 +175,7 @@ async function createHttpServer(queryEngine, options = {}) {
     if (!qe) {
       return reply
         .code(503)
-        .send({ error: "No map data yet — run /ligamen:map first" });
+        .send({ error: "No map data yet — run /arcanon:map first" });
     }
     if (!repo_path || !findings) {
       return reply

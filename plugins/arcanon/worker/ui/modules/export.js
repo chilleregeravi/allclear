@@ -2,7 +2,7 @@
  * export.js — PNG export for the graph canvas.
  *
  * Wires a click handler on #export-btn that calls canvas.toDataURL('image/png')
- * and triggers a browser download named "ligamen-graph.png".
+ * and triggers a browser download named "arcanon-graph.png".
  */
 
 let _wired = false;
@@ -24,7 +24,7 @@ export function initExport() {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = 'ligamen-graph.png';
+    a.download = 'arcanon-graph.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
