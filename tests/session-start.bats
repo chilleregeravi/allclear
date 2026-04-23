@@ -135,7 +135,7 @@ assert 'Python' in ctx, 'expected Python in context: ' + ctx
 import sys, json
 d = json.load(sys.stdin)
 ctx = d['hookSpecificOutput']['additionalContext']
-assert '/arcanon:cross-impact' in ctx, 'expected /arcanon:cross-impact in context: ' + ctx
+assert '/arcanon:impact' in ctx, 'expected /arcanon:impact in context: ' + ctx
 "
   rm -f /tmp/arcanon_session_bats-pt-02.initialized
 }
@@ -393,7 +393,7 @@ assert 'hookSpecificOutput' in d, 'missing hookSpecificOutput'
 assert 'additionalContext' in d['hookSpecificOutput'], 'missing additionalContext'
 ctx = d['hookSpecificOutput']['additionalContext']
 assert 'Arcanon active' in ctx, 'expected Arcanon active in context: ' + ctx
-assert '/arcanon:cross-impact' in ctx, 'expected commands in context: ' + ctx
+assert '/arcanon:impact' in ctx, 'expected /arcanon:impact in context: ' + ctx
 "
 
   rm -f /tmp/arcanon_session_bats-intg-02.initialized

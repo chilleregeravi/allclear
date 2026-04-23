@@ -15,7 +15,6 @@ claude plugin install arcanon@arcanon --scope user
 - `/arcanon:map` — scan linked repos and build the service graph
 - `/arcanon:export` — emit Mermaid / DOT / JSON / self-contained HTML
 - `/arcanon:impact` — cross-repo impact query (MCP-backed)
-- `/arcanon:cross-impact` — legacy repo-local impact query
 
 **Drift**
 - `/arcanon:drift` — service-graph / version / type / OpenAPI drift

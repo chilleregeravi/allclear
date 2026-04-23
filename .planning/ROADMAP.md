@@ -20,6 +20,7 @@
 - ✅ **v5.6.0 Logging & Observability** — Phases 84-88 (shipped 2026-03-23)
 - ✅ **v5.7.0 Scan Accuracy** — Phases 89-91 (shipped 2026-03-23)
 - ✅ **v5.8.0 Library Drift & Language Parity** — Phases 92-96 (shipped 2026-04-19)
+- ✅ **v0.1.1 Command Cleanup + Update + Ambient Hooks** — Phases 97-100 (shipped 2026-04-21)
 
 ## Phases
 
@@ -182,6 +183,15 @@ Full details: `.planning/milestones/v5.7.0-ROADMAP.md`
 - [x] Phase 92-96: 5 phases, 16 plans — Maven/Gradle/NuGet/Bundler parsers, Java/C#/Ruby language parity, service_dependencies persistence, drift dispatcher unification, hub payload v1.1 with feature flag
 
 Full details: `.planning/milestones/v5.8.0-ROADMAP.md`
+
+</details>
+
+<details>
+<summary>✅ v0.1.1 Command Cleanup + Update + Ambient Hooks (Phases 97-100) — SHIPPED 2026-04-21</summary>
+
+- [x] Phase 97-100: 4 phases, 12 plans — merged `/arcanon:cross-impact` → `/arcanon:impact` with `--exclude`/`--changed`/3-state degradation, deprecated `/arcanon:upload` stub, `auto_upload` → `auto_sync` rename with fallback, new `/arcanon:update` self-update flow (check/kill/prune/verify), SessionStart banner enrichment (N services + K load-bearing files + hub status), PreToolUse impact hook (Tier 1 schema patterns + Tier 2 SQLite + worker HTTP fallback, p99 <50ms Linux target)
+
+Full details: `.planning/milestones/v0.1.1-ROADMAP.md`
 
 </details>
 
@@ -647,6 +657,11 @@ Plans:
 
 </details>
 
+---
+
+<!-- v0.1.1 phase details archived to .planning/milestones/v0.1.1-ROADMAP.md -->
+
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -669,3 +684,4 @@ Plans:
 | 84-88 | v5.6.0 | 6/6 | Complete | 2026-03-23 |
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
 | 92-96 | v5.8.0 | 16/16 | Complete | 2026-04-19 |
+| 97-100 | v0.1.1 | 12/12 | Complete | 2026-04-21 |

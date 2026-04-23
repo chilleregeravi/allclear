@@ -76,6 +76,13 @@ jobs:
         working-directory: plugins/arcanon
         run: npm ci --no-audit --no-fund
       - name: Run bats suite
+        env:
+          # GitHub Actions shared runners introduce 20-60ms variance on
+          # sub-100ms benchmarks. Local-dev target stays at 50ms (HOK-06);
+          # CI gets 2x headroom for shared-infrastructure noise while
+          # still catching real regressions (an accidental Node shell-out
+          # would push p99 to 200ms+).
+          IMPACT_HOOK_LATENCY_THRESHOLD: "100"
         run: |
           if [ -x tests/bats/bin/bats ]; then
             tests/bats/bin/bats tests/*.bats

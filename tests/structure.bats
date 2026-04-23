@@ -62,13 +62,13 @@ setup() {
 }
 
 @test "all command files exist" {
-  for cmd in cross-impact drift; do
+  for cmd in impact drift; do
     assert [ -f "commands/$cmd.md" ]
   done
 }
 
 @test "all command files have valid frontmatter" {
-  for cmd in cross-impact drift; do
+  for cmd in impact drift; do
     run grep -c "^description:" "commands/$cmd.md"
     assert_success
   done

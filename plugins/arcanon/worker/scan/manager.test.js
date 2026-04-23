@@ -1724,3 +1724,100 @@ describe("scanRepos — scan lifecycle logging (SCAN-01, SCAN-02)", () => {
     enrichDb.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLN-07 / CLN-08: Two-read pattern tests for _readHubAutoSync
+// ---------------------------------------------------------------------------
+
+// Test helper: stub process.stderr.write and return a capture array.
+function captureStderr() {
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  const captured = [];
+  process.stderr.write = (chunk, ...rest) => {
+    captured.push(String(chunk));
+    return true;
+  };
+  return {
+    captured,
+    restore: () => { process.stderr.write = originalWrite; },
+  };
+}
+
+// Dynamic re-import to reset the module-level `_autoUploadDeprecationWarned`
+// guard between tests. The ESM import cache returns the same instance, so
+// we reset by cache-busting via a query-string on the import specifier.
+// Note: registerEnricher calls at module load are idempotent by key, so
+// re-importing manager.js multiple times is safe.
+async function loadManagerModuleFresh() {
+  const specifier = new URL(
+    `./manager.js?fresh=${Date.now()}-${Math.random()}`,
+    import.meta.url,
+  ).href;
+  return import(specifier);
+}
+
+test("CLN-07: auto-sync=true activates sync without deprecation warning", async () => {
+  const capture = captureStderr();
+  try {
+    const mod = await loadManagerModuleFresh();
+    const result = mod._readHubAutoSync({ "auto-sync": true });
+    assert.equal(result, true);
+    assert.equal(
+      capture.captured.filter(s => s.includes("deprecated")).length,
+      0,
+      "no deprecation warning when new key is used",
+    );
+  } finally {
+    capture.restore();
+  }
+});
+
+test("CLN-08: auto-upload-only triggers sync AND writes one deprecation warning", async () => {
+  const capture = captureStderr();
+  try {
+    const mod = await loadManagerModuleFresh();
+    // First read: warning fires
+    const first = mod._readHubAutoSync({ "auto-upload": true });
+    // Second read: warning must NOT fire again (once-per-process guard)
+    const second = mod._readHubAutoSync({ "auto-upload": true });
+    assert.equal(first, true);
+    assert.equal(second, true);
+    const warnings = capture.captured.filter(s => s.includes("auto-upload"));
+    assert.equal(warnings.length, 1, "deprecation warning fires exactly once");
+    assert.match(warnings[0], /auto-sync/, "warning mentions new key name");
+    assert.match(warnings[0], /auto-upload/, "warning mentions legacy key name");
+  } finally {
+    capture.restore();
+  }
+});
+
+test("CLN-07: auto-sync=false beats auto-upload=true (new key wins)", async () => {
+  const capture = captureStderr();
+  try {
+    const mod = await loadManagerModuleFresh();
+    const result = mod._readHubAutoSync({ "auto-sync": false, "auto-upload": true });
+    assert.equal(result, false, "explicit false on new key disables, ignores legacy true");
+    assert.equal(
+      capture.captured.filter(s => s.includes("deprecated")).length,
+      0,
+      "no warning — new key was defined and won",
+    );
+  } finally {
+    capture.restore();
+  }
+});
+
+test("CLN-07: neither key set disables sync without warning", async () => {
+  const capture = captureStderr();
+  try {
+    const mod = await loadManagerModuleFresh();
+    const result = mod._readHubAutoSync({});
+    assert.equal(result, false);
+    assert.equal(
+      capture.captured.filter(s => s.includes("deprecated")).length,
+      0,
+    );
+  } finally {
+    capture.restore();
+  }
+});

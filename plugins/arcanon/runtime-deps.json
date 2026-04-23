@@ -1,6 +1,6 @@
 {
   "name": "@ligamen/runtime-deps",
-  "version": "5.7.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Runtime dependencies installed into CLAUDE_PLUGIN_DATA for the MCP server",
   "dependencies": {

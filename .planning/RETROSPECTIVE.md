@@ -377,13 +377,60 @@
 
 ---
 
+## Milestone: v0.1.1 — Command Cleanup + Update + Ambient Hooks
+
+**Shipped:** 2026-04-21
+**Phases:** 4 | **Plans:** 12
+
+### What Was Built
+- Merged `/arcanon:cross-impact` into `/arcanon:impact` (absorbed `--exclude`, `--changed`, 3-state degradation) with a serialization guard so the delete only runs after the merge lands
+- Deprecated `/arcanon:upload` stub forwarding to `/arcanon:sync` with stderr warning; `/arcanon:sync` becomes the canonical upload-then-drain verb
+- Plugin config rename `auto_upload` → `auto_sync` with two-read fallback and stderr deprecation warning
+- New `/arcanon:update` self-update command with four modes: `--check` (semver + offline-safe), `--kill` (scan-lock guard + SIGTERM→5s→SIGKILL), `--prune-cache` (lsof-guarded), `--verify` (10s health poll)
+- SessionStart banner enrichment: `N services mapped. K load-bearing files. Last scan: date. Hub: status.` with stale prefix at 48h–7d
+- PreToolUse impact hook (`scripts/impact-hook.sh`) — pure-bash Tier 1 schema matching + Tier 2 SQLite root_path prefix + worker HTTP primary/SQLite fallback + self-exclusion inside `$CLAUDE_PLUGIN_ROOT` + JSONL debug trace + DISABLE env escape hatch
+
+### What Worked
+- **Mid-execution course correction based on external review** — a 20-point external review arrived after planning was done. Folding 2 points (merge cross-impact features) into the milestone and deferring the other 18 to Linear (THE-1022..1026) preserved scope discipline while closing the biggest regression risk
+- **Wave-based parallel execution with serialization guards** — 97-04 (merge) in Wave 1, 97-01 (delete) in Wave 2 gated on the merge landing; deterministic bats tests prevented regression during the split
+- **Single-day end-to-end shipping** — discuss → plan → execute → audit → close in one continuous session. Tight feedback loop made decisions faster
+- **Integration audit caught a real wiring gap** — session-start.sh reading `hub_auto_upload` after hub.js cmdStatus was renamed to `hub_auto_sync`. Exactly the class of bug that unit tests miss and only cross-phase audits find
+
+### What Was Inefficient
+- **gsd-sdk `milestone.complete` helper passes empty args to `phasesArchive`** — always errors with "version required". Manual workaround with `phases.archive v0.1.1` worked, but the helper is broken upstream
+- **macOS p99 hook latency (130ms) missed the 50ms Linux target** — pure-bash fork overhead is platform-dependent; the target was written without a cross-platform calibration step. Linux CI expected to hit the target. Documented as an accepted deviation rather than a regression
+- **`commands/update.md` carries a stale "Phase 1 status" planning paragraph** — planning-era breadcrumb that survived execution. Cosmetic; logged as tech debt
+- **`session-start.sh` duplicates `lib/db-path.sh` hash logic inline** — db-path.sh was introduced in Phase 100-01 for the impact hook, but the Phase 99 enrichment was written before and re-implemented the hash. Not a bug; a consolidation opportunity
+
+### Patterns Established
+- **Merge-then-delete with serialization guard** — when removing a command whose capabilities must be preserved, merge the features into the surviving command first, gate the delete on a Wave boundary, prove via bats before the delete lands
+- **Deprecated stub pattern** — `[DEPRECATED]` frontmatter + `printf >&2` stderr warning + `$ARGUMENTS` passthrough to the replacement + explicit v0.2.0 removal anchor comment. One-release grace period for CI pipelines
+- **Two-read config fallback for renames** — `cfg?.hub?.["new"] ?? cfg?.hub?.["old"]` with stderr warning when the legacy key is read. Guards against silent breakage without maintaining two code paths long-term
+- **Tier 1 pure-bash / Tier 2 SQLite / Tier 3 HTTP hot-path split** — keep the hot path out of Node.js; SQLite fallback when worker is down; HTTP primary when worker is up. Enables <50ms p99 on the target platform
+- **PreToolUse `systemMessage` + exit 0 for warn-only semantics** — confirmed from file-guard.sh; non-blocking cross-repo context without killing agentic multi-file refactors
+- **External review folded into milestone scope via explicit Option A vs B choice** — rather than absorbing all 20 points into scope creep or deferring them all, ask the user which points are load-bearing; fold only those in
+
+### Key Lessons
+- **External review before execution is worth the delay** — caught two load-bearing regressions (--exclude, --changed) that would have needed a hotfix milestone. The hour spent discussing the review saved a full bugfix cycle
+- **Integration audits find cross-phase wiring gaps that per-phase verification misses** — session-start.sh and hub.js both passed their phase VERIFICATION.md gates individually; the rename mismatch only surfaced when auditing the data flow end-to-end
+- **Cross-platform performance targets need cross-platform calibration** — 50ms p99 was set from Linux measurements; macOS fork overhead invalidates the target silently. Either calibrate on each platform during spec or document platform-specific targets from the start
+- **gsd-sdk CLI helpers can be broken; test the workflow before relying on it** — `milestone.complete` failed on first invocation. Having the underlying primitives (`phases.archive`) callable directly saved the close
+- **Single-day milestones are viable for tightly-scoped work** — 4 phases / 12 plans / 49 commits / 1484 LOC in one day was not rushed; it was focused. The scope was pre-audited against external review before execution began
+
+### Cost Observations
+- Model mix: ~70% sonnet (executors, verifiers, integration checker), ~25% opus (planners, orchestration), ~5% sonnet (research-lite for pre-flight validations)
+- Sessions: 1 continuous session (~8 hours wall clock including discuss+plan+execute+audit+close)
+- Notable: Phase 100 pre-flight validations (4 empirical checks) ran before plan writing and anchored all downstream decisions — that pattern is reusable
+
+---
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 | v4.0 | v5.6.0 | v5.7.0 | v5.8.0 |
-|--------|------|------|------|------|------|------|------|--------|--------|--------|
-| Phases | 13 | 8 | 5 | 3 | 3 | 6 | 7 | 5 | 3 | 5 |
-| Plans | 17 | 19 | 11 | 5 | 5 | 11 | 14 | 6 | 3 | 16 |
-| Requirements | 79 | 8 | 13 | 5 | 9 | 33 | 22 | 9 | 6 |
-| Tests | 150 | ~50 | ~20 | ~30 | ~30 | ~60 | 0 (rename only) | ~10 | 0 (prompt only) |
-| LOC | 4,323 | ~7,000 | ~7,500 | ~8,000 | ~9,000 | ~12,000 | ~41,600 | ~48,000 | ~48,000 |
-| Timeline | 1 day | 1 day | 1 day | 1 day | 1 day | 1 day | 2 days | 1 day | 1 day |
+| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v3.0 | v4.0 | v5.6.0 | v5.7.0 | v5.8.0 | v0.1.1 |
+|--------|------|------|------|------|------|------|------|--------|--------|--------|--------|
+| Phases | 13 | 8 | 5 | 3 | 3 | 6 | 7 | 5 | 3 | 5 | 4 |
+| Plans | 17 | 19 | 11 | 5 | 5 | 11 | 14 | 6 | 3 | 16 | 12 |
+| Requirements | 79 | 8 | 13 | 5 | 9 | 33 | 22 | 9 | 6 | — | 46 |
+| Tests | 150 | ~50 | ~20 | ~30 | ~30 | ~60 | 0 (rename only) | ~10 | 0 (prompt only) | ~60 | ~45 |
+| LOC | 4,323 | ~7,000 | ~7,500 | ~8,000 | ~9,000 | ~12,000 | ~41,600 | ~48,000 | ~48,000 | — | +1,484 / −380 |
+| Timeline | 1 day | 1 day | 1 day | 1 day | 1 day | 1 day | 2 days | 1 day | 1 day | — | 1 day |

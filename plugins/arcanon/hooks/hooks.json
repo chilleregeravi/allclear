@@ -26,6 +26,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/file-guard.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/impact-hook.sh",
+            "timeout": 10
           }
         ]
       }

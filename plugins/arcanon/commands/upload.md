@@ -1,49 +1,31 @@
 ---
-description: Upload the latest local scan for the current repo to Arcanon Hub.
+description: "[DEPRECATED] Forwards to /arcanon:sync. Removed in v0.2.0 — update your scripts to /arcanon:sync now."
 allowed-tools: Bash
 argument-hint: "[--project <slug>] [--repo <path>]"
 ---
 
-# Arcanon Upload
+# Arcanon Upload — DEPRECATED
 
-Push the latest findings from the local SQLite DB to
-`POST /api/v1/scans/upload`. Runs manually — useful when
-`hub.auto-upload` is disabled or you want to retry after a failed auto sync.
+> **This command is deprecated as of v0.1.1 and will be removed in v0.2.0.**
+> `/arcanon:upload` has been absorbed by `/arcanon:sync`. The new default (`/arcanon:sync` with no flags) performs upload-then-drain. See `/arcanon:sync` for the full flag list (`--drain`, `--repo`, `--dry-run`, `--force`).
 
-## Preflight
+## Behaviour in v0.1.1
 
-Make sure:
-1. **A scan exists.** If no `~/.arcanon/projects/*/impact-map.db` row covers
-   the current repo, tell the user to run `/arcanon:map` first.
-2. **Credentials exist.** Run
-   `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh status --json` and check the
-   `credentials` field. If it's `"missing"`, walk the user through it:
-
-   > "Arcanon Hub uses an API key (starts with `arc_`) for uploads. To get
-   > one:
-   > 1. Sign in at https://app.arcanon.dev (or sign up if you haven't yet).
-   > 2. Open Settings → API keys and create a key. *Note: deep-linking to
-   >    `/settings/api-keys` while signed out lands you on `/home` after
-   >    login — known issue THE-1016, navigate manually for now.*
-   > 3. Run `/arcanon:login arc_…` to store the key locally."
-
-   Don't proceed to the upload step until credentials are present.
+This stub:
+1. Emits a deprecation warning to **stderr** so it is visible to humans reading the terminal but does not contaminate scripted stdout parsers.
+2. Forwards all arguments to `/arcanon:sync` so `$ARGUMENTS` like `--repo ../api` or `--project my-slug` still work.
+3. Exits with status 0 on the stub layer — the underlying `/arcanon:sync` exit status is what callers see.
 
 ## Run
 
 ```bash
+# DEPRECATED: remove in v0.2.0
+printf 'arcanon: /arcanon:upload is deprecated — use /arcanon:sync (v0.2.0 removes this stub)\n' >&2
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh upload $ARGUMENTS
 ```
 
-The CLI handles everything — it reads the latest findings for the current
-repo, wraps them in `ScanPayloadV1`, POSTs with exponential backoff, and
-either confirms `scan_upload_id` or enqueues on retriable failure.
+> **Note for Claude executing this command:** After running the bash block above, tell the user plainly that `/arcanon:upload` is going away in v0.2.0 and they should switch their muscle memory / runbooks / CI scripts to `/arcanon:sync`. Do not hide the deprecation in verbose output — surface it in the first sentence of your reply.
 
 ## Report
 
-Relay the script's stdout verbatim. On failure, check the printed error:
-
-- "no local scan found" → `/arcanon:map` first.
-- "hub returned 422" → findings reconciliation bug — suggest filing an issue with the warning list.
-- "hub returned 429" → rate limit — surface the Retry-After hint.
-- "network error" → the payload is safely queued; `/arcanon:sync` will retry later.
+Relay the script's stdout verbatim. The stderr deprecation warning is intended to be visible alongside normal output in interactive terminals and captured in CI logs without breaking exit-status checks.

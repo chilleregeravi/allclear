@@ -1,5 +1,30 @@
 # Milestones
 
+## v0.1.1 Command Cleanup + Update + Ambient Hooks (Shipped: 2026-04-21)
+
+**Phases completed:** 4 phases (97-100), 12 plans
+**Requirements:** 46/46 complete
+**Git range:** `d351150` → `ea081be` (49 commits, +1484/-380 LOC across 18 files)
+**Timeline:** 2026-04-21 (single-day milestone)
+
+**Key accomplishments:**
+
+- Merged `/arcanon:cross-impact` into `/arcanon:impact` — absorbed `--exclude`, `--changed`, and the 3-state degradation model (no worker → grep fallback / worker up no map → prompt + partial / map has data → graph query) with a serialization guard so the delete only runs after the merge lands
+- Shipped `/arcanon:update` self-update flow with four modes (`--check`, `--kill`, `--prune-cache`, `--verify`) — semver-correct, offline-safe, scan-lock guarded, SIGTERM→5s→SIGKILL shutdown, 10s health poll
+- SessionStart banner now carries ambient cross-repo context: `"N services mapped. K load-bearing files. Last scan: date. Hub: status."` with stale prefix at 48h–7d (53ms warm-cache overhead measured)
+- PreToolUse impact hook (`scripts/impact-hook.sh`) — Tier 1 bash pattern match for schema files (*.proto, openapi.*, swagger.*), Tier 2 SQLite root_path prefix match with trailing-slash guard, worker HTTP primary + SQLite fallback, self-exclusion inside `$CLAUDE_PLUGIN_ROOT`, `ARCANON_DISABLE_HOOK` + `ARCANON_IMPACT_DEBUG` env guards
+- `auto_upload` → `auto_sync` rename across plugin.json userConfig, `worker/cli/hub.js`, `worker/scan/manager.js` with two-read fallback (`cfg?.hub?.["auto-sync"] ?? cfg?.hub?.["auto-upload"]`) + stderr deprecation warning on legacy key reads
+- Deprecated `/arcanon:upload` stub preserved for one release (forwards to `/arcanon:sync` with stderr warning) so hardcoded CI pipelines don't break
+
+**Deferred to Linear:**
+- THE-1022 (High — scan quality), THE-1023 (read-only command polish), THE-1024 (scan ops), THE-1025 (UX polish), THE-1026 (integration improvements) — 18 of 20 external review points filed; 2 folded into this milestone
+
+**Known tech debt:**
+- `session-start.sh` duplicates `lib/db-path.sh` hash logic inline (consolidation opportunity, not a bug)
+- `commands/update.md` has a stale "Phase 1 status" planning-era paragraph (cosmetic)
+
+---
+
 ## v5.8.0 Library Drift & Language Parity (Shipped: 2026-04-19)
 
 **Phases completed:** 0 phases, 0 plans, 0 tasks

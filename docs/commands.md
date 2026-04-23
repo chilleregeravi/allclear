@@ -78,7 +78,7 @@ With no subcommand, runs all four and groups output by severity
 
 ---
 
-## Impact & cross-impact
+## Impact
 
 ### `/arcanon:impact <target> [--direction downstream|upstream] [--hops N]`
 
@@ -91,11 +91,6 @@ Cross-repo impact query. Answers *"If I change this, what breaks?"*.
 
 Prefers the MCP tool (`mcp__arcanon__impact`), falls back to the HTTP
 worker endpoint.
-
-### `/arcanon:cross-impact [file-or-symbol]`
-
-Legacy repo-local transitive impact query from the v5 line.
-`/arcanon:impact` is the preferred command going forward.
 
 ---
 

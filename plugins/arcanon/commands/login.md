@@ -39,8 +39,8 @@ upload, so treat the `/arcanon:login` step as storage-only. The first
 
 **3. Nudge toward the next step.**
 
-If `arcanon.config.json` does not have `hub.auto-upload: true`, mention:
+If `arcanon.config.json` does not have `hub.auto-sync: true`, mention:
 
 > "Want Arcanon to upload automatically after every `/arcanon:map` scan?
-> Set `hub.auto-upload: true` in `arcanon.config.json`, or run
+> Set `hub.auto-sync: true` in `arcanon.config.json`, or run
 > `/arcanon:upload` manually."

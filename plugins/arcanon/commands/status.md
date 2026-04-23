@@ -18,10 +18,10 @@ The script reports:
 - Resolved config file (`arcanon.config.json` or legacy fallback)
 - Project slug (from config)
 - Credential presence (missing → suggest `/arcanon:login`)
-- Whether `hub.auto-upload` is enabled
+- Whether `hub.auto-sync` is enabled
 - Queue stats: pending / dead counts + oldest pending timestamp
 - Data directory path (`~/.arcanon/` or legacy `~/.ligamen/`)
 
 Relay the output verbatim. If anything is obviously broken (missing
-credentials with auto-upload on, dead rows in queue, legacy data dir in
+credentials with auto-sync on, dead rows in queue, legacy data dir in
 use), call it out with the appropriate next command.
