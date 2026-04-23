@@ -176,9 +176,25 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
+## Current Milestone: v0.1.2 Ligamen Residue Purge
+
+**Goal:** Zero `ligamen` / `LIGAMEN` / `@ligamen` / `.ligamen` references anywhere in the plugin. Retract the v0.1.1 "legacy honored for now" promise; Arcanon is the product name going forward with no back-compat layer.
+
+**Target work:**
+- Hard-remove all `LIGAMEN_*` env var reads from worker, lib, scripts (no two-read fallback — no stderr deprecation warning — just don't read them)
+- Remove `$HOME/.ligamen` data-dir fallback and `ligamen.config.json` config reader
+- Rename `runtime-deps.json` package from `@ligamen/runtime-deps` to `@arcanon/runtime-deps`
+- Update all tests that pin legacy names (`*.test.js`, `*.bats`, fixtures)
+- Rename every ligamen mention in comments, docstrings, log messages, agent prompts
+- README: drop "legacy honored" paragraphs, remove Related repos section entirely
+
+**Breaking change:** Users upgrading from any Ligamen v1.x–v5.x version must migrate their config (`ligamen.config.json` → `arcanon.config.json`), data directory (`~/.ligamen/` → `~/.arcanon/`), and any env vars they set. CHANGELOG gets a dedicated `### BREAKING` section.
+
+**Scope discipline:** Refactor only — zero behavior changes outside the rename.
+
 ## Next Milestone Goals
 
-v0.1.1 shipped 2026-04-21. Planning the next milestone is open — candidate themes below, to be refined in `/gsd-new-milestone`:
+Candidates for v0.2.0+ (unchanged from v0.1.1):
 
 - **v0.2.0 Skills & Agents** — Design the skills layer on top of shipped hooks, refactor inline `Explore` agent calls, add MCP-tool-composing investigator agent. Intentionally deferred from v0.1.1.
 - **Scan quality** (THE-1022 and related Linear tickets) — High-priority items surfaced by external review of v0.1.0.
@@ -205,7 +221,7 @@ Architecture: commands/ for user-invoked features, skills/ for auto-invoked know
 Known tech debt: db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-04-21 — v0.1.1 SHIPPED (Command Cleanup + Update + Ambient Hooks)*
+*Last updated: 2026-04-23 — v0.1.2 started (Ligamen Residue Purge)*
 
 ## Constraints
 
@@ -276,4 +292,4 @@ Known tech debt: db/database.js has console.log in script-mode guard, getQueryEn
 | Defer skills and agents to v0.2.0 — v0.1.1 | Ship hooks first; observe real firing behavior for a release; only then design skills that layer on top | ✓ Good |
 
 ---
-*Last updated: 2026-04-21 — v0.1.1 SHIPPED (Command Cleanup + Update + Ambient Hooks)*
+*Last updated: 2026-04-23 — v0.1.2 started (Ligamen Residue Purge)*
