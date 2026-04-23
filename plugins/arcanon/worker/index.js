@@ -22,7 +22,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Read settings.json for LIGAMEN_LOG_LEVEL and port override
+// 2. Read settings.json for ARCANON_LOG_LEVEL and port override
 // ---------------------------------------------------------------------------
 let logLevel = "INFO";
 let allSettings = {};
@@ -30,9 +30,9 @@ try {
   allSettings = JSON.parse(
     fs.readFileSync(path.join(dataDir, "settings.json"), "utf8"),
   );
-  if (allSettings.LIGAMEN_LOG_LEVEL) logLevel = allSettings.LIGAMEN_LOG_LEVEL;
-  if (allSettings.LIGAMEN_WORKER_PORT)
-    port = parseInt(allSettings.LIGAMEN_WORKER_PORT, 10);
+  if (allSettings.ARCANON_LOG_LEVEL) logLevel = allSettings.ARCANON_LOG_LEVEL;
+  if (allSettings.ARCANON_WORKER_PORT)
+    port = parseInt(allSettings.ARCANON_WORKER_PORT, 10);
 } catch {
   // Settings file absent or unreadable — use defaults
 }
@@ -59,7 +59,7 @@ setExtractorLogger(logger);
 // ---------------------------------------------------------------------------
 // 6. Initialize ChromaDB (optional — non-blocking)
 // ---------------------------------------------------------------------------
-if (allSettings.LIGAMEN_CHROMA_MODE) {
+if (allSettings.ARCANON_CHROMA_MODE) {
   initChromaSync(allSettings, null, logger).then((ok) => {
     logger.log(
       "INFO",

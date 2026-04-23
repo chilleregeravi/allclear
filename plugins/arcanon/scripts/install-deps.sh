@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ligamen — install-deps.sh
+# Arcanon — install-deps.sh
 # SessionStart hook: installs MCP runtime dependencies into CLAUDE_PLUGIN_ROOT.
 # Diff-based idempotency: skips if runtime-deps.json matches sentinel in CLAUDE_PLUGIN_DATA.
 # Non-blocking: always exits 0.
