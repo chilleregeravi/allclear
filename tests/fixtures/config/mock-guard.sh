@@ -6,8 +6,8 @@ if [[ -n "${ARCANON_DISABLE_GUARD:-}" ]]; then
 fi
 FILE="${1:-}"
 # CONF-04: extra blocked patterns
-if [[ -n "${LIGAMEN_EXTRA_BLOCKED:-}" ]]; then
-  IFS=':' read -ra _EXTRA_PATTERNS <<< "$LIGAMEN_EXTRA_BLOCKED"
+if [[ -n "${ARCANON_EXTRA_BLOCKED:-}" ]]; then
+  IFS=':' read -ra _EXTRA_PATTERNS <<< "$ARCANON_EXTRA_BLOCKED"
   BASENAME=$(basename "$FILE")
   for _pat in "${_EXTRA_PATTERNS[@]}"; do
     if [[ "$BASENAME" == $_pat ]]; then
