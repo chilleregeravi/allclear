@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — mcp-chromadb-fallback.bats
+# Arcanon — mcp-chromadb-fallback.bats
 # Tests: MCP-01 (ChromaDB graceful degradation)
 # Covers: server starts when @chroma-core/default-embed is absent,
 #         search fallback activates, non-search tools still work

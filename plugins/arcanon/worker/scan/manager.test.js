@@ -1303,7 +1303,7 @@ describe("runDiscoveryPass", () => {
   test("returns parsed JSON on valid fenced agent output", async () => {
     const result = await runDiscoveryPass(
       repoDir,
-      "Ligamen Discovery Agent — Analyze {{REPO_PATH}}.",
+      "Arcanon Discovery Agent — Analyze {{REPO_PATH}}.",
       async () => '```json\n{"languages":["python"],"frameworks":["fastapi"],"service_hints":[]}\n```',
       () => {},
     );

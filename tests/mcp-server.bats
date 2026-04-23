@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — mcp-server.bats
+# Arcanon — mcp-server.bats
 # Tests: MCPS-01 through MCPS-08
 # Covers: MCP tool registration, JSON-RPC protocol, DB-absent graceful degradation,
 #         and lint guard against console.log stdout pollution.

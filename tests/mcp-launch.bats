@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — mcp-launch.bats
+# Arcanon — mcp-launch.bats
 # Tests: MCP-01 (server starts from marketplace install), MCP-03 (no NODE_PATH needed)
 # Covers: end-to-end MCP server launch verification for v5.2.0 distribution fix
 

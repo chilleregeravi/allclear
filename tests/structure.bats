@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — structure.bats
+# Arcanon — structure.bats
 # Structural validation tests for plugin layout (PLGN-01, PLGN-04, PLGN-06)
 
 TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"

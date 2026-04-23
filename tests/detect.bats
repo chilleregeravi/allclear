@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — detect.bats
+# Arcanon — detect.bats
 # Tests: TEST-05 (project type detection library)
 # Covers: detect_project_type and detect_all_project_types from lib/detect.sh
 #
