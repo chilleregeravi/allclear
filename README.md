@@ -60,7 +60,7 @@ See [docs/commands.md](./docs/commands.md) for the full reference.
 
 ## Configuration
 
-Arcanon reads `arcanon.config.json` from the repo root. Legacy `ligamen.config.json` is still honored — rename it when convenient.
+Arcanon reads `arcanon.config.json` from the repo root.
 
 ```json
 {
@@ -91,17 +91,8 @@ Hub credentials can live in the plugin's `userConfig` (preferred, stored in the 
 
 The plugin is **offline-first**: no network required to scan, query, or map. Hub sync is opt-in and retries through a local SQLite-backed queue when the network blips.
 
-## Related repos
-
-| Repo | Role |
-| --- | --- |
-| [arcanon-hub](https://github.com/Arcanon-hub/arcanon-hub) | FastAPI + Postgres service graph backend. |
-| [arcanon-scanner](https://github.com/Arcanon-hub/arcanon-scanner) | Standalone Rust CLI for CI/non-Claude flows. |
-| [arcanon-plugin](https://github.com/Arcanon-hub/arcanon-plugin) | CVE-lookup plugin for Claude Code (separate product). |
-| [arcanon-skills](https://github.com/Arcanon-hub/arcanon-skills) | Markdown skill packs for the Rust CLI. |
-
 ## License
 
 AGPL-3.0-only. See [LICENSE](./LICENSE).
 
-Arcanon was formerly known as **Ligamen** (v1.0–v5.7.0). The `0.1.0` release is the first public version under the new name; legacy `~/.ligamen/` data dirs and `LIGAMEN_*` env vars are still honored for now.
+Arcanon `0.1.0` was the first release under the current name.
