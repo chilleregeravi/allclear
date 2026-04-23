@@ -30,7 +30,7 @@ try {
 const logger = createLogger({ dataDir, logLevel: _mcpLogLevel, component: 'mcp' });
 
 /**
- * Resolve the per-project DB path: ~/.ligamen/projects/<hash>/impact-map.db
+ * Resolve the per-project DB path: ~/.arcanon/projects/<hash>/impact-map.db
  * Uses the same hashing logic as worker/db.js projectHashDir().
  */
 function resolveDbPath(projectRoot = process.cwd()) {
@@ -79,7 +79,7 @@ export function resolveDb(project) {
     const root = process.env.ARCANON_PROJECT_ROOT || process.cwd();
     return getQueryEngine(root);
   }
-  // Absolute path → validate it resolves within <dataDir>/projects/ (~/.arcanon or legacy ~/.ligamen)
+  // Absolute path → validate it resolves within <dataDir>/projects/ (~/.arcanon)
   if (path.isAbsolute(project)) {
     const baseDir = path.join(dataDir, 'projects');
     const normalized = path.resolve(project);
@@ -1189,7 +1189,7 @@ export async function queryScan({ repo, full = false } = {}) {
       return {
         status: "unavailable",
         message:
-          "Worker not running. Run /ligamen:map to build the dependency map.",
+          "Worker not running. Run /arcanon:map to build the dependency map.",
       };
     }
 
@@ -1197,7 +1197,7 @@ export async function queryScan({ repo, full = false } = {}) {
       return {
         status: "unavailable",
         message:
-          "Worker not running. Run /ligamen:map to build the dependency map.",
+          "Worker not running. Run /arcanon:map to build the dependency map.",
       };
     }
 
@@ -1277,14 +1277,14 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const raw = await queryImpact(qe?._db ?? null, params);
       // Enrich with type-aware summary when db is available
@@ -1318,14 +1318,14 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const raw = await queryChanged(qe?._db ?? null, params);
       const enrichedAffected = qe?._db
@@ -1363,14 +1363,14 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const result = await queryGraph(qe?._db ?? null, params);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -1402,14 +1402,14 @@ server.tool(
       .string()
       .optional()
       .describe(
-        "Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd.",
+        "Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd.",
       ),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const raw = await querySearch(qe?._db ?? null, params);
       // Enrich results with actor relationship sentences
@@ -1428,7 +1428,7 @@ server.tool(
 // ── impact_scan ──────────────────────────────────────────────
 server.tool(
   "impact_scan",
-  "Trigger a dependency scan via the Ligamen HTTP worker. Returns unavailable when the worker is not running.",
+  "Trigger a dependency scan via the Arcanon HTTP worker. Returns unavailable when the worker is not running.",
   {
     repo: z
       .string()
@@ -1460,13 +1460,13 @@ server.tool(
     severity: z.enum(["CRITICAL", "WARN", "INFO", "all"]).default("WARN")
       .describe("Minimum finding severity to include in results. CRITICAL = exact version mismatch; WARN = range specifier mismatch; INFO = all match; all = include everything."),
     project: z.string().optional()
-      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd."),
+      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd."),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const result = await queryDriftVersions(qe?._db ?? null, params);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -1485,13 +1485,13 @@ server.tool(
     severity: z.enum(["CRITICAL", "WARN", "INFO", "all"]).default("WARN")
       .describe("Minimum finding severity. CRITICAL = shared type has different fields; INFO = fields match."),
     project: z.string().optional()
-      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd."),
+      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd."),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const result = await queryDriftTypes(qe?._db ?? null, params);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -1510,13 +1510,13 @@ server.tool(
     severity: z.enum(["CRITICAL", "WARN", "INFO", "all"]).default("WARN")
       .describe("Minimum finding severity. CRITICAL = breaking API changes; WARN = non-breaking diffs; INFO = identical or tool unavailable."),
     project: z.string().optional()
-      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to LIGAMEN_PROJECT_ROOT or cwd."),
+      .describe("Absolute path to project root, 12-char project hash, or repo name. Defaults to ARCANON_PROJECT_ROOT or cwd."),
   },
   async (params) => {
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /ligamen:map first in that project" }) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
       }
       const result = await queryDriftOpenapi(qe?._db ?? null, params);
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
