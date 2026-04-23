@@ -1,5 +1,5 @@
 /**
- * worker/confirmation-flow.js — User confirmation flow module for Ligamen v2.0
+ * worker/confirmation-flow.js — User confirmation flow module for Arcanon v2.0
  *
  * Pure module: no I/O, no SQLite calls, no console.log.
  * All functions are stateless — caller (Phase 20 command layer) drives the

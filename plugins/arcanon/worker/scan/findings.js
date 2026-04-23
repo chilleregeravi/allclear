@@ -1,5 +1,5 @@
 /**
- * worker/findings-schema.js — Findings schema validator for Ligamen v2.0
+ * worker/findings-schema.js — Findings schema validator for Arcanon v2.0
  *
  * Exports:
  *   validateFindings(obj)    - Validates an agent findings object
@@ -81,7 +81,7 @@ function ok(findings, warnings = []) {
 // ---------------------------------------------------------------------------
 
 /**
- * Validates an agent findings object against the Ligamen findings schema.
+ * Validates an agent findings object against the Arcanon findings schema.
  *
  * @param {unknown} obj - The object to validate
  * @returns {FindingsResult}
