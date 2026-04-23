@@ -16,10 +16,14 @@ Hard-remove all `LIGAMEN_*` env var reads. Worker, MCP server, scripts, and libs
 - [ ] **ENV-01**: `worker/index.js` reads `ARCANON_LOG_LEVEL` and `ARCANON_WORKER_PORT` only; lines 25, 33–35 purged of `LIGAMEN_*` reads
 - [ ] **ENV-02**: `worker/server/chroma.js` reads `ARCANON_CHROMA_MODE|HOST|PORT|SSL|API_KEY|TENANT|DATABASE` only; lines 56, 60–63, 70, 80–85 and docstring purged
 - [ ] **ENV-03**: `worker/mcp/server.js` reads `ARCANON_LOG_LEVEL`, `ARCANON_DB_PATH`, `ARCANON_PROJECT_ROOT` only; lines 23, 27, 46–47 purged
-- [ ] **ENV-04**: `lib/config.sh` reads `ARCANON_CONFIG_FILE` only; back-compat re-export of `LIGAMEN_CONFIG_FILE`, `LIGAMEN_CONFIG_LINKED_REPOS` removed
-- [ ] **ENV-05**: `lib/data-dir.sh` reads `ARCANON_DATA_DIR` only; `LIGAMEN_DATA_DIR` branch removed
-- [ ] **ENV-06**: `scripts/lint.sh`, `scripts/file-guard.sh`, `scripts/format.sh` read `ARCANON_*` only (`ARCANON_LINT_THROTTLE`, `ARCANON_EXTRA_BLOCKED`, `ARCANON_DISABLE_FORMAT`, `ARCANON_DISABLE_LINT`, `ARCANON_DISABLE_GUARD`)
-- [ ] **ENV-07**: `scripts/worker-start.sh`, `worker-stop.sh`, `session-start.sh`, `install-deps.sh` contain zero `LIGAMEN_` references
+- [x] **ENV-04
+**: `lib/config.sh` reads `ARCANON_CONFIG_FILE` only; back-compat re-export of `LIGAMEN_CONFIG_FILE`, `LIGAMEN_CONFIG_LINKED_REPOS` removed
+- [x] **ENV-05
+**: `lib/data-dir.sh` reads `ARCANON_DATA_DIR` only; `LIGAMEN_DATA_DIR` branch removed
+- [x] **ENV-06
+**: `scripts/lint.sh`, `scripts/file-guard.sh`, `scripts/format.sh` read `ARCANON_*` only (`ARCANON_LINT_THROTTLE`, `ARCANON_EXTRA_BLOCKED`, `ARCANON_DISABLE_FORMAT`, `ARCANON_DISABLE_LINT`, `ARCANON_DISABLE_GUARD`)
+- [x] **ENV-07
+**: `scripts/worker-start.sh`, `worker-stop.sh`, `session-start.sh`, `install-deps.sh` contain zero `LIGAMEN_` references
 - [ ] **ENV-08**: `worker/lib/data-dir.js` reads `ARCANON_DATA_DIR` only; `LIGAMEN_DATA_DIR` branch removed
 - [ ] **ENV-09**: `worker/lib/config-path.js` reads `arcanon.config.json` only; `ligamen.config.json` fallback removed
 - [x] **ENV-10
@@ -29,12 +33,16 @@ Hard-remove all `LIGAMEN_*` env var reads. Worker, MCP server, scripts, and libs
 
 Remove `$HOME/.ligamen` and `ligamen.config.json` fallback code paths.
 
-- [ ] **PATH-01**: `lib/data-dir.sh` does NOT check `$HOME/.ligamen` as legacy fallback; only reads `$HOME/.arcanon` (create if missing)
+- [x] **PATH-01
+**: `lib/data-dir.sh` does NOT check `$HOME/.ligamen` as legacy fallback; only reads `$HOME/.arcanon` (create if missing)
 - [ ] **PATH-02**: `worker/lib/data-dir.js` does NOT check `$HOME/.ligamen`; only `$HOME/.arcanon`
-- [ ] **PATH-03**: `lib/config-path.sh` does NOT check `ligamen.config.json`; only `arcanon.config.json`
+- [x] **PATH-03
+**: `lib/config-path.sh` does NOT check `ligamen.config.json`; only `arcanon.config.json`
 - [ ] **PATH-04**: `worker/lib/config-path.js` does NOT check `ligamen.config.json`; only `arcanon.config.json`
-- [ ] **PATH-05**: `lib/linked-repos.sh` has zero `ligamen` references
-- [ ] **PATH-06**: `lib/db-path.sh` has zero `ligamen` references (comment cleanup)
+- [x] **PATH-05
+**: `lib/linked-repos.sh` has zero `ligamen` references
+- [x] **PATH-06
+**: `lib/db-path.sh` has zero `ligamen` references (comment cleanup)
 - [x] **PATH-07
 **: `worker/db/pool.js` line 131 — remove `"ligamen.config.json"` from the config-file iteration array; only `"arcanon.config.json"` probed
 - [x] **PATH-08

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.1.2
 milestone_name: Ligamen Residue Purge
 status: completed
-stopped_at: Completed 101-04-PLAN.md
-last_updated: "2026-04-23T17:48:00.144Z"
+stopped_at: Completed 101-02-PLAN.md
+last_updated: "2026-04-23T17:49:18.554Z"
 last_activity: 2026-04-23 — Roadmap created by gsd-roadmapper
 progress:
   total_phases: 32
@@ -49,6 +49,10 @@ Last activity: 2026-04-23 — Roadmap created by gsd-roadmapper
 - Phase 101-04: COLLECTION_NAME rename is a hard break; existing ligamen-impact collections orphaned on upgrade (rebuild via /arcanon:map).
 - Phase 101-04: readHomeConfig() legacy ~/.ligamen fallback removed without deprecation warning per zero-tolerance policy.
 - Phase 101-04: Runtime-describing JSDoc lines aligned with code; pure historical prose deferred to Phase 102.
+- 101-02: Hard-remove LIGAMEN_* reads — no two-read fallbacks, no stderr deprecation notices
+- 101-02: session-start.sh disable guard now reads only ARCANON_DISABLE_SESSION_START — LIGAMEN_DISABLE_SESSION_START stops disabling the hook (intentional breaking change)
+- 101-02: worker-start.sh port resolution chain reduced to env.ARCANON_WORKER_PORT → settings.json .ARCANON_WORKER_PORT → arcanon.config.json .impact-map.port → 37888 default
+- 101-02: lib/data-dir.sh preference order reduced from 5 steps to 2 — $ARCANON_DATA_DIR → $HOME/.arcanon
 
 ### Pending Todos
 
@@ -66,6 +70,6 @@ Last activity: 2026-04-23 — Roadmap created by gsd-roadmapper
 
 ## Session Continuity
 
-Last session: 2026-04-23T17:48:00.136Z
-Stopped at: Completed 101-04-PLAN.md
+Last session: 2026-04-23T17:49:18.544Z
+Stopped at: Completed 101-02-PLAN.md
 Resume file: None
