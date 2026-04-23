@@ -1,6 +1,6 @@
 {
   "name": "@arcanon/runtime-deps",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Runtime dependencies installed into CLAUDE_PLUGIN_DATA for the MCP server",
   "dependencies": {
