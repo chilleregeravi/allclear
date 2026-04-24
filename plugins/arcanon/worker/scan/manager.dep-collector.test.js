@@ -29,10 +29,6 @@ function buildQe() {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
   runMigrations(db);
-  // boundary_entry is referenced by manager.js's enrichment-pass SELECT but is
-  // not added by any migration (it lives only in the prod DDL via a schema drift).
-  // Add it here so the enrichment loop runs and dep-collector is reached.
-  try { db.exec('ALTER TABLE services ADD COLUMN boundary_entry TEXT'); } catch (_) {}
   return new QueryEngine(db);
 }
 
