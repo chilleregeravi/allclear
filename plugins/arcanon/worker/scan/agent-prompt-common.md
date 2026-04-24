@@ -1,4 +1,4 @@
-# Ligamen Scan — Common Rules
+# Arcanon Scan — Common Rules
 
 ## Scope Rule
 

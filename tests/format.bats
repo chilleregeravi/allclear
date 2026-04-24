@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — format.bats
+# Arcanon — format.bats
 # Tests: TEST-01 (per-language formatter invocation), TEST-07 (non-blocking guarantee)
 # Covers: FMTH-07 (silent success), FMTH-09 (skip generated directories)
 

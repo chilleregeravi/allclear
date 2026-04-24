@@ -65,7 +65,7 @@ function createDriftTestDb() {
 function createTempRepo(name, manifestFiles = {}) {
   const repoPath = path.join(
     os.tmpdir(),
-    `ligamen-test-${name}-${Date.now()}`,
+    `arcanon-test-${name}-${Date.now()}`,
   );
   fs.mkdirSync(repoPath, { recursive: true });
   for (const [filename, content] of Object.entries(manifestFiles)) {

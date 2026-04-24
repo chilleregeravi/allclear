@@ -21,6 +21,7 @@
 - ✅ **v5.7.0 Scan Accuracy** — Phases 89-91 (shipped 2026-03-23)
 - ✅ **v5.8.0 Library Drift & Language Parity** — Phases 92-96 (shipped 2026-04-19)
 - ✅ **v0.1.1 Command Cleanup + Update + Ambient Hooks** — Phases 97-100 (shipped 2026-04-21)
+- ✅ **v0.1.2 Ligamen Residue Purge** — Phases 101-105 (shipped 2026-04-23)
 
 ## Phases
 
@@ -192,6 +193,15 @@ Full details: `.planning/milestones/v5.8.0-ROADMAP.md`
 - [x] Phase 97-100: 4 phases, 12 plans — merged `/arcanon:cross-impact` → `/arcanon:impact` with `--exclude`/`--changed`/3-state degradation, deprecated `/arcanon:upload` stub, `auto_upload` → `auto_sync` rename with fallback, new `/arcanon:update` self-update flow (check/kill/prune/verify), SessionStart banner enrichment (N services + K load-bearing files + hub status), PreToolUse impact hook (Tier 1 schema patterns + Tier 2 SQLite + worker HTTP fallback, p99 <50ms Linux target)
 
 Full details: `.planning/milestones/v0.1.1-ROADMAP.md`
+
+</details>
+
+<details>
+<summary>✅ v0.1.2 Ligamen Residue Purge (Phases 101-105) — SHIPPED 2026-04-23</summary>
+
+- [x] Phase 101-105: 5 phases, 9 plans — hard-removed all `LIGAMEN_*` env var reads, `$HOME/.ligamen` fallback, `ligamen.config.json` reader; renamed ChromaDB collection `ligamen-impact` → `arcanon-impact`; renamed runtime-deps package `@ligamen` → `@arcanon`; rewrote 17 test files to exercise `ARCANON_*`; CHANGELOG BREAKING section added; README legacy paragraphs + Related repos section deleted
+
+Full details: `.planning/milestones/v0.1.2-ROADMAP.md`
 
 </details>
 
@@ -661,6 +671,9 @@ Plans:
 
 <!-- v0.1.1 phase details archived to .planning/milestones/v0.1.1-ROADMAP.md -->
 
+<!-- v0.1.2 phase details archived to .planning/milestones/v0.1.2-ROADMAP.md -->
+
+---
 
 ## Progress
 
@@ -685,3 +698,8 @@ Plans:
 | 89-91 | v5.7.0 | 3/3 | Complete | 2026-03-23 |
 | 92-96 | v5.8.0 | 16/16 | Complete | 2026-04-19 |
 | 97-100 | v0.1.1 | 12/12 | Complete | 2026-04-21 |
+| 101-105 | v0.1.2 | 9/9 | Complete | 2026-04-23 |
+| 102 | v0.1.2 | 0/TBD | Not started | - |
+| 103 | v0.1.2 | 0/TBD | Not started | - |
+| 104 | v0.1.2 | 0/TBD | Not started | - |
+| 105 | v0.1.2 | 0/TBD | Not started | - |

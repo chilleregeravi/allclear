@@ -71,7 +71,7 @@ export function getQueryEngine(projectRoot) {
 
 /**
  * List all projects that have a DB.
- * Scans ~/.ligamen/projects/ for impact-map.db files.
+ * Scans ~/.arcanon/projects/ for impact-map.db files.
  * @returns {Array<{hash: string, dbPath: string, size: number}>}
  */
 export function listProjects() {
@@ -112,8 +112,8 @@ export function listProjects() {
 
       // Prefer the explicit "project-name" from arcanon.config.json so the
       // UI shows the user-chosen name instead of the parent directory's
-      // basename. Falls back to legacy ligamen.config.json, then to null
-      // (callers display the path basename in that case).
+      // basename. Falls back to null (callers display the path basename in
+      // that case).
       //
       // Search order:
       //   1. projectRoot  — where the file lives in multi-repo setups
@@ -128,7 +128,7 @@ export function listProjects() {
         if (seen.has(root)) continue;
         seen.add(root);
         let matched = false;
-        for (const cfgFile of ["arcanon.config.json", "ligamen.config.json"]) {
+        for (const cfgFile of ["arcanon.config.json"]) {
           try {
             const cfg = JSON.parse(
               fs.readFileSync(path.join(root, cfgFile), "utf8"),

@@ -44,7 +44,7 @@ import Database from "better-sqlite3";
  * and returns the repo path and the initial HEAD commit hash.
  */
 function makeTempRepo() {
-  const dir = mkdtempSync(join(tmpdir(), "ligamen-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcanon-test-"));
   execSync("git init", { cwd: dir, stdio: "pipe" });
   execSync('git config user.email "test@test.com"', {
     cwd: dir,
@@ -82,7 +82,7 @@ describe("getChangedFiles", () => {
   after(() => cleanupDir(repoDir));
 
   test("returns { error } when repoPath has no .git", () => {
-    const noGitDir = mkdtempSync(join(tmpdir(), "ligamen-nogit-"));
+    const noGitDir = mkdtempSync(join(tmpdir(), "arcanon-nogit-"));
     try {
       const result = getChangedFiles(noGitDir, null);
       assert.ok("error" in result, "should return { error }");
@@ -164,7 +164,7 @@ describe("getChangedFiles", () => {
   });
 
   test("getChangedFiles works with spaces in repo path", () => {
-    const dir = mkdtempSync(join(tmpdir(), "ligamen test spaces-"));
+    const dir = mkdtempSync(join(tmpdir(), "arcanon test spaces-"));
     try {
       execSync("git init", { cwd: dir, stdio: "pipe" });
       execSync('git config user.email "test@test.com"', { cwd: dir, stdio: "pipe" });
@@ -1061,7 +1061,7 @@ describe("detectRepoType", () => {
   let tmpDir;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "ligamen-repotype-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "arcanon-repotype-"));
   });
 
   afterEach(() => {
@@ -1303,7 +1303,7 @@ describe("runDiscoveryPass", () => {
   test("returns parsed JSON on valid fenced agent output", async () => {
     const result = await runDiscoveryPass(
       repoDir,
-      "Ligamen Discovery Agent — Analyze {{REPO_PATH}}.",
+      "Arcanon Discovery Agent — Analyze {{REPO_PATH}}.",
       async () => '```json\n{"languages":["python"],"frameworks":["fastapi"],"service_hints":[]}\n```',
       () => {},
     );
@@ -1438,13 +1438,13 @@ describe("concurrent scan locking (SEC-03)", () => {
     execSync("git add app.js", { cwd: dir, stdio: "pipe" });
     execSync('git commit -m "add app.js"', { cwd: dir, stdio: "pipe" });
 
-    // Use a temp directory as lock dir to avoid polluting ~/.ligamen
-    lockDir = mkdtempSync(join(tmpdir(), "ligamen-locktest-"));
-    process.env.LIGAMEN_DATA_DIR = lockDir;
+    // Use a temp directory as lock dir to avoid polluting ~/.arcanon
+    lockDir = mkdtempSync(join(tmpdir(), "arcanon-locktest-"));
+    process.env.ARCANON_DATA_DIR = lockDir;
   });
 
   after(() => {
-    delete process.env.LIGAMEN_DATA_DIR;
+    delete process.env.ARCANON_DATA_DIR;
     cleanupDir(repoDir);
     cleanupDir(lockDir);
   });

@@ -1,11 +1,11 @@
 /**
- * worker/db.js — Database lifecycle module for Ligamen v2.0
+ * worker/db.js — Database lifecycle module for Arcanon v2.0
  *
  * Opens (or creates) the SQLite database for a project, applies WAL mode and
  * performance pragmas, runs pending migrations, and exposes the singleton
  * database handle via openDb() / getDb().
  *
- * DB path: ~/.ligamen/projects/<sha256(projectRoot).slice(0,12)>/impact-map.db
+ * DB path: ~/.arcanon/projects/<sha256(projectRoot).slice(0,12)>/impact-map.db
  *
  * IMPORTANT: This module uses top-level await to preload migration modules.
  * Callers that import this module from an ES module context get the fully
@@ -212,7 +212,7 @@ export function writeScan(findings, queryEngine, repoId) {
     });
   }
 
-  // Build boundary map from arcanon.config.json (legacy ligamen.config.json supported).
+  // Build boundary map from arcanon.config.json.
   // Gracefully skip when config is absent or has no boundaries key
   const boundaryMap = new Map();
   try {

@@ -1,4 +1,4 @@
-# Ligamen Discovery Agent — Phase 1
+# Arcanon Discovery Agent — Phase 1
 
 You are a code structure discovery agent. Your task is to quickly analyze the repository at `{{REPO_PATH}}` and report its structure WITHOUT reading every file.
 

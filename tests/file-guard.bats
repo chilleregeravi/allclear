@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Ligamen — file-guard.bats
+# Arcanon — file-guard.bats
 # Tests for the PreToolUse sensitive file guard hook.
 # Covers TEST-03 (hard blocks and soft warnings) and TEST-08 (exit 2 + permissionDecision deny JSON).
 #
@@ -151,7 +151,7 @@ setup() {
 
 # ---------------------------------------------------------------------------
 # Block message format (GRDH-08)
-# Human-readable denial message must carry the Ligamen prefix.
+# Human-readable denial message must carry the Arcanon prefix.
 # stderr carries the human-readable message; use 2>&1 to capture it.
 # ---------------------------------------------------------------------------
 

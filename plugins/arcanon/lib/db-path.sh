@@ -52,7 +52,7 @@ resolve_project_db_hash() {
 #
 # Prints the absolute path to the per-project impact-map.db file.
 # Returns the path unconditionally — caller must test -f the result.
-# Respects ARCANON_DATA_DIR / LIGAMEN_DATA_DIR overrides via data-dir.sh.
+# Respects ARCANON_DATA_DIR override via data-dir.sh.
 #
 # Example:
 #   db=$(resolve_project_db_path "/home/user/my-project")

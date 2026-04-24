@@ -1,5 +1,5 @@
 /**
- * worker/scan-manager.js — Scan orchestration for Ligamen v2.0 agent scanning.
+ * worker/scan-manager.js — Scan orchestration for Arcanon v2.0 agent scanning.
  *
  * Exports:
  *   getChangedFiles(repoPath, sinceCommit)       - Git diff wrapper
@@ -74,7 +74,7 @@ function _readHubAutoSync(hubBlock) {
 }
 
 /**
- * Read hub config from arcanon.config.json (legacy ligamen.config.json supported).
+ * Read hub config from arcanon.config.json.
  * @returns {{ hubAutoSync: boolean, hubUrl: string|undefined, projectSlug: string|undefined }}
  */
 function _readHubConfig() {

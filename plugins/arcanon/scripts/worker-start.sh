@@ -15,7 +15,7 @@ else
   PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
-# Determine data directory via shared resolver (~/.arcanon, legacy ~/.ligamen supported)
+# Determine data directory via shared resolver (~/.arcanon)
 # shellcheck source=../lib/data-dir.sh
 source "${PLUGIN_ROOT}/lib/data-dir.sh"
 DATA_DIR="$(resolve_arcanon_data_dir)"
@@ -61,26 +61,22 @@ esac
 # Determine port — check in priority order
 PORT=""
 
-# 1. Environment variable — ARCANON_WORKER_PORT wins, legacy LIGAMEN_WORKER_PORT falls back
+# 1. Environment variable — ARCANON_WORKER_PORT
 if [[ -n "${ARCANON_WORKER_PORT:-}" ]]; then
   PORT="${ARCANON_WORKER_PORT}"
-elif [[ -n "${LIGAMEN_WORKER_PORT:-}" ]]; then
-  PORT="${LIGAMEN_WORKER_PORT}"
 fi
 
-# 2. <data-dir>/settings.json — prefer ARCANON_WORKER_PORT key, fall back to legacy name
+# 2. <data-dir>/settings.json — ARCANON_WORKER_PORT key
 if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1 && [[ -f "${DATA_DIR}/settings.json" ]]; then
-  _port=$(jq -r '.ARCANON_WORKER_PORT // .LIGAMEN_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
+  _port=$(jq -r '.ARCANON_WORKER_PORT // empty' "${DATA_DIR}/settings.json" 2>/dev/null || true)
   [[ -n "$_port" ]] && PORT="$_port"
 fi
 
-# 3. arcanon.config.json (or legacy ligamen.config.json) in CWD key ."impact-map".port
+# 3. arcanon.config.json in CWD key ."impact-map".port
 if [[ -z "$PORT" ]] && command -v jq >/dev/null 2>&1; then
   _cfg=""
   if [[ -f "${PWD}/arcanon.config.json" ]]; then
     _cfg="${PWD}/arcanon.config.json"
-  elif [[ -f "${PWD}/ligamen.config.json" ]]; then
-    _cfg="${PWD}/ligamen.config.json"
   fi
   if [[ -n "$_cfg" ]]; then
     _port=$(jq -r '.["impact-map"].port // empty' "$_cfg" 2>/dev/null || true)

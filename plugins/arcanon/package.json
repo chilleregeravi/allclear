@@ -1,6 +1,6 @@
 {
   "name": "@arcanon/plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Arcanon — cross-repo service dependency scanner for Claude Code",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -24,7 +24,7 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/static": "^9.1.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "better-sqlite3": "^12.8.0",
+    "better-sqlite3": "^12.9.0",
     "chromadb": "^3.3.3",
     "fastify": "^5.8.5",
     "picomatch": "^4.0.4",

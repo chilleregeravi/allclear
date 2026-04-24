@@ -23,7 +23,7 @@ import {
 // ---------------------------------------------------------------------------
 
 function makeTempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ligamen-test-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-test-"));
 }
 
 function cleanup(dir) {
@@ -34,7 +34,7 @@ function cleanup(dir) {
 // loadFromConfig
 // ---------------------------------------------------------------------------
 
-test("loadFromConfig returns [] when ligamen.config.json is missing", () => {
+test("loadFromConfig returns [] when arcanon.config.json is missing", () => {
   const projectRoot = makeTempDir();
   try {
     const result = loadFromConfig(projectRoot);
@@ -48,7 +48,7 @@ test("loadFromConfig returns [] when linked-repos key is absent", () => {
   const projectRoot = makeTempDir();
   try {
     fs.writeFileSync(
-      path.join(projectRoot, "ligamen.config.json"),
+      path.join(projectRoot, "arcanon.config.json"),
       JSON.stringify({ "impact-map": { history: true } }, null, 2),
     );
     const result = loadFromConfig(projectRoot);
@@ -66,7 +66,7 @@ test("loadFromConfig returns resolved absolute paths from config", () => {
   try {
     const relPath = path.relative(projectRoot, siblingDir);
     fs.writeFileSync(
-      path.join(projectRoot, "ligamen.config.json"),
+      path.join(projectRoot, "arcanon.config.json"),
       JSON.stringify({ "linked-repos": [relPath] }, null, 2),
     );
     const result = loadFromConfig(projectRoot);
@@ -242,7 +242,7 @@ test("saveConfirmed round-trip: write then read preserves linked-repos and other
   try {
     // Write initial config with extra key
     fs.writeFileSync(
-      path.join(projectRoot, "ligamen.config.json"),
+      path.join(projectRoot, "arcanon.config.json"),
       JSON.stringify(
         { "impact-map": { history: true }, "other-key": "value" },
         null,
@@ -254,7 +254,7 @@ test("saveConfirmed round-trip: write then read preserves linked-repos and other
     saveConfirmed(projectRoot, paths);
 
     const saved = JSON.parse(
-      fs.readFileSync(path.join(projectRoot, "ligamen.config.json"), "utf8"),
+      fs.readFileSync(path.join(projectRoot, "arcanon.config.json"), "utf8"),
     );
     assert.deepEqual(saved["linked-repos"], paths, "linked-repos persisted");
     assert.deepEqual(
@@ -268,13 +268,13 @@ test("saveConfirmed round-trip: write then read preserves linked-repos and other
   }
 });
 
-test("saveConfirmed creates ligamen.config.json when absent", () => {
+test("saveConfirmed creates arcanon.config.json when absent", () => {
   const projectRoot = makeTempDir();
   try {
     const paths = ["/tmp/repo-x"];
     saveConfirmed(projectRoot, paths);
 
-    const configPath = path.join(projectRoot, "ligamen.config.json");
+    const configPath = path.join(projectRoot, "arcanon.config.json");
     assert.ok(fs.existsSync(configPath), "config file created");
     const saved = JSON.parse(fs.readFileSync(configPath, "utf8"));
     assert.deepEqual(saved["linked-repos"], paths);

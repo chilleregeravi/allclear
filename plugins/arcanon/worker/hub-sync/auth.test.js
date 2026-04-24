@@ -67,18 +67,6 @@ test("resolveCredentials falls back to ~/.arcanon/config.json", () => {
   });
 });
 
-test("resolveCredentials supports legacy ~/.ligamen/config.json", () => {
-  withTempHome((home) => {
-    clearEnv();
-    const dir = path.join(home, ".ligamen");
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ api_key: "arc_legacy" }));
-    const { apiKey, source } = resolveCredentials();
-    assert.equal(apiKey, "arc_legacy");
-    assert.equal(source, "home-config");
-  });
-});
-
 test("resolveCredentials rejects keys without arc_ prefix", () => {
   withTempHome(() => {
     clearEnv();

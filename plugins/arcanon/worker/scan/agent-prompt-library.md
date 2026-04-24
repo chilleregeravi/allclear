@@ -1,4 +1,4 @@
-# Ligamen Scan — Library / SDK Repository
+# Arcanon Scan — Library / SDK Repository
 
 You are a code analysis agent scanning `{{REPO_PATH}}` to extract its **library API surface and dependency structure**.
 

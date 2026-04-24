@@ -1,8 +1,8 @@
 /**
- * worker/repo-discovery.js — Repo discovery module for Ligamen v2.0
+ * worker/repo-discovery.js — Repo discovery module for Arcanon v2.0
  *
  * Provides the complete discovery-to-confirmation lifecycle for the linked
- * repo list used by /ligamen:map. Pure module — no side effects at load time.
+ * repo list used by /arcanon:map. Pure module — no side effects at load time.
  *
  * Exports:
  *   loadFromConfig(projectRoot)            — load repos from arcanon.config.json

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Arcanon — session-start.sh
 # Fires on SessionStart and UserPromptSubmit (UserPromptSubmit fallback for upstream bug #10373).
-# Injects project type and available ligamen commands into session context exactly once.
+# Injects project type and available arcanon commands into session context exactly once.
 # Non-blocking: always exits 0.
 set -euo pipefail
 
@@ -9,8 +9,7 @@ set -euo pipefail
 trap 'exit 0' ERR
 
 # SSTH-04: Disable guard — if set to any non-empty value, exit silently
-# Accept both current and legacy env var names.
-[[ -n "${ARCANON_DISABLE_SESSION_START:-}${LIGAMEN_DISABLE_SESSION_START:-}" ]] && exit 0
+[[ -n "${ARCANON_DISABLE_SESSION_START:-}" ]] && exit 0
 
 # SSTH-03: Require jq for JSON parsing; if unavailable, exit 0 silently (never block)
 if ! command -v jq >/dev/null 2>&1; then
@@ -70,7 +69,6 @@ fi
 WORKER_STATUS=""
 if [[ -n "$WORKER_CLIENT_LIB" ]]; then
   CONFIG_FILE="${CWD}/arcanon.config.json"
-  [[ -f "$CONFIG_FILE" ]] || CONFIG_FILE="${CWD}/ligamen.config.json"
   if [[ -f "$CONFIG_FILE" ]] && jq -e '.["impact-map"]' "$CONFIG_FILE" >/dev/null 2>&1; then
     if [[ "$_worker_restarted" == "true" ]]; then
       WORKER_STATUS="Arcanon worker: restarted (${_running_version} → ${_installed_version})"
@@ -111,7 +109,7 @@ ENRICHMENT="$(
   if declare -f resolve_arcanon_data_dir >/dev/null 2>&1; then
     DATA_DIR="$(resolve_arcanon_data_dir 2>/dev/null || echo "")"
   else
-    DATA_DIR="${ARCANON_DATA_DIR:-${LIGAMEN_DATA_DIR:-$HOME/.arcanon}}"
+    DATA_DIR="${ARCANON_DATA_DIR:-$HOME/.arcanon}"
   fi
   [[ -n "$DATA_DIR" ]] || exit 0
 

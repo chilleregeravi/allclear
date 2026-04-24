@@ -360,18 +360,18 @@ test("queryGraph: nodes have id, name, language fields", async () => {
 
 import { resolveDb } from "./server.js";
 
-test("resolveDb: no project param falls back to LIGAMEN_PROJECT_ROOT env", async () => {
-  // resolveDb() with no project calls getQueryEngine with LIGAMEN_PROJECT_ROOT
+test("resolveDb: no project param falls back to ARCANON_PROJECT_ROOT env", async () => {
+  // resolveDb() with no project calls getQueryEngine with ARCANON_PROJECT_ROOT
   // We can verify it returns null for a nonexistent project (no DB on disk)
-  const prev = process.env.LIGAMEN_PROJECT_ROOT;
-  process.env.LIGAMEN_PROJECT_ROOT = "/nonexistent/project/path/xyz";
+  const prev = process.env.ARCANON_PROJECT_ROOT;
+  process.env.ARCANON_PROJECT_ROOT = "/nonexistent/project/path/xyz";
   const result = resolveDb(undefined);
   // Should return null (no DB at this path)
   assert.equal(result, null, "should return null for nonexistent project root");
   if (prev === undefined) {
-    delete process.env.LIGAMEN_PROJECT_ROOT;
+    delete process.env.ARCANON_PROJECT_ROOT;
   } else {
-    process.env.LIGAMEN_PROJECT_ROOT = prev;
+    process.env.ARCANON_PROJECT_ROOT = prev;
   }
 });
 
@@ -588,17 +588,17 @@ test("impact_query depth limit: short chain (4 hops) has no truncation", async (
 import { openDb } from "./server.js";
 
 test("openDb: returns null without throwing when DB path is a directory (unreadable)", async () => {
-  // Point LIGAMEN_DB_PATH at a directory (unreadable as a SQLite DB)
+  // Point ARCANON_DB_PATH at a directory (unreadable as a SQLite DB)
   // openDb() should catch the error, call logger.error, and return null
-  const prevPath = process.env.LIGAMEN_DB_PATH;
-  const prevExist = process.env.LIGAMEN_DB_PATH;
+  const prevPath = process.env.ARCANON_DB_PATH;
+  const prevExist = process.env.ARCANON_DB_PATH;
   // Use os.tmpdir() which always exists but is a directory, not a file
   // openDb() checks existsSync first, so use a real file path that is a dir
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ligamen-opendb-test-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-opendb-test-"));
   // Create a fake file named "impact-map.db" that is actually not valid SQLite
   const fakeDb = path.join(tmpDir, "impact-map.db");
   fs.writeFileSync(fakeDb, "this is not sqlite", "utf8");
-  process.env.LIGAMEN_DB_PATH = fakeDb;
+  process.env.ARCANON_DB_PATH = fakeDb;
   let result;
   assert.doesNotThrow(() => {
     result = openDb();
@@ -606,9 +606,9 @@ test("openDb: returns null without throwing when DB path is a directory (unreada
   // Result is either null (caught error) or a db object — the key contract is no throw
   assert.ok(result === null || typeof result === "object", "openDb should return null or db object");
   if (prevExist === undefined) {
-    delete process.env.LIGAMEN_DB_PATH;
+    delete process.env.ARCANON_DB_PATH;
   } else {
-    process.env.LIGAMEN_DB_PATH = prevPath;
+    process.env.ARCANON_DB_PATH = prevPath;
   }
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });

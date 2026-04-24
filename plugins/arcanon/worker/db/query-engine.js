@@ -1,5 +1,5 @@
 /**
- * worker/query-engine.js — Read/write query layer over the Ligamen SQLite schema.
+ * worker/query-engine.js — Read/write query layer over the Arcanon SQLite schema.
  *
  * QueryEngine wraps a better-sqlite3 Database instance and provides:
  *   - Transitive impact traversal (downstream and upstream) with cycle detection
@@ -352,15 +352,31 @@ export class QueryEngine {
         scanned_at = COALESCE(excluded.scanned_at, scanned_at)
     `);
 
-    this._stmtUpsertService = db.prepare(`
-      INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id)
-      VALUES (@repo_id, @name, @root_path, @language, @type, @scan_version_id)
-      ON CONFLICT(repo_id, name) DO UPDATE SET
-        root_path = excluded.root_path,
-        language = excluded.language,
-        type = excluded.type,
-        scan_version_id = excluded.scan_version_id
-    `);
+    // Try with boundary_entry column (migration 011). Fall back to pre-011 schema
+    // for databases that haven't yet applied the migration.
+    try {
+      this._stmtUpsertService = db.prepare(`
+        INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id, boundary_entry)
+        VALUES (@repo_id, @name, @root_path, @language, @type, @scan_version_id, @boundary_entry)
+        ON CONFLICT(repo_id, name) DO UPDATE SET
+          root_path = excluded.root_path,
+          language = excluded.language,
+          type = excluded.type,
+          scan_version_id = excluded.scan_version_id,
+          boundary_entry = excluded.boundary_entry
+      `);
+    } catch {
+      // boundary_entry column not present — pre-migration-011 database
+      this._stmtUpsertService = db.prepare(`
+        INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id)
+        VALUES (@repo_id, @name, @root_path, @language, @type, @scan_version_id)
+        ON CONFLICT(repo_id, name) DO UPDATE SET
+          root_path = excluded.root_path,
+          language = excluded.language,
+          type = excluded.type,
+          scan_version_id = excluded.scan_version_id
+      `);
+    }
 
     // Try with confidence+evidence columns (migration 009). Fall back to
     // crossing-only (migration 008), then pre-migration-008 for compatibility.
@@ -661,7 +677,12 @@ export class QueryEngine {
    */
   upsertService(serviceData) {
     const result = this._stmtUpsertService.run(
-      sanitizeBindings({ type: "service", scan_version_id: null, ...serviceData })
+      sanitizeBindings({
+        type: "service",
+        scan_version_id: null,
+        boundary_entry: null,
+        ...serviceData,
+      })
     );
     return result.lastInsertRowid;
   }
@@ -1215,6 +1236,7 @@ export class QueryEngine {
         language: svc.language || "unknown",
         type: svc.type || "service",
         scan_version_id: scanVersionId ?? null,
+        boundary_entry: svc.boundary_entry || null,
       });
       serviceIdMap.set(svc.name, id);
     }
@@ -1399,7 +1421,7 @@ export class QueryEngine {
 
     // Step 5: ambiguous — warn and return first match
     (this._logger?.warn ?? console.warn)(
-      '[ligamen] Ambiguous service name "' + name + '" matches ' + rows.length +
+      '[arcanon] Ambiguous service name "' + name + '" matches ' + rows.length +
       ' repos — using id ' + rows[0].id + '. Scope your connection to avoid collisions.'
     );
     return rows[0].id;

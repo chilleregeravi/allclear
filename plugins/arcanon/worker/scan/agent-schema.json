@@ -1,5 +1,5 @@
 {
-  "$schema": "Ligamen scan findings schema",
+  "$schema": "Arcanon scan findings schema",
   "type": "object",
   "required": ["service_name", "confidence", "services", "connections", "schemas"],
   "properties": {

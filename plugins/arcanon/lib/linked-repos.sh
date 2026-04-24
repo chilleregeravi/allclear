@@ -21,7 +21,6 @@ list_linked_repos() {
   local parent_dir
   parent_dir="$(dirname "$current_dir")"
   local config_file="${current_dir}/arcanon.config.json"
-  [[ -f "$config_file" ]] || config_file="${current_dir}/ligamen.config.json"
 
   if [[ -f "$config_file" ]]; then
     echo "arcanon: using linked-repos config from $config_file" >&2
