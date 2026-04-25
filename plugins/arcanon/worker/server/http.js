@@ -205,6 +205,91 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   /**
+   * 1c. GET /api/scan-quality — Latest scan's quality breakdown (TRUST-05, D-05)
+   *
+   * Used by `/arcanon:status` (via worker/cli/hub.js cmdStatus) to surface the
+   * "Latest scan: NN% high-confidence (S services, C connections)" line. The
+   * /arcanon:map command does NOT use this endpoint — it calls
+   * QueryEngine.getScanQualityBreakdown() directly via the inline-Node DB
+   * handle in commands/map.md Step 5.
+   *
+   * Status codes (locked in CONTEXT D-05):
+   *   200 — body matches the documented shape (see schema below)
+   *   503 — { error: "no_scan_data" } when the resolver returned a QE but no
+   *         scan_versions row has a non-null completed_at
+   *   404 — { error: "project_not_found" } when the caller passed ?project=
+   *         and resolveQueryEngine returned null
+   *
+   * Response 200 shape:
+   *   {
+   *     scan_version_id: number,
+   *     completed_at: string,
+   *     quality_score: number | null,
+   *     total_connections: number,
+   *     high_confidence: number,
+   *     low_confidence: number,
+   *     null_confidence: number,
+   *     prose_evidence_warnings: number,   // 0 today (D-01 placeholder)
+   *     service_count: number,
+   *   }
+   *
+   * Query params:
+   *   project=<absolute-root>   optional — selects the per-project DB. When
+   *                              omitted, falls back to the static queryEngine
+   *                              (test-only path).
+   */
+  fastify.get("/api/scan-quality", async (request, reply) => {
+    const project = request.query?.project;
+    const qe = getQE(request);
+    if (!qe) {
+      // Distinguish 404 (caller asked for a specific project that does not
+      // resolve) from 503 (no project arg AND no static QE — server has no
+      // data). The /api/scan-quality contract maps these to project_not_found
+      // and no_scan_data respectively.
+      if (project) {
+        return reply.code(404).send({ error: "project_not_found" });
+      }
+      return reply.code(503).send({ error: "no_scan_data" });
+    }
+    try {
+      const latest = qe._db
+        .prepare(
+          `SELECT id FROM scan_versions
+            WHERE completed_at IS NOT NULL
+            ORDER BY completed_at DESC, id DESC
+            LIMIT 1`,
+        )
+        .get();
+      if (!latest) {
+        return reply.code(503).send({ error: "no_scan_data" });
+      }
+      const breakdown = qe.getScanQualityBreakdown(latest.id);
+      if (!breakdown) {
+        // Pre-migration-015 db (column absent) — treat as no_scan_data so the
+        // status line degrades cleanly without leaking schema details.
+        return reply.code(503).send({ error: "no_scan_data" });
+      }
+      return reply.send({
+        scan_version_id: breakdown.scan_version_id,
+        completed_at: breakdown.completed_at,
+        quality_score: breakdown.quality_score,
+        total_connections: breakdown.total,
+        high_confidence: breakdown.high,
+        low_confidence: breakdown.low,
+        null_confidence: breakdown.null_count,
+        prose_evidence_warnings: breakdown.prose_evidence_warnings,
+        service_count: breakdown.service_count,
+      });
+    } catch (err) {
+      httpLog("ERROR", err.message, {
+        route: "/api/scan-quality",
+        stack: err.stack,
+      });
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  /**
    * GET /api/verify — Read-only verification of cited evidence (TRUST-01).
    *
    * Re-reads each cited source file and confirms the recorded evidence snippet
