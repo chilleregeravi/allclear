@@ -542,18 +542,205 @@ async function cmdList(flags) {
   const repoPath = path.resolve(flags.repo || process.cwd());
 
   // Project detection — silent no-op in non-Arcanon directories (NAV-01 contract).
-  // Re-resolve dataDir on every call so the env var is honored on each fresh
-  // node process (pool.js caches dataDir at module-load, but each `bash hub.sh`
-  // invocation spawns a new process so this is correct).
+  // Each `bash hub.sh list` spawns a fresh node process so projectHashDir's
+  // module-cached dataDir picks up the current ARCANON_DATA_DIR env var.
   const dbPath = path.join(projectHashDir(repoPath), "impact-map.db");
   if (!fs.existsSync(dbPath)) {
     // Silent contract — no stdout, no stderr, exit 0.
     process.exit(0);
   }
 
-  // Task 1 scaffold: emit a placeholder so the handler is reachable end-to-end.
-  // Task 2 replaces the body below with the full composition + output formatter.
-  emit({ ok: true, project_root: repoPath }, flags, "");
+  // ----- Resolve worker port (mirrors cmdVerify pattern at hub.js:395-407) -----
+  let workerPort = 37888;
+  try {
+    const portFile = path.join(resolveDataDir(), "worker.port");
+    const raw = fs.readFileSync(portFile, "utf8").trim();
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed > 0) workerPort = parsed;
+  } catch {
+    if (process.env.ARCANON_WORKER_PORT) {
+      const parsed = Number(process.env.ARCANON_WORKER_PORT);
+      if (Number.isInteger(parsed) && parsed > 0) workerPort = parsed;
+    }
+  }
+  const projectQS = encodeURIComponent(repoPath);
+  const graphUrl = `http://127.0.0.1:${workerPort}/graph?project=${projectQS}`;
+  const qualityUrl = `http://127.0.0.1:${workerPort}/api/scan-quality?project=${projectQS}`;
+
+  // ----- Parallel fetch /graph + /api/scan-quality with 5s timeout each -----
+  // AbortController per request so a single hung endpoint doesn't block both.
+  async function fetchJson(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!response.ok) return { ok: false, status: response.status };
+      try {
+        const body = await response.json();
+        return { ok: true, body };
+      } catch {
+        return { ok: false, status: response.status };
+      }
+    } catch {
+      clearTimeout(timer);
+      return { ok: false, status: 0 };
+    }
+  }
+  const [graphResult, qualityResult] = await Promise.all([
+    fetchJson(graphUrl),
+    fetchJson(qualityUrl),
+  ]);
+
+  // ----- Repo count via direct sqlite3 (RESEARCH §3 / §7 Q3) -----
+  // openDb() runs migrations and caches in module state. Both side-effects
+  // are safe inside a project dir and match what the worker itself does.
+  let reposCount = 0;
+  try {
+    const { openDb } = await import("../db/database.js");
+    const db = openDb(repoPath);
+    const row = db.prepare("SELECT COUNT(*) AS n FROM repos").get();
+    if (row && typeof row.n === "number") reposCount = row.n;
+  } catch {
+    reposCount = 0;
+  }
+
+  // ----- Service-type partition + actor count from /graph -----
+  // Per RESEARCH §3, the /graph response shape is { services, connections,
+  // actors, ... } (see query-engine.js:1481-1644 getGraph()). Each `services`
+  // row has a `type` column (migration 002) so the partition is direct; actors
+  // are a top-level array.
+  let serviceCounts = {
+    total: null,
+    by_type: { service: null, library: null, infra: null },
+  };
+  let actorsCount = null;
+  if (graphResult.ok) {
+    const services = Array.isArray(graphResult.body?.services)
+      ? graphResult.body.services
+      : [];
+    const byType = { service: 0, library: 0, infra: 0 };
+    for (const svc of services) {
+      const t = svc.type;
+      if (t === "service" || t === "library" || t === "infra") {
+        byType[t] += 1;
+      }
+    }
+    serviceCounts = { total: services.length, by_type: byType };
+    const actors = Array.isArray(graphResult.body?.actors)
+      ? graphResult.body.actors
+      : [];
+    actorsCount = actors.length;
+  }
+
+  // ----- Connection breakdown from /api/scan-quality -----
+  let connectionsCounts = {
+    total: null,
+    high_confidence: null,
+    low_confidence: null,
+    null_confidence: null,
+  };
+  let scannedAt = null;
+  if (qualityResult.ok) {
+    const q = qualityResult.body || {};
+    connectionsCounts = {
+      total: typeof q.total_connections === "number" ? q.total_connections : null,
+      high_confidence: typeof q.high_confidence === "number" ? q.high_confidence : null,
+      low_confidence: typeof q.low_confidence === "number" ? q.low_confidence : null,
+      null_confidence: typeof q.null_confidence === "number" ? q.null_confidence : null,
+    };
+    scannedAt = q.completed_at || null;
+  }
+
+  // ----- Hub status — same pattern as cmdStatus (hub.js:140-191) -----
+  const queueRow = queueStats();
+  const cfg = readProjectConfig();
+  const hubAutoSync = _readHubAutoSync(cfg?.hub);
+  const hasCreds = (() => {
+    try {
+      resolveCredentials();
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const hubStatus = !hasCreds
+    ? "not configured"
+    : hubAutoSync
+      ? "synced"
+      : "manual";
+  const hubReport = {
+    status: hubStatus,
+    queued: typeof queueRow?.pending === "number" ? queueRow.pending : 0,
+  };
+
+  // ----- "scanned Nd ago" or "scanned never" -----
+  let scannedHuman = "scanned never";
+  if (scannedAt) {
+    const ts = Date.parse(scannedAt);
+    if (!Number.isNaN(ts)) {
+      const ageDays = Math.floor((Date.now() - ts) / 86400000);
+      if (ageDays <= 0) {
+        scannedHuman = "scanned today";
+      } else if (ageDays === 1) {
+        scannedHuman = "scanned 1d ago";
+      } else {
+        scannedHuman = `scanned ${ageDays}d ago`;
+      }
+    }
+  }
+
+  // ----- JSON mode -----
+  if (flags.json) {
+    const json = {
+      project_root: repoPath,
+      scanned_at: scannedAt,
+      repos_count: reposCount,
+      services: serviceCounts,
+      connections: connectionsCounts,
+      actors_count: actorsCount,
+      hub: hubReport,
+    };
+    emit(json, flags);
+    return;
+  }
+
+  // ----- Human mode -----
+  const lines = [`Arcanon map for ${repoPath} (${scannedHuman})`];
+
+  // Repos line
+  lines.push(`  Repos:        ${reposCount} linked`);
+
+  // Services line — graceful degradation when /graph failed.
+  if (serviceCounts.total === null) {
+    lines.push(`  Services:     unknown`);
+  } else {
+    const t = serviceCounts.by_type;
+    lines.push(
+      `  Services:     ${serviceCounts.total} mapped (${t.service} services, ${t.library} libraries, ${t.infra} infra)`,
+    );
+  }
+
+  // Connections line — graceful degradation when /api/scan-quality failed.
+  if (connectionsCounts.total === null) {
+    lines.push(`  Connections:  unknown`);
+  } else {
+    lines.push(
+      `  Connections:  ${connectionsCounts.total} (${connectionsCounts.high_confidence ?? 0} high-conf, ${connectionsCounts.low_confidence ?? 0} low-conf)`,
+    );
+  }
+
+  // Actors line — graceful degradation when /graph failed.
+  if (actorsCount === null) {
+    lines.push(`  Actors:       unknown`);
+  } else {
+    lines.push(`  Actors:       ${actorsCount} external`);
+  }
+
+  // Hub line.
+  lines.push(`  Hub:          ${hubReport.status}, ${hubReport.queued} queued`);
+
+  process.stdout.write(lines.join("\n") + "\n");
 }
 
 async function cmdQueue(flags) {

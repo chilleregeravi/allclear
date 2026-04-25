@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`/arcanon:list` command** (NAV-01). Concise project overview: linked repos,
+  services partitioned by type, connection counts by confidence, external actor
+  count, and hub sync status. Read-only via worker HTTP. Silent in non-Arcanon
+  directories. Supports `--json` for machine consumption.
+
 ## [0.1.3] - 2026-04-25
 
 ### BREAKING
