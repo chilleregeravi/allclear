@@ -766,6 +766,89 @@ export class QueryEngine {
   }
 
   // --------------------------------------------------------------------------
+  // Evidence-substring guard helpers (TRUST-02)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Look up the repo root path from `repos.path` for the given repoId.
+   * Used by _validateEvidence to resolve relative source_file references the
+   * agent typically emits. Returns null if the repo row is missing.
+   *
+   * @param {number} repoId
+   * @returns {string|null}
+   */
+  _getRepoRootPath(repoId) {
+    if (!this._stmtGetRepoRootPath) {
+      this._stmtGetRepoRootPath = this._db.prepare(
+        "SELECT path FROM repos WHERE id = ?"
+      );
+    }
+    const row = this._stmtGetRepoRootPath.get(repoId);
+    return row ? row.path : null;
+  }
+
+  /**
+   * Validate that `evidence` appears as a literal substring in `source_file`.
+   * Returns `{ ok: true }` on success or skip-with-warn cases (null/empty
+   * evidence, null source_file, missing/unreadable source_file). Returns
+   * `{ ok: false, reason }` only when evidence is non-empty AND source_file
+   * resolves to a readable file AND the literal substring is not found.
+   *
+   * Per .planning/phases/109-path-canonicalization-and-evidence/109-CONTEXT.md:
+   *   D-03: whole-file substring check (no line_start window — schema doesn't
+   *         carry one).
+   *   D-04: literal substring, no whitespace/regex normalization.
+   *   D-05: lenient on null/missing/unreadable — return ok:true (warn when
+   *         appropriate; persist anyway).
+   *
+   * @param {{ evidence?: string|null, source_file?: string|null }} conn
+   * @param {string|null} repoRootPath - From repos.path; used to resolve
+   *   relative source_file references the agent typically emits.
+   * @returns {{ ok: boolean, warn?: string, reason?: string }}
+   */
+  _validateEvidence(conn, repoRootPath) {
+    const evidence = (conn.evidence ?? "").trim();
+    if (!evidence) return { ok: true }; // D-05 case 1: agent didn't claim evidence
+
+    const srcRel = conn.source_file;
+    if (srcRel == null || srcRel === "") return { ok: true }; // D-05 case 2
+
+    // Resolve relative paths against repo root. Absolute paths used as-is.
+    let abs = srcRel;
+    if (!path.isAbsolute(srcRel) && repoRootPath) {
+      abs = path.join(repoRootPath, srcRel);
+    }
+
+    let content;
+    try {
+      content = fs.readFileSync(abs, "utf8");
+    } catch (e) {
+      // D-05 case 3: file missing or unreadable — warn but don't reject
+      const detail = e.code || e.message || "unknown error";
+      return {
+        ok: true,
+        warn:
+          "[persistFindings] cannot validate evidence: source_file '" +
+          srcRel +
+          "' does not exist or is unreadable (" +
+          detail +
+          ")",
+      };
+    }
+
+    if (content.indexOf(evidence) !== -1) {
+      return { ok: true };
+    }
+
+    const preview =
+      evidence.length > 80 ? evidence.slice(0, 80) + "..." : evidence;
+    return {
+      ok: false,
+      reason: "evidence not found in '" + srcRel + "': " + preview,
+    };
+  }
+
+  // --------------------------------------------------------------------------
   // path_template merge helpers (TRUST-03)
   // --------------------------------------------------------------------------
 
@@ -1381,6 +1464,37 @@ export class QueryEngine {
 
       // Unknown internal target — still skip; we have no row to point at.
       if (!targetId) continue;
+
+      // TRUST-02: evidence guard — runs BEFORE canonicalize+upsert.
+      // Skip the connection (and warn) when prose evidence does not appear
+      // verbatim in the cited source_file. Lenient on null/missing files
+      // (D-05): persist with a warning when the file is unreadable, persist
+      // silently when source_file or evidence are null/empty.
+      const repoRoot = this._getRepoRootPath(repoId);
+      const evVerdict = this._validateEvidence(conn, repoRoot);
+      if (!evVerdict.ok) {
+        const skipMsg =
+          "[persistFindings] skipping connection " +
+          conn.source +
+          "->" +
+          conn.target +
+          " (" +
+          (conn.protocol || "unknown") +
+          " " +
+          (conn.method || "") +
+          " " +
+          (conn.path || "") +
+          "): " +
+          evVerdict.reason;
+        if (this._logger?.warn) this._logger.warn(skipMsg);
+        else process.stderr.write(skipMsg + "\n");
+        continue; // skip — do NOT upsert this connection
+      }
+      if (evVerdict.warn) {
+        if (this._logger?.warn) this._logger.warn(evVerdict.warn);
+        else process.stderr.write(evVerdict.warn + "\n");
+        // fall through — persist anyway (D-05)
+      }
 
       // TRUST-03: canonicalize path ({xxx} -> {_}) and merge path_template.
       // Reading the existing path_template BEFORE the INSERT OR REPLACE prevents
