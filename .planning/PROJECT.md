@@ -196,11 +196,48 @@ Every edit is automatically formatted and linted, every quality check runs with 
 
 ### Active
 
+## Current Milestone: v0.1.4 Operator Surface
+
+**Goal:** Make Arcanon navigable, correctable, and integratable. Bundles all four remaining Medium-priority backlog tickets (THE-1023..1026) into one milestone with wave-ordered phases (read-only first, write-side later, integration last).
+
+**Target work (4 categories):**
+
+1. **THE-1023 — Read-only commands** (Medium, 4 sub-items)
+   - `/arcanon:list` — concise project overview (services, repos, connection counts, last-scan dates)
+   - `/arcanon:view` — top-level alias for the graph UI (currently hidden under `/arcanon:map view`)
+   - `/arcanon:doctor` — 7-check smoke-test diagnostics (worker reachable, DB schema version, config resolution, data-dir perms, DB integrity, MCP smoke, hub credentials)
+   - `/arcanon:diff <scanA> <scanB>` — compare any two scan versions (HEAD, HEAD~N, scan IDs, ISO timestamps, branch heuristics)
+
+2. **THE-1024 — Scan operation commands** (Medium, 3 sub-items)
+   - `/arcanon:rescan <repo>` — explicit single-repo entry, bypasses incremental change detection
+   - `/arcanon:correct` — manually fix a known-bad connection without rescanning, persisted to new `scan_overrides` table that the scan pipeline respects on next run
+   - `/arcanon:shadow-scan` — run a new scan without overwriting current; new `impact-map-shadow.db` namespace; `/arcanon:diff --shadow` + `/arcanon:promote-shadow` workflow
+
+3. **THE-1025 — UX polish** (Medium, 2 sub-items)
+   - `--help` system on every command via `## Help` markdown convention + bash detector
+   - `/arcanon:status` extension: scan age (already in SessionStart banner per v0.1.1 SSE) + git-commits-since-scan count (`git log <last_scan_sha>..HEAD` per repo)
+   - **Note:** Item 1's "scan age" was partially shipped via v0.1.1 SessionStart enrichment. Active scope here is the `/arcanon:status` parity + git-commits signal.
+
+4. **THE-1026 — Integration improvements** (Medium, 3 sub-items)
+   - Offline / privacy mode: new `hub.evidence_mode: "full" | "hash-only" | "none"` config flag; `/arcanon:sync --offline` graceful no-op
+   - `/arcanon:drift openapi --spec <path>` — explicit, repeatable, bypasses discovery
+   - `data/known-externals.yaml` ship list (~20 common third parties: Stripe API, Auth0, Dex, OpenTelemetry Collector, S3/Blob storage, GitHub API, Slack webhooks, etc.) + user-extension via `arcanon.config.json` `external_labels`
+
+**Wave structure (within the milestone):**
+- Wave 1: navigability (`/list`, `/view`, `/doctor`, `--help` system, status extension)
+- Wave 2: diff & history (`/diff`)
+- Wave 3: scan-overrides infrastructure (`scan_overrides` table + `/correct` + `/rescan`) — design-sensitive, gets a discuss-phase
+- Wave 4: shadow scan workflow (depends on Wave 3 schema)
+- Wave 5: integration improvements (parallel-safe with Wave 4)
+- Wave 6: verification gate
+
+**Why bundled (vs. v0.1.4 + v0.1.5 split):** All Mediums; all operator-facing surface improvements; total scope (~14-18 plans) matches v0.1.1 / v0.1.2 / v0.1.3 cadence. Wave ordering within the milestone gives the same low-risk-first benefit as splitting milestones, without the extra release ceremony.
+
+**Scope discipline:** No skills/agents work (v0.2.0). No auto-fix from `/arcanon:verify` results (manual `/correct` is enough). No migration tooling for users with hand-corrected DBs.
+
 ## Next Milestone Goals
 
-After v0.1.3 ships:
-- **v0.1.4 Read-only & UX** — THE-1023 (`/list`, `/view`, `/doctor`, `/diff` commands), THE-1025 remainder (`--help` system across commands + `/arcanon:status` git-commits-since-scan count)
-- **v0.1.5 Scan Ops & Integration** — THE-1024 (`/rescan`, `/correct`, `/shadow-scan` + `scan_overrides` table + shadow DB infrastructure), THE-1026 (offline mode, explicit OpenAPI specs, known-externals catalog)
+After v0.1.4 ships:
 - **v0.2.0 Skills & Agents** — Design the skills layer on top of shipped hooks, refactor inline `Explore` agent calls, add MCP-tool-composing investigator agent. Intentionally deferred since v0.1.1.
 
 ## (archived) Milestone: v0.1.3 Trust & Foundations
@@ -264,7 +301,7 @@ Architecture: commands/ for user-invoked features, skills/ for auto-invoked know
 Known tech debt: db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-04-25 — v0.1.3 SHIPPED (Trust & Foundations)*
+*Last updated: 2026-04-25 — v0.1.4 started (Operator Surface)*
 
 ## Constraints
 
@@ -338,4 +375,4 @@ Known tech debt: db/database.js has console.log in script-mode guard, getQueryEn
 | Combined plan+execute for phases 102–105 — v0.1.2 | Scope well-understood after Phase 101 discovery; separate planner spawns would have been ceremony. Saved ~4 agent round-trips. | ✓ Good |
 
 ---
-*Last updated: 2026-04-25 — v0.1.3 SHIPPED (Trust & Foundations)*
+*Last updated: 2026-04-25 — v0.1.4 started (Operator Surface)*
