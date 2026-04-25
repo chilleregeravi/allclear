@@ -3,14 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.1.3
 milestone_name: Trust & Foundations
 status: in_progress
-stopped_at: Completed 108-01-PLAN.md
-last_updated: "2026-04-25T14:18:00.000Z"
-last_activity: "2026-04-25 — Plans 107-02 + 108-01 landed in parallel: install-deps.sh sentinel/validation; update.sh --check offline gate decoupled from refresh-process timeout (THE-1027)"
+stopped_at: Completed 108-02-PLAN.md
+last_updated: "2026-04-25T12:26:31.360Z"
+last_activity: "2026-04-25 — Plan 108-02 landed: /arcanon:upload deprecated stub deleted, README + CHANGELOG scrubbed, DEP-03 regression-guard added (DEP-01..06)"
 progress:
-  total_phases: 32
+  total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 14
+  completed_plans: 4
+  percent: 29
 ---
 
 # Project State
@@ -24,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 
 ## Current Position
 
-Phase: 107 Install Architecture Cleanup (in progress, Wave 1)
-Plan: 107-02 complete (1 commit); next up 107-03 bats test rewrite
-Status: 2/14 plans complete; INST-01..06 marked done in REQUIREMENTS.md
-Last activity: 2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with sha256 sentinel + binding-load validation + npm rebuild fallback (INST-02..05)
+Phase: Wave 1 (Phases 107 + 108) in flight; Phase 109 spawning
+Plans complete: 107-01, 107-02, 108-01, 108-02 — 4/14 plans complete
+Status: INST-01..06 + UPD-01..06 + DEP-01..06 marked done in REQUIREMENTS.md (next up: 107-03 bats rewrite, 109-01 migration 013)
+Last activity: 2026-04-25 — Plan 108-02 landed: /arcanon:upload deprecated stub deleted, README + CHANGELOG scrubbed, DEP-03 regression-guard added (DEP-01..06)
 
 ## v0.1.3 Phase Map
 
@@ -51,15 +52,16 @@ Last activity: 2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with
 
 **Velocity:**
 
-- Total plans completed: 195 (v1.0–v5.8.0 + v0.1.0 + v0.1.1 12 plans + v0.1.2 9 plans + v0.1.3 2 plans)
+- Total plans completed: 197 (v1.0–v5.8.0 + v0.1.0 + v0.1.1 12 plans + v0.1.2 9 plans + v0.1.3 4 plans)
 - Total milestones shipped: 21 (Ligamen v1.0–v5.8.0 + Arcanon v0.1.0 + v0.1.1 + v0.1.2)
-- v0.1.3 in progress: 7 phases planned, 14 plans drafted, 2 plans complete (107-01, 107-02)
+- v0.1.3 in progress: 7 phases planned, 14 plans drafted, 4 plans complete (107-01, 107-02, 108-01, 108-02)
 
 | Phase | Plan | Tasks | Files | Duration |
 | ----- | ---- | ----- | ----- | -------- |
 | 107   | 01   | 2     | 2     | ~5 min   |
 | 107   | 02   | 1     | 1     | ~3 min   |
-| Phase 108 P01 | 10 min | 2 tasks | 2 files |
+| 108   | 01   | 2     | 2     | ~10 min  |
+| 108   | 02   | 2     | 4     | ~16 min  |
 
 ## Accumulated Context
 
@@ -74,6 +76,7 @@ Last activity: 2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with
 - Phase 107-01 complete: runtime-deps.json deleted, mcp-wrapper.sh trimmed to 12 lines (INST-01, INST-06)
 - Phase 107-02 complete: install-deps.sh rewritten with sha256 sentinel + binding-load validation + npm rebuild fallback (INST-02..05)
 - Plan 108-01 (THE-1027) complete: --check offline gate is now file-existence based (UPD-01..06)
+- Phase 108-02 complete: /arcanon:upload deprecated stub deleted, 5 CLN-05 bats tests removed, DEP-03 regression-guard added, README + CHANGELOG scrubbed (DEP-01..06)
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ Last activity: 2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with
 
 ## Session Continuity
 
-Last session: 2026-04-25T12:13:44.689Z
-Stopped at: Completed 108-01-PLAN.md
+Last session: 2026-04-25T12:26:31.351Z
+Stopped at: Completed 108-02-PLAN.md
 Resume file: None

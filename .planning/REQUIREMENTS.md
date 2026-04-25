@@ -72,12 +72,12 @@ Six items from the v0.1.0 external review, deferred since 2026-04-21. Adds a ver
 
 Remove the `/arcanon:upload` deprecated stub. Originally promised for v0.2.0; brought forward to v0.1.3 since v0.1.2 already shipped a breaking change.
 
-- [ ] **DEP-01**: `plugins/arcanon/commands/upload.md` deleted
-- [ ] **DEP-02**: `tests/commands-surface.bats` lines 33–40 (5 tests asserting `/arcanon:upload` exists as deprecated stub) removed
-- [ ] **DEP-03**: New bats test added — `tests/commands-surface.bats` asserts `commands/upload.md` does NOT exist (regression guard against accidental re-add)
-- [ ] **DEP-04**: `README.md` mentions of `/arcanon:upload` removed (currently in command table line ~55) — leaving only `/arcanon:sync` as the canonical verb
-- [ ] **DEP-05**: `plugins/arcanon/skills/impact/SKILL.md` reviewed and any `/arcanon:upload` references removed (likely none — verify)
-- [ ] **DEP-06**: `plugins/arcanon/CHANGELOG.md` `[0.1.3]` `### BREAKING` subsection adds entry: "Removed `/arcanon:upload` deprecated stub. Use `/arcanon:sync` (canonical since v0.1.1). CI scripts hardcoded to `/arcanon:upload` will fail."
+- [x] **DEP-01**: `plugins/arcanon/commands/upload.md` deleted
+- [x] **DEP-02**: `tests/commands-surface.bats` lines 33–40 (5 tests asserting `/arcanon:upload` exists as deprecated stub) removed
+- [x] **DEP-03**: New bats test added — `tests/commands-surface.bats` asserts `commands/upload.md` does NOT exist (regression guard against accidental re-add)
+- [x] **DEP-04**: `README.md` mentions of `/arcanon:upload` removed (currently in command table line ~55) — leaving only `/arcanon:sync` as the canonical verb
+- [x] **DEP-05**: `plugins/arcanon/skills/impact/SKILL.md` reviewed and any `/arcanon:upload` references removed (likely none — verify)
+- [x] **DEP-06**: `plugins/arcanon/CHANGELOG.md` `[0.1.3]` `### BREAKING` subsection adds entry: "Removed `/arcanon:upload` deprecated stub. Use `/arcanon:sync` (canonical since v0.1.1). CI scripts hardcoded to `/arcanon:upload` will fail."
 
 ### Verification Gate (VER)
 

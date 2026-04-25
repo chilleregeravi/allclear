@@ -209,7 +209,7 @@ Full details: `.planning/milestones/v0.1.2-ROADMAP.md`
 ### v0.1.3 Trust & Foundations (Phases 107-113) — IN PROGRESS
 
 - [ ] **Phase 107: Install Architecture Cleanup** — Drop `runtime-deps.json`, rewrite `install-deps.sh` with sha256 sentinel + binding-load validation + rebuild fallback, simplify `mcp-wrapper.sh` to plain exec
-- [ ] **Phase 108: Update-check Timeout Fix + Deprecated Command Removal** — Decouple `/arcanon:update --check` offline-decision from 5s refresh outcome; delete `/arcanon:upload` stub + tests + docs
+- [x] **Phase 108: Update-check Timeout Fix + Deprecated Command Removal** — Decouple `/arcanon:update --check` offline-decision from 5s refresh outcome; delete `/arcanon:upload` stub + tests + docs
 - [ ] **Phase 109: Path Canonicalization + Evidence at Ingest** — Migration 013 (`connections.path_template`); `persistFindings` rejects prose-only evidence; template-variant collapse on upsert
 - [ ] **Phase 110: services.base_path End-to-End** — Migration 014 (`services.base_path`); agent-prompt-service emits `base_path`; connection resolution strips base_path before path matching
 - [ ] **Phase 111: Quality Score + Reconciliation Audit Trail** — Migrations 015 (`scan_versions.quality_score`) + 016 (`enrichment_log`); endScan computes score; reconciliation writes audit rows; new `impact_audit_log` MCP tool
@@ -715,8 +715,8 @@ Plans:
   4. `tests/commands-surface.bats` no longer contains the 5 deprecated-stub assertions; `README.md` and `plugins/arcanon/skills/impact/SKILL.md` contain zero `/arcanon:upload` references; `CHANGELOG.md` `[0.1.3] ### BREAKING` lists the removal
 **Plans**: 2 plans
 Plans:
-- [ ] 108-01-PLAN.md — UPD: Decouple update.sh --check offline-gate from refresh-process timeout (UPD-01..06)
-- [ ] 108-02-PLAN.md — DEP: Delete /arcanon:upload stub + scrub README/CHANGELOG/SKILL refs (DEP-01..06)
+- [x] 108-01-PLAN.md — UPD: Decouple update.sh --check offline-gate from refresh-process timeout (UPD-01..06)
+- [x] 108-02-PLAN.md — DEP: Delete /arcanon:upload stub + scrub README/CHANGELOG/SKILL refs (DEP-01..06)
 
 ### Phase 109: Path Canonicalization + Evidence at Ingest
 **Goal**: The scan ingest pipeline rejects evidence that does not literally appear in the cited source file, and connections whose only difference is a template variable name collapse to a single canonical row — strengthening data trust at the write boundary
@@ -813,7 +813,7 @@ Plans:
 | 97-100 | v0.1.1 | 12/12 | Complete | 2026-04-21 |
 | 101-105 | v0.1.2 | 9/9 | Complete | 2026-04-23 |
 | 107 | v0.1.3 | 1/3 | In progress | 2026-04-25 |
-| 108 | v0.1.3 | 0/2 | Not started | - |
+| 108 | v0.1.3 | 2/2 | Complete | 2026-04-25 |
 | 109 | v0.1.3 | 0/TBD | Not started | - |
 | 110 | v0.1.3 | 0/1 | Not started | - |
 | 111 | v0.1.3 | 0/3 | Not started | - |
