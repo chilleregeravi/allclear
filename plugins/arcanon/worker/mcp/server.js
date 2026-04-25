@@ -1527,7 +1527,15 @@ server.tool(
   },
 );
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+// Skip stdio-transport startup when this module is imported by the Node test
+// runner. NODE_TEST_CONTEXT is set by `node --test` (and its --test-isolation
+// subprocesses) so we can detect that path reliably without affecting the
+// production stdio bootstrap. Without this gate, importing server.js from a
+// test file would hold stdin open for the lifetime of the test process and
+// hang the runner after all tests pass (Plan 111-03 deviation Rule 3).
+if (!process.env.NODE_TEST_CONTEXT) {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 
-process.on("SIGTERM", () => process.exit(0));
+  process.on("SIGTERM", () => process.exit(0));
+}
