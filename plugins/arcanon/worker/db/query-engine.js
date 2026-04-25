@@ -656,6 +656,46 @@ export class QueryEngine {
       this._stmtSelectQualityScore = null;
       this._stmtSelectQualityBreakdown = null;
     }
+
+    // --- enrichment_log statements (migration 016 / TRUST-06, TRUST-14) ---
+    // Wrapped in try/catch so a pre-migration-016 db (no enrichment_log table)
+    // cleanly disables the writers/readers — logEnrichment returns null and
+    // getEnrichmentLog returns []. Mirrors the actor / node_metadata /
+    // service_dependencies fallback pattern above.
+    //
+    // Decision (Phase 111 CONTEXT D-04): logEnrichment does NOT pre-validate
+    // target_kind in JS. The migration-016 SQL CHECK constraint is the source
+    // of truth — duplicating the check would silently mask SQL-level errors
+    // and drift if the CHECK loosens in a later migration.
+    this._stmtInsertEnrichmentLog = null;
+    this._stmtSelectEnrichmentLog = null;
+    this._stmtSelectEnrichmentLogByEnricher = null;
+    try {
+      this._stmtInsertEnrichmentLog = db.prepare(`
+        INSERT INTO enrichment_log
+          (scan_version_id, enricher, target_kind, target_id, field, from_value, to_value, reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      this._stmtSelectEnrichmentLog = db.prepare(`
+        SELECT id, scan_version_id, enricher, target_kind, target_id, field,
+               from_value, to_value, reason, created_at
+        FROM enrichment_log
+        WHERE scan_version_id = ?
+        ORDER BY created_at ASC, id ASC
+      `);
+      this._stmtSelectEnrichmentLogByEnricher = db.prepare(`
+        SELECT id, scan_version_id, enricher, target_kind, target_id, field,
+               from_value, to_value, reason, created_at
+        FROM enrichment_log
+        WHERE scan_version_id = ? AND enricher = ?
+        ORDER BY created_at ASC, id ASC
+      `);
+    } catch {
+      // enrichment_log table absent — migration 016 not applied.
+      this._stmtInsertEnrichmentLog = null;
+      this._stmtSelectEnrichmentLog = null;
+      this._stmtSelectEnrichmentLogByEnricher = null;
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -1055,6 +1095,78 @@ export class QueryEngine {
       value: value ?? null,
     });
     return result.lastInsertRowid;
+  }
+
+  /**
+   * Write a row to enrichment_log. (TRUST-06 / TRUST-14 — migration 016.)
+   *
+   * No-op (returns null) when migration 016 is not applied — the table is
+   * absent and the prepared statement could not arm in the constructor.
+   *
+   * Throws (SqliteError) when the SQL CHECK on `target_kind` fails — JS does
+   * NOT pre-validate per Phase 111 CONTEXT D-04 (the SQL CHECK is the source
+   * of truth; duplicating the check would silently mask SQL-level errors).
+   *
+   * @param {number} scanVersionId
+   * @param {string} enricher          — e.g., 'reconciliation', 'codeowners', 'auth-db'
+   * @param {'service'|'connection'} targetKind
+   * @param {number} targetId          — services.id or connections.id
+   * @param {string} field             — e.g., 'crossing', 'owner'
+   * @param {string|null} fromValue
+   * @param {string|null} toValue
+   * @param {string|null} reason
+   * @returns {number|null} lastInsertRowid, or null on pre-016 db
+   */
+  logEnrichment(
+    scanVersionId,
+    enricher,
+    targetKind,
+    targetId,
+    field,
+    fromValue,
+    toValue,
+    reason,
+  ) {
+    if (!this._stmtInsertEnrichmentLog) return null;
+    const result = this._stmtInsertEnrichmentLog.run(
+      scanVersionId,
+      enricher,
+      targetKind,
+      targetId,
+      field,
+      fromValue ?? null,
+      toValue ?? null,
+      reason ?? null,
+    );
+    return Number(result.lastInsertRowid);
+  }
+
+  /**
+   * Read rows from enrichment_log for a scan_version, optionally filtered by
+   * `enricher`. Returns [] (not null, not throwing) on a pre-016 db, on an
+   * unknown scan_version_id, or on any read error. Sort order: created_at ASC,
+   * id ASC (id is the tie-breaker because created_at granularity is 1s).
+   *
+   * @param {number} scanVersionId
+   * @param {{ enricher?: string }} [opts]
+   * @returns {Array<{id:number, scan_version_id:number, enricher:string,
+   *   target_kind:string, target_id:number, field:string,
+   *   from_value:string|null, to_value:string|null, reason:string|null,
+   *   created_at:string}>}
+   */
+  getEnrichmentLog(scanVersionId, opts = {}) {
+    if (!this._stmtSelectEnrichmentLog) return [];
+    try {
+      if (opts && opts.enricher) {
+        return this._stmtSelectEnrichmentLogByEnricher.all(
+          scanVersionId,
+          opts.enricher,
+        );
+      }
+      return this._stmtSelectEnrichmentLog.all(scanVersionId);
+    } catch {
+      return [];
+    }
   }
 
   /**
