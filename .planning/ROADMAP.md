@@ -758,7 +758,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [ ] 111-01-PLAN.md — Migrations 015 (scan_versions.quality_score) + 016 (enrichment_log) — schema only
-- [ ] 111-02-PLAN.md — endScan computes quality_score; QueryEngine getters; /api/scan-quality endpoint; /arcanon:map and /arcanon:status output
+- [x] 111-02-PLAN.md — endScan computes quality_score; QueryEngine getters; /api/scan-quality endpoint; /arcanon:map and /arcanon:status output _(complete 2026-04-25 — TRUST-05, TRUST-13)_
 - [ ] 111-03-PLAN.md — QueryEngine logEnrichment/getEnrichmentLog; impact_audit_log MCP tool; reconciliation audit-log writes in /arcanon:map
 
 ### Phase 112: `/arcanon:verify` Command
@@ -819,6 +819,6 @@ Plans:
 | 108 | v0.1.3 | 2/2 | Complete | 2026-04-25 |
 | 109 | v0.1.3 | 0/TBD | Not started | - |
 | 110 | v0.1.3 | 0/1 | Not started | - |
-| 111 | v0.1.3 | 0/3 | Not started | - |
+| 111 | v0.1.3 | 2/3 | In progress | 2026-04-25 |
 | 112 | v0.1.3 | 0/2 | Not started | - |
 | 113 | v0.1.3 | 0/1 | Not started | - |

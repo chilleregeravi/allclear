@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v0.1.3
 milestone_name: Trust & Foundations
 status: completed
-stopped_at: Completed 110-01-PLAN.md (Phase 110 complete)
-last_updated: "2026-04-25T13:05:34.871Z"
-last_activity: "2026-04-25 — Plan 109-02 landed: persistFindings canonicalizes {xxx} -> {_} and rejects prose evidence; migration 013 gains UNIQUE INDEX uq_connections_dedup; upsertService returns stable row id (TRUST-02, TRUST-03, TRUST-10, TRUST-11)"
+stopped_at: Completed 111-02-PLAN.md (quality-score wiring + display)
+last_updated: "2026-04-25T13:30:23.563Z"
+last_activity: "2026-04-25 — Plan 111-02 landed: endScan computes (high+0.5*low)/total → scan_versions.quality_score; new getQualityScore + getScanQualityBreakdown; new GET /api/scan-quality; /arcanon:map and /arcanon:status surface scan quality (TRUST-05, TRUST-13)"
 progress:
   total_phases: 32
   completed_phases: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 
 ## Current Position
 
-Phase: Phase 109 (Wave 2) complete; Phase 110 next
-Plans complete: 107-01, 107-02, 107-03, 108-01, 108-02, 109-01, 109-02 — 7/14 plans complete
-Status: INST-01..12 + UPD-01..06 + DEP-01..06 + TRUST-02, 03, 10, 11 marked done in REQUIREMENTS.md (next up: 110-01 services.base_path migration 012)
-Last activity: 2026-04-25 — Plan 109-02 landed: persistFindings canonicalizes {xxx} -> {_} and rejects prose evidence; migration 013 gains UNIQUE INDEX uq_connections_dedup; upsertService returns stable row id (TRUST-02, TRUST-03, TRUST-10, TRUST-11)
+Phase: Phase 111 (Wave 2) — Plans 111-01 + 111-02 complete; 111-03 next
+Plans complete: 107-01, 107-02, 107-03, 108-01, 108-02, 109-01, 109-02, 110-01, 111-01, 112-01, 111-02 — 11/14 plans complete
+Status: INST-01..12 + UPD-01..06 + DEP-01..06 + TRUST-01..05, 10..13 marked done in REQUIREMENTS.md (next up: 111-03 enrichment_log wiring + impact_audit_log MCP tool, then 113-01 verification gate)
+Last activity: 2026-04-25 — Plan 111-02 landed: endScan computes quality_score; getQualityScore/getScanQualityBreakdown added; GET /api/scan-quality returns latest breakdown; /arcanon:map + /arcanon:status surface scan quality (TRUST-05, TRUST-13)
 
 ## v0.1.3 Phase Map
 
@@ -65,6 +65,7 @@ Last activity: 2026-04-25 — Plan 109-02 landed: persistFindings canonicalizes 
 | 109   | 01   | 1     | 2     | ~2 min   |
 | 109   | 02   | 2     | 4     | ~45 min  |
 | Phase 110 P01 | 13 | 3 tasks | 8 files |
+| 111   | 02   | 3     | 7     | ~13 min  |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Last activity: 2026-04-25 — Plan 109-02 landed: persistFindings canonicalizes 
 - Phase 109-02 complete: canonicalizePath helper exported; persistFindings canonicalizes {xxx} -> {_}, merges path_template comma-joined on collapse, rejects prose evidence with stderr warning. Migration 013 extended with UNIQUE INDEX uq_connections_dedup (was missing in codebase despite plan assumption). upsertService now returns stable row id (lastInsertRowid was returning stale connection-level value on UPDATE path) (TRUST-02, 03, 10, 11)
 - Phase 109 complete: all 4 TRUST requirements landed with 21 new tests; verification doc at .planning/phases/109-path-canonicalization-and-evidence/109-VERIFICATION.md
 - Phase 110 complete: services.base_path lands end-to-end via migration 014; agent emits + validator accepts + persistFindings writes; detectMismatches strips with D-02 (target-only) and D-03 (segment-boundary) semantics. 27 new tests, 2 REQs closed (TRUST-04, TRUST-12).
+- Phase 111-02 complete: scan_versions.quality_score now wired end-to-end. endScan computes (high + 0.5*low) / total per CONTEXT D-02 (NULL when total=0; NULL-confidence rows count toward total but contribute 0 to numerator). New getQualityScore + getScanQualityBreakdown methods on QueryEngine; GET /api/scan-quality returns latest breakdown for shell-driven status surfacing. /arcanon:map and /arcanon:status now print the quality lines locked in CONTEXT D-01. 15 new tests; 169/169 worker test suites passing (TRUST-05, TRUST-13).
+- Phase 111-02 deviation: status surface insertion site moved from scripts/hub.sh (a thin Node wrapper) to worker/cli/hub.js cmdStatus where the actual status implementation lives. Latest-scan fetch is best-effort with a 2-second AbortController timeout — silently omits the line on any error.
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Last activity: 2026-04-25 — Plan 109-02 landed: persistFindings canonicalizes 
 
 ## Session Continuity
 
-Last session: 2026-04-25T13:05:34.862Z
-Stopped at: Completed 110-01-PLAN.md (Phase 110 complete)
+Last session: 2026-04-25T13:30:00.000Z
+Stopped at: Completed 111-02-PLAN.md (quality-score wiring + display)
 Resume file: None

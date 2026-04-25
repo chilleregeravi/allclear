@@ -64,7 +64,7 @@ Six items from the v0.1.0 external review, deferred since 2026-04-21. Adds a ver
 - [x] **TRUST-03**: Path canonicalization — connections whose only difference is a template variable name (`/runtime/streams/{stream_id}` vs `/runtime/streams/{name}`) collapse to one normalized key (`{_}` placeholder). Original template preserved in new `connections.path_template` column for display. _(Phase 109-01 + 109-02. Migration 013 also creates UNIQUE INDEX uq_connections_dedup which was missing in the codebase.)_
 - [x] **TRUST-04
 **: New migration adds `services.base_path TEXT` column; agent-prompt-service.md instructs the scanner to emit a `base_path` field per service (e.g., `/api`); connection resolution strips `base_path` from frontend-to-backend matches before comparing paths
-- [ ] **TRUST-05**: New migration adds `scan_versions.quality_score REAL` column. End-of-scan output computes and persists quality score = (high_confidence_count + 0.5 × low_confidence_count) / total_connections. Surface in `/arcanon:status` output (when worker has graph data) AND end of `/arcanon:map` output. Format: `"Scan quality: 87% high-confidence, 3 prose-evidence warnings"`.
+- [x] **TRUST-05**: New migration adds `scan_versions.quality_score REAL` column. End-of-scan output computes and persists quality score = (high_confidence_count + 0.5 × low_confidence_count) / total_connections. Surface in `/arcanon:status` output (when worker has graph data) AND end of `/arcanon:map` output. Format: `"Scan quality: 87% high-confidence, 3 prose-evidence warnings"`. _(Phase 111-01 + 111-02 — migration 015; endScan persists; new GET /api/scan-quality + getScanQualityBreakdown; format strings match D-01)_
 - [ ] **TRUST-06**: New migration adds `enrichment_log` table (`scan_version_id INTEGER REFERENCES scan_versions(id)`, `enricher TEXT`, `target_kind TEXT`, `target_id INTEGER`, `field TEXT`, `from_value TEXT`, `to_value TEXT`, `reason TEXT`, `created_at TEXT`). Post-scan reconciliation (`external` → `cross-service` reclassification) writes a row per change. New MCP tool `impact_audit_log(scan_version_id)` exposes the log.
 - [ ] **TRUST-07**: bats test — verify command happy path (cited evidence still present in source) → returns `ok`
 - [ ] **TRUST-08**: bats test — verify command file-moved path (source file no longer exists at the recorded path) → returns `moved`
@@ -73,7 +73,7 @@ Six items from the v0.1.0 external review, deferred since 2026-04-21. Adds a ver
 - [x] **TRUST-11**: node test — path canonicalization: agent emits two connections with template variants → upserted as one row with both templates preserved in `path_template` _(Phase 109-02 — `worker/db/query-engine-canonical.test.js`, 9 tests including helper unit tests)_
 - [x] **TRUST-12
 **: node test — `services.base_path` migration runs idempotently; agent prompt populates the field; connection resolution honors it
-- [ ] **TRUST-13**: node test — `scan_versions.quality_score` populated by `endScan()`; readable via `getQualityScore(scan_version_id)`
+- [x] **TRUST-13**: node test — `scan_versions.quality_score` populated by `endScan()`; readable via `getQualityScore(scan_version_id)` _(Phase 111-02 — `worker/db/query-engine.quality-score.test.js`, 10 cases incl. mixed/all-high/all-low/with-NULL/zero-conn/getter/breakdown/pre-015/scope)_
 - [ ] **TRUST-14**: node test — `enrichment_log` table created by migration; reconciliation writes one row per crossing-value change
 
 ### Deprecated Command Removal (DEP) — scope addition
@@ -149,7 +149,7 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | TRUST-02 | Phase 109 | Done |
 | TRUST-03 | Phase 109 | Done |
 | TRUST-04 | Phase 110 | Pending |
-| TRUST-05 | Phase 111 | Pending |
+| TRUST-05 | Phase 111 | Done |
 | TRUST-06 | Phase 111 | Pending |
 | TRUST-07 | Phase 112 | Pending |
 | TRUST-08 | Phase 112 | Pending |
@@ -157,7 +157,7 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | TRUST-10 | Phase 109 | Done |
 | TRUST-11 | Phase 109 | Done |
 | TRUST-12 | Phase 110 | Pending |
-| TRUST-13 | Phase 111 | Pending |
+| TRUST-13 | Phase 111 | Done |
 | TRUST-14 | Phase 111 | Pending |
 | DEP-01 | Phase 108 | Pending |
 | DEP-02 | Phase 108 | Pending |
