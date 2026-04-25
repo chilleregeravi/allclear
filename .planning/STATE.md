@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.1.3
 milestone_name: Trust & Foundations
-status: in_progress
-stopped_at: Completed 107-01-PLAN.md
-last_updated: "2026-04-25T12:06:47.605Z"
-last_activity: 2026-04-25 — Phase 107 Plan 01 complete (runtime-deps.json deleted, mcp-wrapper.sh trimmed)
+status: completed
+stopped_at: Completed 108-01-PLAN.md
+last_updated: "2026-04-25T12:13:44.697Z"
+last_activity: "2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with sha256 sentinel + binding-load validation + npm rebuild fallback (INST-02..05)"
 progress:
-  total_phases: 7
+  total_phases: 32
   completed_phases: 0
-  total_plans: 14
-  completed_plans: 1
-  percent: 7
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -26,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 ## Current Position
 
 Phase: 107 Install Architecture Cleanup (in progress, Wave 1)
-Plan: 107-01 complete (2 commits); next up 107-02 install-deps.sh rewrite
-Status: 1/14 plans complete; INST-01 + INST-06 marked done in REQUIREMENTS.md
-Last activity: 2026-04-25 — Plan 107-01 landed: runtime-deps.json deleted, mcp-wrapper.sh trimmed to 12 lines
+Plan: 107-02 complete (1 commit); next up 107-03 bats test rewrite
+Status: 2/14 plans complete; INST-01..06 marked done in REQUIREMENTS.md
+Last activity: 2026-04-25 — Plan 107-02 landed: install-deps.sh rewritten with sha256 sentinel + binding-load validation + npm rebuild fallback (INST-02..05)
 
 ## v0.1.3 Phase Map
 
@@ -52,13 +51,15 @@ Last activity: 2026-04-25 — Plan 107-01 landed: runtime-deps.json deleted, mcp
 
 **Velocity:**
 
-- Total plans completed: 194 (v1.0–v5.8.0 + v0.1.0 + v0.1.1 12 plans + v0.1.2 9 plans + v0.1.3 1 plan)
+- Total plans completed: 195 (v1.0–v5.8.0 + v0.1.0 + v0.1.1 12 plans + v0.1.2 9 plans + v0.1.3 2 plans)
 - Total milestones shipped: 21 (Ligamen v1.0–v5.8.0 + Arcanon v0.1.0 + v0.1.1 + v0.1.2)
-- v0.1.3 in progress: 7 phases planned, 14 plans drafted, 1 plan complete (107-01)
+- v0.1.3 in progress: 7 phases planned, 14 plans drafted, 2 plans complete (107-01, 107-02)
 
 | Phase | Plan | Tasks | Files | Duration |
 | ----- | ---- | ----- | ----- | -------- |
 | 107   | 01   | 2     | 2     | ~5 min   |
+| 107   | 02   | 1     | 1     | ~3 min   |
+| Phase 108 P01 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Last activity: 2026-04-25 — Plan 107-01 landed: runtime-deps.json deleted, mcp
 - **Phase ordering trades migration grouping for REQ atomicity.** Migrations 012-015 each ship in the same phase as the runtime code that exercises them, so each REQ maps to exactly one phase. Phase 109 lands migration 013 + path canonicalization writes; Phase 110 lands migration 012 + base_path scan/resolution; Phase 111 lands migrations 014 + 015 + their wiring. Cleaner than splitting "all migrations first."
 - **`/arcanon:verify` lives in Phase 112 (after data-shape phases).** The verify command reads scan data + connections.path_template + persisted evidence; depends on data shape stabilizing. Independent of Phase 110 (base_path) and Phase 111 (quality_score) but ordered after for stable test fixtures.
 - Phase 107-01 complete: runtime-deps.json deleted, mcp-wrapper.sh trimmed to 12 lines (INST-01, INST-06)
+- Phase 107-02 complete: install-deps.sh rewritten with sha256 sentinel + binding-load validation + npm rebuild fallback (INST-02..05)
+- Plan 108-01 (THE-1027) complete: --check offline gate is now file-existence based (UPD-01..06)
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ Last activity: 2026-04-25 — Plan 107-01 landed: runtime-deps.json deleted, mcp
 
 ## Session Continuity
 
-Last session: 2026-04-25T12:06:43.188Z
-Stopped at: Completed 107-01-PLAN.md
+Last session: 2026-04-25T12:13:44.689Z
+Stopped at: Completed 108-01-PLAN.md
 Resume file: None

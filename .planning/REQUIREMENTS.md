@@ -15,10 +15,14 @@ Hard-remove `runtime-deps.json`. Single source of truth = `package.json`. Replac
 
 - [x] **INST-01
 **: `plugins/arcanon/runtime-deps.json` deleted from the repo
-- [ ] **INST-02**: `scripts/install-deps.sh` rewritten — sentinel = sha256 of `jq '.dependencies + .optionalDependencies' package.json` (computed from current package.json each run, no separate manifest)
-- [ ] **INST-03**: `install-deps.sh` validates binding load via `node -e "require('better-sqlite3'); new (require('better-sqlite3'))(':memory:').close()"` after install. If validation fails, runs `npm rebuild better-sqlite3` once before giving up.
-- [ ] **INST-04**: `install-deps.sh` early-exits in <100ms when sentinel matches AND binding loads. No `npm install` invocation in the happy-path.
-- [ ] **INST-05**: `install-deps.sh` exits 0 on all paths (non-blocking). Genuine install failure is logged to stderr and surfaced via worker startup, not by failing the SessionStart hook.
+- [x] **INST-02
+**: `scripts/install-deps.sh` rewritten — sentinel = sha256 of `jq '.dependencies + .optionalDependencies' package.json` (computed from current package.json each run, no separate manifest)
+- [x] **INST-03
+**: `install-deps.sh` validates binding load via `node -e "require('better-sqlite3'); new (require('better-sqlite3'))(':memory:').close()"` after install. If validation fails, runs `npm rebuild better-sqlite3` once before giving up.
+- [x] **INST-04
+**: `install-deps.sh` early-exits in <100ms when sentinel matches AND binding loads. No `npm install` invocation in the happy-path.
+- [x] **INST-05
+**: `install-deps.sh` exits 0 on all paths (non-blocking). Genuine install failure is logged to stderr and surfaced via worker startup, not by failing the SessionStart hook.
 - [x] **INST-06
 **: `scripts/mcp-wrapper.sh` reduced to `exec node "${PLUGIN_ROOT}/worker/mcp/server.js"` plus the existing CLAUDE_PLUGIN_ROOT resolution. No self-heal block. No npm install fallback.
 - [ ] **INST-07**: bats test — sentinel matches AND binding loads → install-deps.sh exits in <100ms with no npm process spawned (lsof / process count assertion)
@@ -32,12 +36,18 @@ Hard-remove `runtime-deps.json`. Single source of truth = `package.json`. Replac
 
 Decouple the `/arcanon:update --check` offline-decision from the 5-second `claude plugin marketplace update` refresh outcome. The mirror file is the source of truth; refresh failure is a staleness signal, not an offline signal.
 
-- [ ] **UPD-01**: `scripts/update.sh --check` reads `~/.claude/plugins/marketplaces/arcanon/plugins/arcanon/.claude-plugin/marketplace.json` regardless of whether the background `claude plugin marketplace update arcanon` finished within 5s
-- [ ] **UPD-02**: `update.sh --check` returns `status: "offline"` ONLY when the marketplace mirror file is missing entirely (genuinely fresh install, no mirror dir)
-- [ ] **UPD-03**: `update.sh --check` returns `status: "newer"` when the mirror has a newer version than installed, even if the refresh background process timed out
-- [ ] **UPD-04**: bats test — simulate slow `claude plugin marketplace update` (sleep 10) with mirror file present + remote version ahead of installed → assert `status: "newer"` (not `offline`)
-- [ ] **UPD-05**: bats test — missing mirror dir → `status: "offline"` (regression guard)
-- [ ] **UPD-06**: bats test — mirror present but same version as installed → `status: "equal"` regardless of refresh outcome
+- [x] **UPD-01
+**: `scripts/update.sh --check` reads `~/.claude/plugins/marketplaces/arcanon/plugins/arcanon/.claude-plugin/marketplace.json` regardless of whether the background `claude plugin marketplace update arcanon` finished within 5s
+- [x] **UPD-02
+**: `update.sh --check` returns `status: "offline"` ONLY when the marketplace mirror file is missing entirely (genuinely fresh install, no mirror dir)
+- [x] **UPD-03
+**: `update.sh --check` returns `status: "newer"` when the mirror has a newer version than installed, even if the refresh background process timed out
+- [x] **UPD-04
+**: bats test — simulate slow `claude plugin marketplace update` (sleep 10) with mirror file present + remote version ahead of installed → assert `status: "newer"` (not `offline`)
+- [x] **UPD-05
+**: bats test — missing mirror dir → `status: "offline"` (regression guard)
+- [x] **UPD-06
+**: bats test — mirror present but same version as installed → `status: "equal"` regardless of refresh outcome
 
 ### Scan Trust Hardening (TRUST) — THE-1022
 
@@ -110,10 +120,10 @@ Populated by gsd-roadmapper during ROADMAP.md creation.
 | Requirement | Phase | Status |
 |---|---|---|
 | INST-01 | Phase 107 | Complete (107-01, commit f58488d) |
-| INST-02 | Phase 107 | Pending |
-| INST-03 | Phase 107 | Pending |
-| INST-04 | Phase 107 | Pending |
-| INST-05 | Phase 107 | Pending |
+| INST-02 | Phase 107 | Complete (107-02, commit e7cc02d) |
+| INST-03 | Phase 107 | Complete (107-02, commit e7cc02d) |
+| INST-04 | Phase 107 | Complete (107-02, commit e7cc02d) |
+| INST-05 | Phase 107 | Complete (107-02, commit e7cc02d) |
 | INST-06 | Phase 107 | Complete (107-01, commit 0f1862c) |
 | INST-07 | Phase 107 | Pending |
 | INST-08 | Phase 107 | Pending |
