@@ -40,23 +40,44 @@ import { up as up016 } from '../../../plugins/arcanon/worker/db/migrations/016_e
 /**
  * Apply every migration in order on the given Database. Mirrors the pattern
  * used by http.scan-quality.test.js so the schema is identical to production.
+ *
+ * Also stamps the `schema_versions` tracker so that
+ * worker/db/database.js::runMigrations() — invoked the first time the worker
+ * resolves the project — sees these versions as already-applied and does not
+ * try to re-run them (re-running migration 002 throws "duplicate column name:
+ * type"). Tests that import the helper directly (in-memory) don't need the
+ * stamping but it is harmless.
  */
 export function applyAllMigrations(db) {
-  up001(db);
-  up002(db);
-  up003(db);
-  up004(db);
-  up005(db);
-  up006(db);
-  up007(db);
-  up008(db);
-  up009(db);
-  up010(db);
-  up011(db);
-  up013(db);
-  up014(db);
-  up015(db);
-  up016(db);
+  const versions = [];
+  const wrap = (fn, v) => { fn(db); versions.push(v); };
+  wrap(up001, 1);
+  wrap(up002, 2);
+  wrap(up003, 3);
+  wrap(up004, 4);
+  wrap(up005, 5);
+  wrap(up006, 6);
+  wrap(up007, 7);
+  wrap(up008, 8);
+  wrap(up009, 9);
+  wrap(up010, 10);
+  wrap(up011, 11);
+  wrap(up013, 13);
+  wrap(up014, 14);
+  wrap(up015, 15);
+  wrap(up016, 16);
+
+  // Mirror what runMigrations() in database.js does after each up().
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_versions (
+      version    INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const ins = db.prepare(
+    'INSERT OR IGNORE INTO schema_versions (version) VALUES (?)',
+  );
+  for (const v of versions) ins.run(v);
 }
 
 /**
