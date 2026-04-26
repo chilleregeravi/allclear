@@ -1,0 +1,308 @@
+/**
+ * Scan-version diff engine — Phase 115, Plan 115-01, Task 2 (NAV-04).
+ *
+ * Computes a set-diff of services and connections between two scan-version IDs
+ * across two open `better-sqlite3` Database handles. Returns an
+ * added/removed/modified report keyed by stable cross-scan identities
+ * (`(repo_id, name)` for services, `(source_name, target_name, protocol,
+ * method, path)` for connections).
+ *
+ * Engine-shape contract (load-bearing for Phase 119 shadow-DB reuse — see
+ * 115-RESEARCH.md §8 for the full Phase 119 dependency promise):
+ *
+ *   - Takes two raw `better-sqlite3` Database handles (NOT projectRoot
+ *     strings, NOT pool keys). Phase 115 callers pass the same handle for
+ *     both (`dbA === dbB`); Phase 119 will pass a shadow DB handle on one
+ *     side and the live DB handle on the other. The engine signature does
+ *     not change between the two phases.
+ *
+ *   - Pool-agnostic. Imports nothing from `worker/db/pool.js` or
+ *     `worker/db/database.js`. The defensive grep regression in
+ *     `scan-version-diff.test.js` (test 18) enforces this — it greps for
+ *     `getQueryEngine`, `openDb`, `projectHashDir` and fails the build if
+ *     any appear. Adding any pool import would silently break Phase 119's
+ *     shadow contract; the grep test catches it loudly.
+ *
+ *   - Read-only. Only SELECT statements; no INSERT / UPDATE / DELETE
+ *     anywhere in the module. Test 15 snapshots row counts pre/post diff
+ *     and asserts they're equal — would fail if the engine ever writes.
+ *
+ *   - Caller owns DB lifecycle. Engine never calls `db.close()`. Test 14
+ *     asserts `db.open === true` post-diff.
+ *
+ * Algorithm (per 115-RESEARCH.md §4.2):
+ *
+ *   1. Short-circuit: if `dbA === dbB && scanIdA === scanIdB`, return a
+ *      same_scan=true result with all empty arrays. (Different DBs but the
+ *      same numeric ID does NOT short-circuit — different DBs can have
+ *      different content under the same ID.)
+ *
+ *   2. Load services + connections from both sides via
+ *      `loadServices` / `loadConnections`. Each loader projects the stable
+ *      cross-scan key (service name) into the row, so cross-scan service
+ *      re-IDs (a re-scan inserts new rows with new AUTOINCREMENT IDs) do
+ *      not break diff matching.
+ *
+ *   3. Build JS Maps keyed by `JSON.stringify([...])` for stable string
+ *      keys (no collisions even if names contain `|` or other delimiters).
+ *      In-memory set-diff is preferred over SQL `EXCEPT` because (a) data
+ *      volumes are tiny, (b) it requires no `ATTACH DATABASE` cross-handle
+ *      acrobatics for Phase 119, and (c) the field-diff for `modified` is
+ *      cleaner in JS than as nested SELECTs. See RESEARCH §4.1.
+ *
+ *   4. Walk keys: in B only → added; in A only → removed; in both → run
+ *      field-by-field diff and add to `modified` if any field differs.
+ *      NULL is a real value: NULL → value and value → NULL count as
+ *      changes.
+ *
+ * Field projections (per RESEARCH §2):
+ *
+ *   services key:    (repo_id, name)
+ *   services fields: root_path, language, type, owner, auth_mechanism,
+ *                    db_backend, boundary_entry, base_path
+ *
+ *   connections key:    (source_name, target_name, protocol, method, path)
+ *   connections fields: source_file, target_file, crossing, confidence,
+ *                       evidence, path_template
+ *
+ * The engine does NOT truncate `evidence` (or any other field). Truncation
+ * for human display is the formatter's job (Plan 115-02). Test 17 verifies
+ * 500-char evidence passes through verbatim.
+ */
+
+// ---------------------------------------------------------------------------
+// Field lists (single source of truth — keep in sync with RESEARCH §2)
+// ---------------------------------------------------------------------------
+
+const SERVICE_FIELDS = [
+  "root_path",
+  "language",
+  "type",
+  "owner",
+  "auth_mechanism",
+  "db_backend",
+  "boundary_entry",
+  "base_path",
+];
+
+const CONNECTION_FIELDS = [
+  "source_file",
+  "target_file",
+  "crossing",
+  "confidence",
+  "evidence",
+  "path_template",
+];
+
+// ---------------------------------------------------------------------------
+// Loaders
+// ---------------------------------------------------------------------------
+
+/**
+ * Load all services for a scan, projecting the diff fields.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {number} scanVersionId
+ * @returns {Array<object>} rows with repo_id + name + diff fields
+ */
+export function loadServices(db, scanVersionId) {
+  return db
+    .prepare(
+      `SELECT id, repo_id, name,
+              root_path, language, type,
+              owner, auth_mechanism, db_backend,
+              boundary_entry, base_path
+       FROM services
+       WHERE scan_version_id = ?`
+    )
+    .all(scanVersionId);
+}
+
+/**
+ * Load all connections for a scan, JOINing through services to project the
+ * stable cross-scan key (source_name + target_name).
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {number} scanVersionId
+ * @returns {Array<object>} rows with source_name + target_name + protocol +
+ *   method + path + diff fields
+ */
+export function loadConnections(db, scanVersionId) {
+  return db
+    .prepare(
+      `SELECT
+         src.name AS source_name,
+         tgt.name AS target_name,
+         c.protocol,
+         c.method,
+         c.path,
+         c.source_file,
+         c.target_file,
+         c.crossing,
+         c.confidence,
+         c.evidence,
+         c.path_template
+       FROM connections c
+       JOIN services src ON src.id = c.source_service_id
+       JOIN services tgt ON tgt.id = c.target_service_id
+       WHERE c.scan_version_id = ?`
+    )
+    .all(scanVersionId);
+}
+
+// ---------------------------------------------------------------------------
+// Internal diff helpers
+// ---------------------------------------------------------------------------
+
+function serviceKey(row) {
+  return JSON.stringify([row.repo_id, row.name]);
+}
+
+function connectionKey(row) {
+  return JSON.stringify([
+    row.source_name,
+    row.target_name,
+    row.protocol,
+    row.method ?? "",
+    row.path ?? "",
+  ]);
+}
+
+function buildMap(rows, keyFn) {
+  const m = new Map();
+  for (const r of rows) {
+    m.set(keyFn(r), r);
+  }
+  return m;
+}
+
+function fieldDiff(before, after, fields) {
+  const changed = [];
+  for (const f of fields) {
+    const b = before[f] === undefined ? null : before[f];
+    const a = after[f] === undefined ? null : after[f];
+    if (b !== a) {
+      changed.push({ field: f, before: b, after: a });
+    }
+  }
+  return changed;
+}
+
+function diffSet(mapA, mapB, fields, projectKey) {
+  const added = [];
+  const removed = [];
+  const modified = [];
+
+  for (const [key, rowB] of mapB) {
+    if (!mapA.has(key)) {
+      added.push(rowB);
+    } else {
+      const rowA = mapA.get(key);
+      const changedFields = fieldDiff(rowA, rowB, fields);
+      if (changedFields.length > 0) {
+        modified.push({
+          ...projectKey(rowB),
+          before: rowA,
+          after: rowB,
+          changed_fields: changedFields,
+        });
+      }
+    }
+  }
+  for (const [key, rowA] of mapA) {
+    if (!mapB.has(key)) {
+      removed.push(rowA);
+    }
+  }
+
+  return { added, removed, modified };
+}
+
+function emptyResult(sameScan) {
+  return {
+    same_scan: sameScan,
+    services: { added: [], removed: [], modified: [] },
+    connections: { added: [], removed: [], modified: [] },
+    summary: {
+      services: { added: 0, removed: 0, modified: 0 },
+      connections: { added: 0, removed: 0, modified: 0 },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Diff two scan versions. Returns an added/removed/modified report for
+ * services and connections plus a summary count grid.
+ *
+ * Short-circuits when `dbA === dbB && scanIdA === scanIdB` (same handle,
+ * same id) — returns `same_scan: true` with all-empty arrays. Different DBs
+ * with the same numeric ID do NOT short-circuit (different DBs can have
+ * different content under the same ID).
+ *
+ * @param {import('better-sqlite3').Database} dbA
+ * @param {import('better-sqlite3').Database} dbB
+ * @param {number} scanIdA
+ * @param {number} scanIdB
+ * @returns {{
+ *   same_scan: boolean,
+ *   services: {added: object[], removed: object[], modified: object[]},
+ *   connections: {added: object[], removed: object[], modified: object[]},
+ *   summary: {services: {added:number,removed:number,modified:number}, connections: {added:number,removed:number,modified:number}}
+ * }}
+ */
+export function diffScanVersions(dbA, dbB, scanIdA, scanIdB) {
+  if (dbA === dbB && scanIdA === scanIdB) {
+    return emptyResult(true);
+  }
+
+  const servicesA = loadServices(dbA, scanIdA);
+  const servicesB = loadServices(dbB, scanIdB);
+  const connsA = loadConnections(dbA, scanIdA);
+  const connsB = loadConnections(dbB, scanIdB);
+
+  const servicesMapA = buildMap(servicesA, serviceKey);
+  const servicesMapB = buildMap(servicesB, serviceKey);
+  const connsMapA = buildMap(connsA, connectionKey);
+  const connsMapB = buildMap(connsB, connectionKey);
+
+  const servicesDiff = diffSet(
+    servicesMapA,
+    servicesMapB,
+    SERVICE_FIELDS,
+    (row) => ({ repo_id: row.repo_id, name: row.name })
+  );
+  const connsDiff = diffSet(
+    connsMapA,
+    connsMapB,
+    CONNECTION_FIELDS,
+    (row) => ({
+      source_name: row.source_name,
+      target_name: row.target_name,
+      protocol: row.protocol,
+      method: row.method,
+      path: row.path,
+    })
+  );
+
+  return {
+    same_scan: false,
+    services: servicesDiff,
+    connections: connsDiff,
+    summary: {
+      services: {
+        added: servicesDiff.added.length,
+        removed: servicesDiff.removed.length,
+        modified: servicesDiff.modified.length,
+      },
+      connections: {
+        added: connsDiff.added.length,
+        removed: connsDiff.removed.length,
+        modified: connsDiff.modified.length,
+      },
+    },
+  };
+}

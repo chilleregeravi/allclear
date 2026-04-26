@@ -352,12 +352,14 @@ describe("diffScanVersions — connections", () => {
     const sB = seedScan(db, repoId);
 
     // Inflate the autoincrement before scan B inserts to force re-IDs.
+    // sqlite_sequence is auto-populated on first AUTOINCREMENT insert; we
+    // then UPDATE seq to push the next id forward.
     const apiA = insertService(db, sA, repoId, "api");
     const dbA = insertService(db, sA, repoId, "db");
-    db.prepare(
-      "INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?) " +
-        "ON CONFLICT(name) DO UPDATE SET seq = excluded.seq"
-    ).run("services", 98);
+    db.prepare("UPDATE sqlite_sequence SET seq = ? WHERE name = ?").run(
+      98,
+      "services"
+    );
     const apiB = insertService(db, sB, repoId, "api");
     const dbB = insertService(db, sB, repoId, "db");
 
