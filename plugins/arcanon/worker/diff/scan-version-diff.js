@@ -19,9 +19,9 @@
  *   - Pool-agnostic. Imports nothing from `worker/db/pool.js` or
  *     `worker/db/database.js`. The defensive grep regression in
  *     `scan-version-diff.test.js` (test 18) enforces this — it greps for
- *     `getQueryEngine`, `openDb`, `projectHashDir` and fails the build if
- *     any appear. Adding any pool import would silently break Phase 119's
- *     shadow contract; the grep test catches it loudly.
+ *     the forbidden pool-helper names and fails the build if any appear.
+ *     Adding any pool import would silently break Phase 119's shadow
+ *     contract; the grep test catches it loudly.
  *
  *   - Read-only. Only SELECT statements; no INSERT / UPDATE / DELETE
  *     anywhere in the module. Test 15 snapshots row counts pre/post diff
