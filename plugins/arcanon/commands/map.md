@@ -21,6 +21,8 @@ This command scans linked repositories using Claude agents to discover services,
 ## If `view` flag: Open Graph UI and Exit
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/map.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 worker_running || bash ${CLAUDE_PLUGIN_ROOT}/scripts/worker-start.sh
 PORT=$(cat ~/.arcanon/worker.port)

@@ -16,6 +16,8 @@ Defaults: `--format all`, `--out .arcanon/reports/<timestamp>/`.
 ## Run
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/export.md" && exit 0
 node ${CLAUDE_PLUGIN_ROOT}/worker/cli/export.js $ARGUMENTS
 ```
 

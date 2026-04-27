@@ -8,6 +8,13 @@ argument-hint: "[--drain | --dry-run | --force] [--repo <path>] [--limit N] [--p
 
 Unified reconciliation command. Absorbs the old `/arcanon:upload` verb: the default (no flags) runs upload-then-drain, which is what most users want after finishing a scan.
 
+## Help short-circuit
+
+```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/sync.md" && exit 0
+```
+
 ## Flags
 
 | Flag | Effect |

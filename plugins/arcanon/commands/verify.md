@@ -44,6 +44,8 @@ Verdicts are total — every connection gets exactly one. No `warning` or
 ## Step 1 — Detect worker
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/verify.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 WORKER_UP=$(worker_running && echo "yes" || echo "no")
 ```

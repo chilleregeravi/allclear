@@ -41,6 +41,8 @@ in-flight worker queries. Check 5 writes a single PID-suffixed probe file under
 ## Step 1 — Run the command
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/doctor.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
   exit 0  # silent in non-Arcanon directories

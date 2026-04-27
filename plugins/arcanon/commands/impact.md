@@ -30,6 +30,8 @@ and filters `legacy-repo` out of every impact result.
 ## Step 0 — Detect State (worker + map availability)
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/impact.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 WORKER_UP=$(worker_running && echo "yes" || echo "no")
 ```

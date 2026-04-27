@@ -18,6 +18,8 @@ and verify arrive in plans 98-02 and 98-03.
 Before writing any code, verify:
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/update.md" && exit 0
 claude plugin update --help 2>&1 | grep -i -- '--yes'
 ```
 

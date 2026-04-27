@@ -29,6 +29,8 @@ same UI — this command is a shorter top-level alias for discovery.
 ## Step 1 — Open the UI
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/view.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 worker_running || bash ${CLAUDE_PLUGIN_ROOT}/scripts/worker-start.sh
 PORT=$(cat ~/.arcanon/worker.port)

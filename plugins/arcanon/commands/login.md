@@ -28,6 +28,8 @@ Otherwise use AskUserQuestion to prompt the user:
 Run:
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/login.md" && exit 0
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh login --api-key "<KEY>"
 ```
 

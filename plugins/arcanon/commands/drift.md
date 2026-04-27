@@ -8,6 +8,13 @@ Check cross-repo drift for linked repositories.
 
 Linked repos: !`source "${CLAUDE_PLUGIN_ROOT}/lib/linked-repos.sh" && list_linked_repos "${CLAUDE_PLUGIN_ROOT}"`
 
+## Help short-circuit
+
+```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/drift.md" && exit 0
+```
+
 ## Steps
 
 1. Parse arguments to determine subcommand and flags:

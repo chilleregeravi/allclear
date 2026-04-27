@@ -76,6 +76,8 @@ remain meaningful).
 ## Step 1 — Run the command
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/list.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
   exit 0  # silent in non-Arcanon directories per NAV-01 contract
