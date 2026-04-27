@@ -330,15 +330,59 @@ async function loadLatestFindings(repoPath) {
     dependencies: qe.getDependenciesForService(s.id),
   }));
 
-  const connections = db
-    .prepare(
-      `SELECT s.name AS source, c.target_name AS target, c.protocol, c.method, c.path,
-              c.crossing
-         FROM connections c
-         JOIN services s ON s.id = c.source_service_id
-         WHERE s.repo_id = ?`,
-    )
-    .all(repoRow.id);
+  // INT-01 (Phase 120-01): also project c.evidence, c.confidence, c.source_file
+  // so the new hub.evidence_mode flag has data to operate on. Pre-migration-009
+  // databases lack the evidence/confidence columns; pre-migration-001 still has
+  // source_file (it's in the base schema). On column-missing fall back to the
+  // original SELECT and inject null fields for the missing columns so the
+  // downstream payload code stays uniform.
+  //
+  // Rule 1 fix: the previous SELECT referenced `c.target_name`, but that column
+  // does not exist on the connections table — the canonical pattern (used by
+  // worker/diff/scan-version-diff.js loadConnections) is to LEFT JOIN services
+  // on c.target_service_id and project `tgt.name AS target`. The target FK can
+  // be null for external targets, so the JOIN must be LEFT.
+  let connections;
+  try {
+    connections = db
+      .prepare(
+        `SELECT s.name AS source,
+                tgt.name AS target,
+                c.protocol, c.method, c.path,
+                c.crossing, c.confidence, c.evidence, c.source_file
+           FROM connections c
+           JOIN services s ON s.id = c.source_service_id
+           LEFT JOIN services tgt ON tgt.id = c.target_service_id
+           WHERE s.repo_id = ?`,
+      )
+      .all(repoRow.id);
+  } catch (err) {
+    // SQLite reports column-missing as "no such column: <name>". Fall back to
+    // the legacy SELECT shape (without confidence/evidence/source_file) and
+    // back-fill the new fields as null so payload code can branch uniformly.
+    if (/no such column/i.test(String(err.message))) {
+      const legacy = db
+        .prepare(
+          `SELECT s.name AS source,
+                  tgt.name AS target,
+                  c.protocol, c.method, c.path,
+                  c.crossing
+             FROM connections c
+             JOIN services s ON s.id = c.source_service_id
+             LEFT JOIN services tgt ON tgt.id = c.target_service_id
+             WHERE s.repo_id = ?`,
+        )
+        .all(repoRow.id);
+      connections = legacy.map((row) => ({
+        ...row,
+        confidence: null,
+        evidence: null,
+        source_file: null,
+      }));
+    } else {
+      throw err;
+    }
+  }
 
   return { services, connections, schemas: [], actors: [] };
 }
@@ -349,6 +393,11 @@ async function cmdUpload(flags) {
   const projectSlug =
     flags.project || cfg?.hub?.["project-slug"] || cfg?.["project-name"];
   const libraryDepsEnabled = Boolean(cfg?.hub?.beta_features?.library_deps);
+  // INT-01 (Phase 120-01): hub.evidence_mode controls per-connection evidence
+  // shape and payload version. Default "full" preserves byte-identical legacy
+  // output for every existing user. Unknown values are tolerated downstream
+  // (buildScanPayload warn-and-falls-back) so a typo here can never break uploads.
+  const evidenceMode = cfg?.hub?.evidence_mode || "full";
 
   let findings;
   try {
@@ -365,6 +414,8 @@ async function cmdUpload(flags) {
     apiKey: flags["api-key"],
     hubUrl: flags["hub-url"],
     libraryDepsEnabled,  // HUB-03 feature flag — gates v1.1 emission
+    evidenceMode,        // INT-01 — forwarded to buildScanPayload
+    projectRoot: repoPath, // INT-01 — for line-number derivation in hash-only mode
     log: flags.verbose ? (lvl, msg, data) => console.error(`[${lvl}] ${msg}`, data || "") : undefined,
   });
 
@@ -2220,4 +2271,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 }
 
 // Exported for test access only (_-prefixed = internal helper, not public surface).
-export { _readHubAutoSync, cmdVerify };
+// loadLatestFindings is exported so the INT-01 test can drive the SELECT
+// extension (evidence/confidence/source_file) end-to-end without spawning
+// the CLI subprocess.
+export { _readHubAutoSync, cmdVerify, loadLatestFindings };
