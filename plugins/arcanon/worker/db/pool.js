@@ -232,6 +232,54 @@ export function getQueryEngineByHash(hash) {
 }
 
 /**
+ * Open a fresh QueryEngine pointed at the project's SHADOW database
+ * (impact-map-shadow.db). NEVER enters the pool cache — every call opens
+ * a new handle. Caller MUST close via qe._db.close() when done.
+ *
+ * Used by /arcanon:shadow-scan, /arcanon:diff --shadow, and tests.
+ *
+ * Why uncached (RESEARCH §1, Option B): bypasses openDb()'s process-singleton
+ * problem entirely (live and shadow can never collide because they don't
+ * share a code path), avoids the eviction-on-promote landmine that a cached
+ * shadow QE would create (Plan 119-02 promote rename would orphan a stale
+ * cached fd), and shadow ops are short-lived so caching offers near-zero
+ * benefit. The inline pragma + runMigrations pattern mirrors getQueryEngineByHash.
+ *
+ * Atomic-promote constraint (RESEARCH §3): the shadow DB lives at
+ * `${projectHashDir(root)}/impact-map-shadow.db` — sibling of the live
+ * `impact-map.db`. Same parent dir → same filesystem → fs.rename is atomic
+ * per POSIX. Plan 119-02's promote relies on this placement. Do NOT change
+ * the path without updating that plan.
+ *
+ * @param {string} projectRoot - Absolute path to the project root.
+ * @param {{ create?: boolean }} [opts] - if create=true, mkdir+open even when shadow DB doesn't exist (used by shadow-scan).
+ * @returns {QueryEngine|null} null if shadow DB is absent and create=false.
+ */
+export function getShadowQueryEngine(projectRoot, opts = {}) {
+  if (!projectRoot) return null;
+  const dir = projectHashDir(projectRoot);
+  const shadowPath = path.join(dir, "impact-map-shadow.db");
+  if (!fs.existsSync(shadowPath) && !opts.create) return null;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const db = new Database(shadowPath);
+    db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
+    db.pragma("synchronous = NORMAL");
+    db.pragma("cache_size = -64000");
+    db.pragma("busy_timeout = 5000");
+    runMigrations(db);
+    // Note: NOT cached. Caller is responsible for closing via qe._db.close().
+    return new QueryEngine(db, null);
+  } catch (err) {
+    process.stderr.write(
+      `[db-pool] Failed to open shadow DB for ${projectRoot}: ${err.message}\n`,
+    );
+    return null;
+  }
+}
+
+/**
  * Find a QueryEngine by repo name, searching across all project DBs.
  *
  * 1. First checks the pool cache — if any cached QE has a repos row matching
