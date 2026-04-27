@@ -30,7 +30,7 @@ Four new read-only commands that make the existing data navigable.
 **: `/arcanon:view` — top-level alias for the graph UI. Routes to the same implementation as `/arcanon:map view`. Discoverable without knowing about hidden subcommand.
 
 - [x] **NAV-03
-**: `/arcanon:doctor` — 7 smoke-test diagnostics:
+**: `/arcanon:doctor` — 8 smoke-test diagnostics:
   1. Worker HTTP reachable (`/api/readiness`)
   2. Worker `/api/version` matches installed plugin version
   3. DB schema version matches migration head (currently 16)
