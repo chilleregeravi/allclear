@@ -193,8 +193,10 @@ Three sub-items: offline mode, explicit specs, externals catalog.
  in v0.1.3 (which expected zero hits) to `/arcanon:.*--help` outside `## Help` blocks.
 - [x] **VER-05
 **: Fresh-install integration smoke on Node 25 — `claude plugin install` + first session + `/arcanon:doctor` reports all PASS
-- [ ] **VER-06**: 4 manifest files at version 0.1.4 + lockfile regenerated (mirrors v0.1.3 release pin)
-- [ ] **VER-07**: CHANGELOG `[0.1.4] - 2026-04-XX` section pinned with all 5 subsections (`### Added` for new commands, `### Changed` for status output, `### Fixed` for any bugs caught, `### Deprecated`/`### Removed` if anything trims, plus `### BREAKING` if applicable — `scan_overrides` table is additive, not breaking)
+- [x] **VER-06
+**: 4 manifest files at version 0.1.4 + lockfile regenerated (mirrors v0.1.3 release pin)
+- [x] **VER-07
+**: CHANGELOG `[0.1.4] - 2026-04-XX` section pinned with all 5 subsections (`### Added` for new commands, `### Changed` for status output, `### Fixed` for any bugs caught, `### Deprecated`/`### Removed` if anything trims, plus `### BREAKING` if applicable — `scan_overrides` table is additive, not breaking)
 
 ## Future Requirements (Deferred)
 

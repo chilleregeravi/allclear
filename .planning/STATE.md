@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.1.4
 milestone_name: Operator Surface
-status: executing
-stopped_at: Completed 122-01-PLAN.md
-last_updated: "2026-04-27T07:24:24.974Z"
+status: verifying
+stopped_at: Completed 122-02 — milestone v0.1.4 ready for /gsd-complete-milestone
+last_updated: "2026-04-27T07:34:39.566Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 
 Phase: 122 (Verification Gate + Release Pin) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-27
 
 ## Performance Metrics
@@ -73,6 +73,8 @@ Last activity: 2026-04-27
 - INT-10 bats: append (don't replace) the existing tests/drift-openapi-explicit-spec.bats from Phase 120 — preserves 5 INT-04 negative-path tests
 - Plan 122-01 deviation: substituted plan's pinned --help smoke recipe with substantive lib/help.sh sourcing (hub.sh dispatch only handles a subset of commands)
 - Plan 122-01 Pattern A (install machinery) PASS + Pattern B (doctor smoke deferred) per 113-VERIFICATION.md:26 precedent
+- v0.1.4 [Unreleased] NAV-01..04 re-categorized from ### Changed to [0.1.4] ### Added (new commands, not modifications)
+- Empty CHANGELOG subsections (### Fixed/Removed/BREAKING) omitted per Keep-a-Changelog convention — v0.1.4 is structurally additive
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ None. Awaiting requirements definition + roadmap.
 
 ## Session Continuity
 
-Last session: 2026-04-27T07:24:16.974Z
-Stopped at: Completed 122-01-PLAN.md
+Last session: 2026-04-27T07:34:39.558Z
+Stopped at: Completed 122-02 — milestone v0.1.4 ready for /gsd-complete-milestone
 Resume file: None
