@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - scan_overrides table (migration 017) for staged operator corrections (CORRECT-01).
 - Scan pipeline applies pending scan_overrides between persistFindings and endScan, stamps applied_in_scan_version_id per-override (CORRECT-03).
 - `/arcanon:correct` command stages a scan-overrides row per invocation. Subcommands cover all four (kind × action) combos: `connection --action delete|update`, `service --action rename|set-base-path`. Override is queued (created_by='cli'), not applied — the next `/arcanon:map` or `/arcanon:rescan` consumes it via the Phase 117-02 apply-hook. Silent in non-Arcanon directories. (CORRECT-02, CORRECT-04, CORRECT-06)
+- `/arcanon:rescan <repo>` command re-scans exactly one linked repo, bypassing the incremental change-detection skip. Other repos in the project are not touched. Resolves the repo by path or name with friendly disambiguation on multi-match. Pending `scan_overrides` for the rescanned repo are applied automatically via the Phase 117-02 apply-hook during the rescan. New worker endpoint `POST /api/rescan?project=<root>&repo=<id>` and `scanSingleRepo` wrapper in the scan manager. Silent in non-Arcanon directories. (CORRECT-04, CORRECT-05, CORRECT-07)
 - Every `/arcanon:*` command now responds to `--help` / `-h` / `help` with usage and examples extracted from its own markdown source. New helper `lib/help.sh` is the shared extractor; each command's own `## Help` section is the source of truth. (Phase 116, HELP-01..04)
 
 ### Changed
