@@ -217,3 +217,94 @@ teardown() {
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "scanned never"
 }
+
+# ---------------------------------------------------------------------------
+# Phase 121 Plan 02 — INT-08: /arcanon:list renders actor labels inline.
+# Test 8: human mode shows labeled names in parentheses after the count.
+# Test 9: --json mode includes an `actors` array of {name,label} objects.
+# Test 10: human mode truncates at 5 labels with "+N more" suffix.
+# Test 11: zero actors -> bare "N external" (no parenthetical), JSON empty array.
+# ---------------------------------------------------------------------------
+
+@test "INT-08: list shows labeled actor names inline in human mode" {
+  local hash
+  hash="$(_arcanon_project_hash "$PROJECT_ROOT")"
+  local db_path="$ARC_DATA_DIR/projects/$hash/impact-map.db"
+  bash "$SEED_SH" "$PROJECT_ROOT" "$db_path" --with-labels >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" list
+  [ "$status" -eq 0 ]
+
+  # Actors line carries 4 external + parenthetical label list.
+  echo "$output" | grep -q "Actors:"
+  echo "$output" | grep -q "4 external"
+  # Labels: 2 with friendly names, 2 falling back to raw hostnames.
+  echo "$output" | grep -q "Stripe API"
+  echo "$output" | grep -q "GitHub API"
+  echo "$output" | grep -q "raw1.example.com"
+  echo "$output" | grep -q "raw2.example.com"
+  # Format: parenthetical follows "N external".
+  [[ "$output" =~ Actors:[[:space:]]+4\ external\ \( ]]
+}
+
+@test "INT-08: list --json includes actors array of {name,label}" {
+  local hash
+  hash="$(_arcanon_project_hash "$PROJECT_ROOT")"
+  local db_path="$ARC_DATA_DIR/projects/$hash/impact-map.db"
+  bash "$SEED_SH" "$PROJECT_ROOT" "$db_path" --with-labels >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" list --json
+  [ "$status" -eq 0 ]
+
+  # Existing fields still pass.
+  echo "$output" | jq -e '.actors_count == 4' >/dev/null
+  # New field: actors array with 4 entries; each carries name + label.
+  echo "$output" | jq -e '.actors | type == "array"' >/dev/null
+  echo "$output" | jq -e '.actors | length == 4' >/dev/null
+  echo "$output" | jq -e '.actors[] | has("name") and has("label")' >/dev/null
+  # Stripe is among the labeled ones.
+  echo "$output" | jq -e '[.actors[] | select(.label == "Stripe API")] | length == 1' >/dev/null
+  # Raw actor has label == null (NULL in DB surfaces as JSON null).
+  echo "$output" | jq -e '[.actors[] | select(.label == null)] | length == 2' >/dev/null
+}
+
+@test "INT-08: list truncates at 5 labels with +N more suffix" {
+  local hash
+  hash="$(_arcanon_project_hash "$PROJECT_ROOT")"
+  local db_path="$ARC_DATA_DIR/projects/$hash/impact-map.db"
+  bash "$SEED_SH" "$PROJECT_ROOT" "$db_path" --with-many-labels >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" list
+  [ "$status" -eq 0 ]
+
+  echo "$output" | grep -q "8 external"
+  # First 5 of the 8 are inline; remaining 3 surface as "+3 more".
+  echo "$output" | grep -q "+3 more"
+}
+
+@test "INT-08: zero actors yields bare count with no parenthetical" {
+  local hash
+  hash="$(_arcanon_project_hash "$PROJECT_ROOT")"
+  local db_path="$ARC_DATA_DIR/projects/$hash/impact-map.db"
+  bash "$SEED_SH" "$PROJECT_ROOT" "$db_path" --no-actors >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" list
+  [ "$status" -eq 0 ]
+  # Bare line — no parens after "0 external".
+  [[ "$output" =~ Actors:[[:space:]]+0\ external$ || "$output" =~ Actors:[[:space:]]+0\ external[[:space:]]*$'\n' ]] || \
+    echo "$output" | grep -qE 'Actors:[[:space:]]+0 external([^(]|$)'
+
+  # JSON parity.
+  run bash "$HUB_SH" list --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.actors_count == 0' >/dev/null
+  echo "$output" | jq -e '.actors | length == 0' >/dev/null
+}
