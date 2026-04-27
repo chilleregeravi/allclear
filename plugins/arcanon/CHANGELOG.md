@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- scan_overrides table (migration 017) for staged operator corrections (CORRECT-01).
 - Every `/arcanon:*` command now responds to `--help` / `-h` / `help` with usage and examples extracted from its own markdown source. New helper `lib/help.sh` is the shared extractor; each command's own `## Help` section is the source of truth. (Phase 116, HELP-01..04)
 
 ### Changed
