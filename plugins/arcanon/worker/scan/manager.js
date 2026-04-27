@@ -37,6 +37,7 @@ import { createCodeownersEnricher } from "./codeowners.js";
 import { resolveDataDir } from "../lib/data-dir.js";
 import { resolveConfigPath } from "../lib/config-path.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
+import { applyPendingOverrides } from "./overrides.js";
 import { syncFindings, hasCredentials } from "../hub-sync/index.js";
 
 // Register CODEOWNERS enricher once at module load (OWN-01).
@@ -795,6 +796,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
 
     // 10. Persist findings and close scan bracket — success path only
     queryEngine.persistFindings(r.repoId, r.findings, r.currentHead, r.scanVersionId);
+
+    // 10b. CORRECT-03: apply pending operator overrides BEFORE endScan finalizes.
+    //      Reads scan_overrides WHERE applied_in_scan_version_id IS NULL, applies
+    //      each via direct UPDATE/DELETE on connections/services, stamps the row
+    //      with r.scanVersionId. Idempotent re-apply: already-stamped rows are
+    //      filtered by the SELECT WHERE clause.
+    await applyPendingOverrides(r.scanVersionId, queryEngine, slog);
+
     queryEngine.endScan(r.repoId, r.scanVersionId);
 
     // 10a. Back-fill DB ids onto r.findings.services so the hub auto-sync
