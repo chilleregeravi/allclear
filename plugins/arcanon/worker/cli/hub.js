@@ -1586,6 +1586,124 @@ async function cmdCorrect(flags, positional) {
   );
 }
 
+/**
+ * cmdRescan — Re-scan exactly one repo (CORRECT-04 / CORRECT-05, plan 118-02).
+ *
+ * Posts to the worker's POST /api/rescan endpoint, which forces options.full=true
+ * to bypass the incremental change-detection skip. Other linked repos are not
+ * touched. Phase 117-02's applyPendingOverrides hook fires automatically during
+ * the rescan, consuming any pending scan_overrides rows for this repo.
+ *
+ * Subcommand grammar: `rescan <repo-path-or-name> [--json]`
+ *
+ * Resolution (delegated to worker/lib/repo-resolver.js):
+ *   1. Try as filesystem path (relative resolved against cwd).
+ *   2. Try as repos.name. Multi-match → exit 2 with disambiguation.
+ *
+ * Output:
+ *   human  "Rescanned: <name> (repo_id=<id>, scan_version_id=<id>)"
+ *          "Mode: full (incremental skip bypassed)"
+ *   json   { ok: true, repo_id, repo_path, repo_name, scan_version_id, mode: "full" }
+ *
+ * Exit codes:
+ *   0 — rescan ran; new scan_versions row present
+ *   1 — worker not running, or worker bootstrap incomplete (agentRunner), or scan threw
+ *   2 — usage error: missing arg, repo not found, ambiguous name
+ *
+ * Silent in non-Arcanon directories (no impact-map.db) — exits 0 with no
+ * output, mirroring /arcanon:list, /arcanon:correct, /arcanon:diff.
+ */
+async function cmdRescan(flags, positional) {
+  const cwd = process.cwd();
+  const dbPath = path.join(projectHashDir(cwd), "impact-map.db");
+  if (!fs.existsSync(dbPath)) {
+    process.exit(0); // silent contract
+  }
+
+  // ----- 1. Validate positional repo arg -----
+  const repoArg = positional && positional[0];
+  if (typeof repoArg !== "string" || repoArg.length === 0) {
+    process.stderr.write(
+      "error: /arcanon:rescan requires a repo path or name as the first argument\n" +
+        "usage: arcanon-hub rescan <repo-path-or-name> [--json]\n",
+    );
+    process.exit(2);
+  }
+
+  // ----- 2. Resolve worker port (mirrors cmdVerify pattern at hub.js:452-464) -----
+  let workerPort = 37888;
+  try {
+    const portFile = path.join(resolveDataDir(), "worker.port");
+    const raw = fs.readFileSync(portFile, "utf8").trim();
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed > 0) workerPort = parsed;
+  } catch {
+    if (process.env.ARCANON_WORKER_PORT) {
+      const parsed = Number(process.env.ARCANON_WORKER_PORT);
+      if (Number.isInteger(parsed) && parsed > 0) workerPort = parsed;
+    }
+  }
+
+  // ----- 3. POST /api/rescan -----
+  const params = new URLSearchParams();
+  params.set("project", cwd);
+  params.set("repo", repoArg);
+  const url = `http://127.0.0.1:${workerPort}/api/rescan?${params.toString()}`;
+
+  let response;
+  try {
+    response = await fetch(url, { method: "POST" });
+  } catch (err) {
+    const msg = `worker not running — run /arcanon:status to check, then /arcanon:map to start it (${err.message})`;
+    if (flags.json) {
+      emit({ ok: false, error: msg }, flags);
+    } else {
+      process.stderr.write(`error: ${msg}\n`);
+    }
+    process.exit(1);
+  }
+
+  let body;
+  try {
+    body = await response.json();
+  } catch (err) {
+    process.stderr.write(`error: invalid response from worker: ${err.message}\n`);
+    process.exit(1);
+  }
+
+  // ----- 4. Translate HTTP status to exit code -----
+  if (!response.ok) {
+    const errMsg = body?.error || `HTTP ${response.status}`;
+    // 404 (not found) and 409 (ambiguous name) are user errors → exit 2.
+    // 400 (bad invocation) → exit 2. 503 (bootstrap) → exit 1. Other → exit 1.
+    let exitCode = 1;
+    if (
+      response.status === 404 ||
+      response.status === 409 ||
+      response.status === 400
+    ) {
+      exitCode = 2;
+    }
+    if (flags.json) {
+      emit(
+        { ok: false, error: errMsg, status: response.status, ...(body || {}) },
+        flags,
+      );
+    } else {
+      process.stderr.write(`error: ${errMsg}\n`);
+    }
+    process.exit(exitCode);
+  }
+
+  // ----- 5. Success -----
+  emit(
+    body,
+    flags,
+    `Rescanned: ${body.repo_name} (repo_id=${body.repo_id}, scan_version_id=${body.scan_version_id})\n` +
+      "Mode: full (incremental skip bypassed)",
+  );
+}
+
 const HANDLERS = {
   version: cmdVersion,
   login: cmdLogin,
@@ -1598,6 +1716,7 @@ const HANDLERS = {
   doctor: cmdDoctor, // NAV-03
   diff: cmdDiff,     // NAV-04
   correct: cmdCorrect, // CORRECT-02 stage path (Phase 118-01)
+  rescan: cmdRescan,   // CORRECT-04 / CORRECT-05 (Phase 118-02)
 };
 
 async function main() {
