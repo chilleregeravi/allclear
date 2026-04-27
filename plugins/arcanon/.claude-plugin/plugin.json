@@ -7,7 +7,7 @@
   },
   "homepage": "https://arcanon.dev",
   "repository": "https://github.com/Arcanon-hub/arcanon",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "keywords": [
     "arcanon",
     "service-graph",
