@@ -39,8 +39,8 @@ import { resolveConfigPath } from "../lib/config-path.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
 import { applyPendingOverrides } from "./overrides.js";
 import { syncFindings, hasCredentials } from "../hub-sync/index.js";
-// INT-06 (Phase 121): externals catalog + per-repo actor labeling pass
-import { loadShippedCatalog } from "./enrichment/externals-catalog.js";
+// INT-06/INT-07 (Phase 121): externals catalog + user merge + per-repo actor labeling
+import { loadMergedCatalog } from "./enrichment/externals-catalog.js";
 import { runActorLabeling } from "./enrichment/actor-labeler.js";
 
 // Register CODEOWNERS enricher once at module load (OWN-01).
@@ -624,11 +624,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const scanMode = options.full === true ? 'full' : 'incremental';
   slog('INFO', 'scan BEGIN', { repoCount: repoPaths.length, mode: scanMode });
 
-  // INT-06: Load the shipped externals catalog ONCE per scanRepos invocation.
-  // Cached at module level inside externals-catalog.js, so subsequent scans in
-  // the same worker process re-use the parse. Restart the worker to pick up
-  // catalog edits.
-  const _externalsCatalog = loadShippedCatalog(undefined, _logger);
+  // INT-06/INT-07: Load the merged externals catalog ONCE per scanRepos
+  // invocation. The merge is shipped catalog + user's arcanon.config.json
+  // external_labels (user wins on collision). The shipped YAML file is never
+  // mutated — merge is in-memory only. Worker is per-project so process.cwd()
+  // is the project root for the user-config lookup. The shipped portion is
+  // module-cached; the user portion is re-read each scan so config edits land
+  // on the next /arcanon:map without a worker restart.
+  const _externalsCatalog = loadMergedCatalog(process.cwd(), _logger);
 
   // Load shared prompt components once
   const commonRules = readFileSync(join(__dirname, "agent-prompt-common.md"), "utf8");
