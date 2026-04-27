@@ -194,51 +194,37 @@ Every edit is automatically formatted and linted, every quality check runs with 
 - ✓ Reconciliation audit trail — `enrichment_log` table + `impact_audit_log` MCP tool (9 tools total) (TRUST-06) — v0.1.3
 - ✓ v0.1.3 release gate — bats 315/315, node 630/631 (1 pre-existing carry-forward), 4 manifests at 0.1.3 + lockfile, CHANGELOG `[0.1.3]` pinned (VER-01..07) — v0.1.3
 
+- ✓ `/arcanon:list` (NAV-01) — 5-line project overview; silent in non-Arcanon dirs; `--json` — v0.1.4
+- ✓ `/arcanon:view` (NAV-02) — top-level alias for `/arcanon:map view`; pure markdown command — v0.1.4
+- ✓ `/arcanon:doctor` (NAV-03) — 8-check diagnostics with structured exit codes; `--json` — v0.1.4
+- ✓ `/arcanon:diff <scanA> <scanB>` (NAV-04) — pool-agnostic diff engine; 4 input forms (int IDs, HEAD/HEAD~N, ISO, branch); `--json` — v0.1.4
+- ✓ Universal `--help` system (HELP-01..04) — `lib/help.sh` extractor sourced by every `/arcanon:*` command — v0.1.4
+- ✓ `/arcanon:status` per-repo freshness (FRESH-01..05) — `GET /api/scan-freshness` with per-repo `git rev-list --count` — v0.1.4
+- ✓ `scan_overrides` persistence + apply hook (CORRECT-01..03) — migration 017 + `applyPendingOverrides` injected between `persistFindings` and `endScan` — v0.1.4
+- ✓ `/arcanon:correct` + `/arcanon:rescan` (CORRECT-04..07) — stage + consume; `/rescan` markdown-orchestrated post-correction — v0.1.4
+- ✓ Shadow-DB validate-before-commit workflow (SHADOW-01..04) — `/shadow-scan` + `/diff --shadow` + atomic `/promote-shadow` with WAL sidecars — v0.1.4
+- ✓ Hub envelope v1.2 + offline + explicit-spec drift (INT-01..05) — byte-identity preserved for v1.1 callers via Test M11 — v0.1.4
+- ✓ Externals catalog + user extension + `actors.label` surfacing (INT-06..10) — 20 entries, migration 018, `external_labels` user override — v0.1.4
+- ✓ v0.1.4 release gate (VER-01..07) — bats 448/449, node 774/775, manifests at 0.1.4, lockfile regen, CHANGELOG `[0.1.4]` pinned — v0.1.4
+
 ### Active
 
-## Current Milestone: v0.1.4 Operator Surface
+## Current State
 
-**Goal:** Make Arcanon navigable, correctable, and integratable. Bundles all four remaining Medium-priority backlog tickets (THE-1023..1026) into one milestone with wave-ordered phases (read-only first, write-side later, integration last).
+**Shipped:** v0.1.4 Operator Surface (2026-04-27) — 9 phases, 21 plans, 41 REQs, 117 commits, +33,305/-371 LOC. Architectural correction at release prep eliminated the worker-HTTP-route shape for `/arcanon:rescan` and `/arcanon:shadow-scan` (re-architected as markdown-orchestrated, cloning `/arcanon:map`'s pattern). Zero deferred items at ship.
 
-**Target work (4 categories):**
+**Operator surface today:** 17 `/arcanon:*` slash commands — `map`, `list`, `view`, `doctor`, `diff`, `verify`, `correct`, `rescan`, `shadow-scan`, `diff --shadow`, `promote-shadow`, `drift`, `status`, `sync`, `login`, `update`, `export` — all with universal `--help`. Three live SQLite databases (live `impact-map.db`, shadow `impact-map-shadow.db`, optional `pre-promote-<ts>` backups) under `${ARCANON_DATA_DIR}/projects/<hash>/`. Hub payload v1.0/v1.1/v1.2 envelope state machine; explicit-spec OpenAPI drift; curated externals catalog with user extension.
 
-1. **THE-1023 — Read-only commands** (Medium, 4 sub-items)
-   - `/arcanon:list` — concise project overview (services, repos, connection counts, last-scan dates)
-   - `/arcanon:view` — top-level alias for the graph UI (currently hidden under `/arcanon:map view`)
-   - `/arcanon:doctor` — 7-check smoke-test diagnostics (worker reachable, DB schema version, config resolution, data-dir perms, DB integrity, MCP smoke, hub credentials)
-   - `/arcanon:diff <scanA> <scanB>` — compare any two scan versions (HEAD, HEAD~N, scan IDs, ISO timestamps, branch heuristics)
-
-2. **THE-1024 — Scan operation commands** (Medium, 3 sub-items)
-   - `/arcanon:rescan <repo>` — explicit single-repo entry, bypasses incremental change detection
-   - `/arcanon:correct` — manually fix a known-bad connection without rescanning, persisted to new `scan_overrides` table that the scan pipeline respects on next run
-   - `/arcanon:shadow-scan` — run a new scan without overwriting current; new `impact-map-shadow.db` namespace; `/arcanon:diff --shadow` + `/arcanon:promote-shadow` workflow
-
-3. **THE-1025 — UX polish** (Medium, 2 sub-items)
-   - `--help` system on every command via `## Help` markdown convention + bash detector
-   - `/arcanon:status` extension: scan age (already in SessionStart banner per v0.1.1 SSE) + git-commits-since-scan count (`git log <last_scan_sha>..HEAD` per repo)
-   - **Note:** Item 1's "scan age" was partially shipped via v0.1.1 SessionStart enrichment. Active scope here is the `/arcanon:status` parity + git-commits signal.
-
-4. **THE-1026 — Integration improvements** (Medium, 3 sub-items)
-   - Offline / privacy mode: new `hub.evidence_mode: "full" | "hash-only" | "none"` config flag; `/arcanon:sync --offline` graceful no-op
-   - `/arcanon:drift openapi --spec <path>` — explicit, repeatable, bypasses discovery
-   - `data/known-externals.yaml` ship list (~20 common third parties: Stripe API, Auth0, Dex, OpenTelemetry Collector, S3/Blob storage, GitHub API, Slack webhooks, etc.) + user-extension via `arcanon.config.json` `external_labels`
-
-**Wave structure (within the milestone):**
-- Wave 1: navigability (`/list`, `/view`, `/doctor`, `--help` system, status extension)
-- Wave 2: diff & history (`/diff`)
-- Wave 3: scan-overrides infrastructure (`scan_overrides` table + `/correct` + `/rescan`) — design-sensitive, gets a discuss-phase
-- Wave 4: shadow scan workflow (depends on Wave 3 schema)
-- Wave 5: integration improvements (parallel-safe with Wave 4)
-- Wave 6: verification gate
-
-**Why bundled (vs. v0.1.4 + v0.1.5 split):** All Mediums; all operator-facing surface improvements; total scope (~14-18 plans) matches v0.1.1 / v0.1.2 / v0.1.3 cadence. Wave ordering within the milestone gives the same low-risk-first benefit as splitting milestones, without the extra release ceremony.
-
-**Scope discipline:** No skills/agents work (v0.2.0). No auto-fix from `/arcanon:verify` results (manual `/correct` is enough). No migration tooling for users with hand-corrected DBs.
+**Deferred at v0.1.4 close:** Phase 114 `114-UAT.md` — 7 operator-facing manual scenarios (cold-start, list, view, doctor x4). Recorded in `STATE.md ## Deferred Items`. Not a release blocker — phase 114 automated verification is `passed` (31/31 bats green).
 
 ## Next Milestone Goals
 
-After v0.1.4 ships:
+After v0.1.4 ships, the next milestone is undecided — to be defined via `/gsd-new-milestone`. Pre-existing candidates:
+
 - **v0.2.0 Skills & Agents** — Design the skills layer on top of shipped hooks, refactor inline `Explore` agent calls, add MCP-tool-composing investigator agent. Intentionally deferred since v0.1.1.
+- Platform extensions, observability surface, agent runtime work, or new Linear backlog items not yet captured.
+
+The next `/gsd-new-milestone` cycle (questioning → research → requirements → roadmap) will pick from these or surface new direction.
 
 ## (archived) Milestone: v0.1.3 Trust & Foundations
 
@@ -301,7 +287,7 @@ Architecture: commands/ for user-invoked features, skills/ for auto-invoked know
 Known tech debt: db/database.js has console.log in script-mode guard, getQueryEngineByHash inline migration workaround, renderLibraryConnections() unused `outgoing` parameter, node_metadata table unused (forward-looking for STRIDE/vuln views), impact-flow.bats imports stale module paths (pre-existing from v3.0 restructure), package.json bin entry references non-existent ligamen-init.js, graph-fit-to-screen.test.js has 2 stale assertions for inlined fitToScreen() (Phase 26 regression).
 
 ---
-*Last updated: 2026-04-25 — v0.1.4 started (Operator Surface)*
+*Last updated: 2026-04-27 — v0.1.4 shipped (Operator Surface)*
 
 ## Constraints
 
@@ -375,4 +361,4 @@ Known tech debt: db/database.js has console.log in script-mode guard, getQueryEn
 | Combined plan+execute for phases 102–105 — v0.1.2 | Scope well-understood after Phase 101 discovery; separate planner spawns would have been ceremony. Saved ~4 agent round-trips. | ✓ Good |
 
 ---
-*Last updated: 2026-04-25 — v0.1.4 started (Operator Surface)*
+*Last updated: 2026-04-27 — v0.1.4 shipped (Operator Surface)*

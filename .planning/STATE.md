@@ -85,6 +85,16 @@ None. Awaiting requirements definition + roadmap.
 - macOS HOK-06 hook p99 latency caveat — platform constraint; CI uses threshold=100, not a regression.
 - `commands/update.md:21` `claude plugin update --help` reference is the only `--help` string in commands/. v0.1.4 will introduce real `--help` strings everywhere; verification grep should refine to `/arcanon:.*--help` or whitelist that one host-CLI reference.
 
+## Deferred Items
+
+Items acknowledged and deferred at v0.1.4 milestone close on 2026-04-27:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 114: 114-UAT.md (7 pending operator scenarios — cold-start, list, view, doctor x4) | testing |
+
+These are operator-facing manual scenarios — the automated phase 114 VERIFICATION.md is `passed` (31/31 bats green); the UAT is the operator's own "feels-right" gate, not a release blocker. Run them in a real terminal at your convenience and update `114-UAT.md` results in place.
+
 ## Session Continuity
 
 Last session: 2026-04-27T07:34:39.558Z
