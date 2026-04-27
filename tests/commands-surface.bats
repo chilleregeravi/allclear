@@ -16,7 +16,7 @@ setup() {
   # `view` ships in v0.1.4 (NAV-02), `doctor` ships in v0.1.4 (NAV-03 — Plan
   # 114-03), `correct` ships in v0.1.4 (CORRECT-02 — Plan 118-01), and
   # `rescan` ships in v0.1.4 (CORRECT-04 — Plan 118-02).
-  for cmd in map drift impact sync login status export verify update list view doctor diff correct rescan; do
+  for cmd in map drift impact sync login status export verify update list view doctor diff correct rescan shadow-scan; do
     [ -f "$PLUGIN_DIR/commands/$cmd.md" ] || {
       echo "MISSING: commands/$cmd.md"
       return 1
@@ -25,7 +25,7 @@ setup() {
 }
 
 @test "CLN-09: all surviving commands have description frontmatter" {
-  for cmd in map drift impact sync login status export verify update list view doctor diff correct rescan; do
+  for cmd in map drift impact sync login status export verify update list view doctor diff correct rescan shadow-scan; do
     run grep -c '^description:' "$PLUGIN_DIR/commands/$cmd.md"
     [ "$status" -eq 0 ]
     [ "$output" -ge 1 ]
@@ -168,4 +168,19 @@ setup() {
 
 @test "CORRECT-05: worker/cli/hub.js registers rescan: cmdRescan" {
   grep -q 'rescan: cmdRescan' "$PLUGIN_DIR/worker/cli/hub.js"
+}
+
+# SHADOW-01 (119-01): /arcanon:shadow-scan must declare allowed-tools: Bash and
+# the Node-side handler must be registered in HANDLERS under the hyphenated key.
+@test "SHADOW-01: /arcanon:shadow-scan declares allowed-tools: Bash" {
+  [ -f "$PLUGIN_DIR/commands/shadow-scan.md" ]
+  run grep -E '^description:' "$PLUGIN_DIR/commands/shadow-scan.md"
+  [ "$status" -eq 0 ]
+  run grep -E '^allowed-tools:' "$PLUGIN_DIR/commands/shadow-scan.md"
+  [ "$status" -eq 0 ]
+  grep -q 'Bash' "$PLUGIN_DIR/commands/shadow-scan.md"
+}
+
+@test "SHADOW-01: worker/cli/hub.js registers \"shadow-scan\": cmdShadowScan" {
+  grep -q '"shadow-scan": cmdShadowScan' "$PLUGIN_DIR/worker/cli/hub.js"
 }

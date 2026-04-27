@@ -257,3 +257,129 @@ _latest_migration_version() {
   [[ "$output" == *"\"ver\":${LATEST}"* ]]
   [[ "$output" == *'"hasScanOverrides":true'* ]]
 }
+
+# ===========================================================================
+# Task 2 — POST /scan-shadow + cmdShadowScan + slash command
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Test 7 — HTTP route exists and dispatches scanRepos through the shadow QE.
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 7: POST /scan-shadow returns 200 with results array" {
+  bash "$SEED_SH" "$PROJECT_ROOT" "$LIVE_DB" >/dev/null
+  _start_worker
+
+  # POST /scan-shadow?project=<encoded-root>
+  ENCODED=$(node -e "process.stdout.write(encodeURIComponent('${PROJECT_ROOT}'))")
+  run curl -sS -X POST "http://127.0.0.1:${WORKER_PORT}/scan-shadow?project=${ENCODED}" \
+    -H 'content-type: application/json' -d '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"ok":true'* ]]
+  [[ "$output" == *'"results"'* ]]
+  [[ "$output" == *'"shadow_db_path"'* ]]
+  [[ "$output" == *"impact-map-shadow.db"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Test 8 — Live DB is BYTE-IDENTICAL before/after a shadow scan, AND the
+# shadow DB exists with the scanned data. Anchors the read-only contract
+# for live + the no-hub-upload guard (T-119-01-06).
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 8: shadow scan leaves live impact-map.db byte-identical" {
+  bash "$SEED_SH" "$PROJECT_ROOT" "$LIVE_DB" >/dev/null
+  LIVE_HASH_BEFORE=$(_file_sha256 "$LIVE_DB")
+  [ ! -f "$SHADOW_DB" ]
+
+  _start_worker
+
+  ENCODED=$(node -e "process.stdout.write(encodeURIComponent('${PROJECT_ROOT}'))")
+  run curl -sS -X POST "http://127.0.0.1:${WORKER_PORT}/scan-shadow?project=${ENCODED}" \
+    -H 'content-type: application/json' -d '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"ok":true'* ]]
+
+  # Live byte-identity assertion.
+  LIVE_HASH_AFTER=$(_file_sha256 "$LIVE_DB")
+  [ "$LIVE_HASH_BEFORE" = "$LIVE_HASH_AFTER" ]
+
+  # Shadow DB now exists.
+  [ -f "$SHADOW_DB" ]
+}
+
+# ---------------------------------------------------------------------------
+# Test 9 — cmdShadowScan happy path via the shell wrapper.
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 9: bash hub.sh shadow-scan exits 0, reports completion, creates shadow DB" {
+  bash "$SEED_SH" "$PROJECT_ROOT" "$LIVE_DB" >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" shadow-scan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Shadow scan complete"* ]]
+  [ -f "$SHADOW_DB" ]
+}
+
+# ---------------------------------------------------------------------------
+# Test 10 — Existing shadow DB triggers a one-line warning, then proceeds.
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 10: cmdShadowScan warns when shadow DB already exists, then proceeds" {
+  bash "$SEED_SH" "$PROJECT_ROOT" "$LIVE_DB" >/dev/null
+  bash "$SEED_SH" "$PROJECT_ROOT" "$SHADOW_DB" >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" shadow-scan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Existing shadow DB will be overwritten"* ]]
+  [[ "$output" == *"Shadow scan complete"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Test 11 — Silent in non-Arcanon directory (mirrors NAV-01 / CORRECT-04).
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 11: shadow-scan is silent (exit 0, no output) in non-Arcanon dir" {
+  cd "$PROJECT_ROOT"
+  # No live DB — cmdShadowScan must silent-exit 0.
+  run bash "$HUB_SH" shadow-scan
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+# ---------------------------------------------------------------------------
+# Test 12 — commands-surface regression: shadow-scan.md exists with valid
+# frontmatter and is iterated by tests/commands-surface.bats.
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 12: shadow-scan.md has description + allowed-tools: Bash frontmatter" {
+  [ -f "$PLUGIN_ROOT/commands/shadow-scan.md" ]
+  run grep -E '^description:' "$PLUGIN_ROOT/commands/shadow-scan.md"
+  [ "$status" -eq 0 ]
+  run grep -E '^allowed-tools:' "$PLUGIN_ROOT/commands/shadow-scan.md"
+  [ "$status" -eq 0 ]
+  grep -q 'Bash' "$PLUGIN_ROOT/commands/shadow-scan.md"
+  # Must dispatch through hub.sh shadow-scan.
+  grep -q 'hub.sh shadow-scan' "$PLUGIN_ROOT/commands/shadow-scan.md"
+  # HANDLERS map must register the hyphenated key.
+  grep -q '"shadow-scan": cmdShadowScan' "$PLUGIN_ROOT/worker/cli/hub.js"
+}
+
+# ---------------------------------------------------------------------------
+# Test 13 — --json output: single JSON object with shadow_db_path + results.
+# ---------------------------------------------------------------------------
+@test "Task 2 — Test 13: cmdShadowScan --json emits structured output" {
+  bash "$SEED_SH" "$PROJECT_ROOT" "$LIVE_DB" >/dev/null
+  _start_worker
+
+  cd "$PROJECT_ROOT"
+  run bash "$HUB_SH" shadow-scan --json
+  [ "$status" -eq 0 ]
+  # Must be a single JSON object with the documented fields.
+  echo "$output" | node -e "
+    let s=''; process.stdin.on('data', d => s += d); process.stdin.on('end', () => {
+      const o = JSON.parse(s);
+      if (typeof o.shadow_db_path !== 'string') { console.error('missing shadow_db_path'); process.exit(1); }
+      if (!Array.isArray(o.results)) { console.error('missing results'); process.exit(1); }
+      if (typeof o.reused_existing !== 'boolean') { console.error('missing reused_existing'); process.exit(1); }
+    });
+  "
+}
