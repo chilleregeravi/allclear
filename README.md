@@ -10,7 +10,7 @@
 Arcanon is a Claude Code plugin that discovers services, endpoints, connections, and schemas across all your repositories, then helps you reason about cross-repo impact *before* you merge. The plugin works fully offline; when connected to [Arcanon Hub](https://app.arcanon.dev), findings sync to a cloud service graph that powers org-wide drift detection and impact analysis.
 
 [![CI](https://github.com/Arcanon-hub/arcanon/actions/workflows/ci.yml/badge.svg)](https://github.com/Arcanon-hub/arcanon/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-blue.svg)](./LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
 ---
 
@@ -124,6 +124,6 @@ The plugin is **offline-first**: no network required to scan, query, or map. Hub
 
 ## License
 
-AGPL-3.0-only. See [LICENSE](./LICENSE).
+Apache 2.0. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
 
 Arcanon `0.1.0` was the first release under the current name.

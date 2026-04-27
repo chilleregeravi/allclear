@@ -1,0 +1,14 @@
+Arcanon
+Copyright 2026 Arcanon-hub contributors
+
+This product includes software developed at Arcanon
+(https://github.com/Arcanon-hub/arcanon).
+
+Cross-repo service dependency scanner for Claude Code.
+
+For the Apache 2.0 license terms, see the LICENSE file at the root of this
+repository.
+
+This NOTICE file is required by the Apache License, Version 2.0, Section 4(d).
+Redistributions of the software, whether in source or binary form, must
+include a copy of this NOTICE file alongside the LICENSE.
