@@ -122,12 +122,14 @@ _run_promote() {
   bash "$SEED_SH" "$PROJECT_ROOT" "$SHADOW_DB" >/dev/null
 
   # Mutate shadow so it differs from live (append a row to a freely-writable table).
-  node --input-type=module -e "
+  # Run from PLUGIN_ROOT so the bare `better-sqlite3` import resolves via
+  # plugins/arcanon/node_modules (CI repo-root has no node_modules).
+  ( cd "$PLUGIN_ROOT" && node --input-type=module -e "
     import Database from 'better-sqlite3';
     const db = new Database('${SHADOW_DB}');
     db.prepare(\"INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id) VALUES (1, 'shadow-only-svc', '/', 'js', 'service', 1)\").run();
     db.close();
-  " >/dev/null
+  " ) >/dev/null
 
   LIVE_HASH_BEFORE="$(_file_sha256 "$LIVE_DB")"
   SHADOW_HASH_BEFORE="$(_file_sha256 "$SHADOW_DB")"
@@ -314,12 +316,14 @@ _run_promote() {
   bash "$SEED_SH" "$PROJECT_ROOT" "$SHADOW_DB" >/dev/null
 
   # Insert a marker into shadow so we can prove the post-promote QE sees it.
-  node --input-type=module -e "
+  # Run from PLUGIN_ROOT so the bare `better-sqlite3` import resolves via
+  # plugins/arcanon/node_modules (CI repo-root has no node_modules).
+  ( cd "$PLUGIN_ROOT" && node --input-type=module -e "
     import Database from 'better-sqlite3';
     const db = new Database('${SHADOW_DB}');
     db.prepare(\"INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id) VALUES (1, 'shadow-marker', '/', 'js', 'service', 1)\").run();
     db.close();
-  " >/dev/null
+  " ) >/dev/null
 
   # Run promote via the CLI.
   run _run_promote

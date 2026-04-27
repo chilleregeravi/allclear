@@ -42,7 +42,10 @@ _run_diff_shadow() {
 # Adds 1 service ('shadow-only-svc') and removes 1 ('auth-svc') and modifies
 # the api-svc's language. Connection to the removed service goes too (CASCADE).
 _introduce_shadow_drift() {
-  node --input-type=module -e "
+  # Run from PLUGIN_ROOT so the bare `better-sqlite3` import resolves via
+  # plugins/arcanon/node_modules. Earlier passes worked locally only because
+  # a stray repo-root node_modules shadowed the lookup; CI exposed the bug.
+  ( cd "$PLUGIN_ROOT" && node --input-type=module -e "
     import Database from 'better-sqlite3';
     const db = new Database('${SHADOW_DB}');
     db.pragma('foreign_keys = ON');
@@ -55,7 +58,7 @@ _introduce_shadow_drift() {
     // Add shadow-only-svc
     db.prepare(\"INSERT INTO services (repo_id, name, root_path, language, type, scan_version_id) VALUES (1, 'shadow-only-svc', '/', 'js', 'service', 1)\").run();
     db.close();
-  " >/dev/null
+  " ) >/dev/null
 }
 
 # ---------------------------------------------------------------------------
