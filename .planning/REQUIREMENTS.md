@@ -150,7 +150,8 @@ Three sub-items: offline mode, explicit specs, externals catalog.
 - [x] **INT-04
 **: `/arcanon:drift openapi --spec <path>` — explicit spec path, bypasses `discoverOpenApiSpecs()` discovery. Repeatable: `--spec repoA/spec.yaml --spec repoB/spec.yaml` compares the two.
 
-- [ ] **INT-05**: New file `plugins/arcanon/data/known-externals.yaml` with ~20 common third parties:
+- [x] **INT-05
+**: New file `plugins/arcanon/data/known-externals.yaml` with ~20 common third parties:
   - Stripe API (`api.stripe.com`)
   - Auth0 (`*.auth0.com`)
   - Dex (matches container path patterns)

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.1.4
 milestone_name: Operator Surface
 status: executing
-stopped_at: Completed 120-02-PLAN.md
-last_updated: "2026-04-27T06:21:17.017Z"
+stopped_at: Completed 120-03-PLAN.md
+last_updated: "2026-04-27T06:25:53.286Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 21
-  completed_plans: 15
-  percent: 71
+  completed_plans: 16
+  percent: 76
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 ## Current Position
 
 Phase: 120 (Integration Data Layer) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-27
 
@@ -61,6 +61,7 @@ Last activity: 2026-04-27
 - Active scan-lock guard via filesystem scan + PID liveness check (T-119-02-04) refuses promote during any live scan referencing repos under cwd
 - cmdDiff --shadow reuses Phase 115 diffScanVersions(dbA, dbB, scanIdA, scanIdB) engine via dynamic import - Shape A landed verbatim, no fallback needed
 - INT-02 + INT-04 shipped: --offline short-circuit (Step 0.5, no hub.sh) and --spec repeatable (bypasses find_openapi_spec). Markdown-as-spec testing convention; 10 new bats tests
+- INT-05 ships known-externals.yaml catalog as DATA-ONLY (zero Node code) — Phase 121 owns the consumer/loader/matcher. Glob-style host patterns (not regex), kebab-case names, list shape (not name-keyed map) for diff-friendly ordering.
 
 ### Pending Todos
 
@@ -73,6 +74,6 @@ None. Awaiting requirements definition + roadmap.
 
 ## Session Continuity
 
-Last session: 2026-04-27T06:21:10.713Z
-Stopped at: Completed 120-02-PLAN.md
+Last session: 2026-04-27T06:25:53.275Z
+Stopped at: Completed 120-03-PLAN.md
 Resume file: None
