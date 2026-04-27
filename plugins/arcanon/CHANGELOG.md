@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Every `/arcanon:*` command now responds to `--help` / `-h` / `help` with usage and examples extracted from its own markdown source. New helper `lib/help.sh` is the shared extractor; each command's own `## Help` section is the source of truth. (Phase 116, HELP-01..04)
 - **`/arcanon:list` command** (NAV-01). Concise project overview: linked repos,
   services partitioned by type, connection counts by confidence, external actor
   count, and hub sync status. Read-only via worker HTTP. Silent in non-Arcanon
