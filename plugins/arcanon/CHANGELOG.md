@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `plugins/arcanon/data/known-externals.yaml` — curated catalog of 20 common third-party services (Stripe, Auth0, OTel Collector, S3, GitHub, Slack webhooks, Datadog, Sentry, etc.) spanning api/webhook/observability/storage/auth/infra categories, with glob-style host patterns and/or port lists. Schema is documented in the file header. Phase 120 ships data only — Phase 121 (INT-06..08) consumes the catalog to label external actors in the dependency graph. (INT-05)
 - scan_overrides table (migration 017) for staged operator corrections (CORRECT-01).
 - Scan pipeline applies pending scan_overrides between persistFindings and endScan, stamps applied_in_scan_version_id per-override (CORRECT-03).
 - `/arcanon:correct` command stages a scan-overrides row per invocation. Subcommands cover all four (kind × action) combos: `connection --action delete|update`, `service --action rename|set-base-path`. Override is queued (created_by='cli'), not applied — the next `/arcanon:map` or `/arcanon:rescan` consumes it via the Phase 117-02 apply-hook. Silent in non-Arcanon directories. (CORRECT-02, CORRECT-04, CORRECT-06)
