@@ -44,17 +44,50 @@ Full walkthroughs live in [docs/getting-started.md](./docs/getting-started.md).
 
 ## Commands
 
+Every `/arcanon:*` command supports `--help`, `-h`, or `help`.
+
+**Scanning & graph**
 | Command | What it does |
 | --- | --- |
-| `/arcanon:map` | Scan repos, build or refresh the local service graph. |
-| `/arcanon:drift` | Diff the live scan against the last uploaded hub snapshot. |
-| `/arcanon:impact` | Query cross-repo consumers of a service/endpoint. |
-| `/arcanon:login` | Store your Arcanon Hub API key. |
-| `/arcanon:sync` | Drain the offline upload queue. |
-| `/arcanon:status` | One-line health: worker + hub + queue. |
-| `/arcanon:export` | Emit Mermaid / DOT / self-contained HTML graph from the latest scan. |
+| `/arcanon:map [view\|full]` | Scan repos, build or refresh the local service graph. |
+| `/arcanon:rescan <repo>` | Re-scan exactly one linked repo, bypassing the incremental skip. |
+| `/arcanon:shadow-scan` | Scan into a sandbox shadow DB; live DB is byte-untouched. |
+| `/arcanon:export` | Emit Mermaid / DOT / JSON / self-contained HTML from the latest scan. |
 
-See [docs/commands.md](./docs/commands.md) for the full reference.
+**Read-only navigation**
+| Command | What it does |
+| --- | --- |
+| `/arcanon:list` | 5-line project overview — repos, services, connections, actors, hub. |
+| `/arcanon:view` | Open the graph UI in your browser. |
+| `/arcanon:doctor` | 8-check smoke-test diagnostics with structured exit codes. |
+| `/arcanon:diff <scanA> <scanB>` | Compare two scans (int IDs, `HEAD`/`HEAD~N`, ISO, branches; `--shadow` mode). |
+
+**Corrections & verification**
+| Command | What it does |
+| --- | --- |
+| `/arcanon:correct <kind> --action ...` | Stage a `scan_overrides` row consumed on the next scan. |
+| `/arcanon:verify` | Re-read source at cited line ranges; flag drifted connections. |
+| `/arcanon:promote-shadow` | Atomically swap the shadow DB into live with a timestamped backup. |
+
+**Cross-repo intelligence**
+| Command | What it does |
+| --- | --- |
+| `/arcanon:impact <target>` | Query cross-repo consumers of a service / endpoint / schema. |
+| `/arcanon:drift [graph\|versions\|types\|openapi]` | Detect drift across repos (8 ecosystems for `versions`). |
+
+**Hub sync**
+| Command | What it does |
+| --- | --- |
+| `/arcanon:login` | Store your Arcanon Hub API key. |
+| `/arcanon:sync` | Upload current repo's scan, then drain the offline queue (`--offline`, `--repo`, `--dry-run`, `--force`, `--drain`). |
+| `/arcanon:status` | Worker + hub + queue + per-repo scan freshness (commits-since-scan). |
+
+**Maintenance**
+| Command | What it does |
+| --- | --- |
+| `/arcanon:update` | Version check / worker kill / cache prune / verify. |
+
+See [docs/commands.md](./docs/commands.md) for the full reference (flags, exit codes, examples).
 
 ## Configuration
 

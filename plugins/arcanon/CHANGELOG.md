@@ -6,6 +6,156 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-27
+
+### Added
+
+- **`/arcanon:list` command** (NAV-01). Concise project overview: linked repos,
+  services partitioned by type, connection counts by confidence, external actor
+  count, and hub sync status. Read-only via worker HTTP. Silent in non-Arcanon
+  directories. Supports `--json` for machine consumption.
+- **`/arcanon:view` command** (NAV-02). Top-level slash-command alias for
+  `/arcanon:map view` — opens the graph UI in your default browser. Auto-starts
+  the worker if it is not running. Pure markdown command (no Node-side
+  handler); the existing `/arcanon:map view` keystroke is preserved for
+  back-compat.
+- **`/arcanon:doctor` command** (NAV-03). 8 smoke-test diagnostics with
+  PASS/WARN/FAIL/SKIP per check and structured exit codes (0 = all pass or
+  only non-critical WARN; 1 = critical fail). Critical checks: worker
+  reachable, data dir writable, DB integrity. Non-critical: version match,
+  schema head, config + linked repos, MCP smoke (liveness probe — server
+  starts cleanly without crashing on import), hub credentials. Migration
+  head computed dynamically from filesystem glob (no hard-coded constant).
+  Supports `--json` for machine consumption. Silent in non-Arcanon
+  directories. Read-only — uses an isolated read-only SQLite connection for
+  the integrity check (does not touch the worker's process-cached DB pool).
+- **`/arcanon:diff <scanA> <scanB>` command** (NAV-04). Compare any two scan
+  versions — accepts integer scan IDs, `HEAD`/`HEAD~N` shorthand, ISO 8601
+  timestamps, or branch names (resolves via `repo_state.last_scanned_commit`).
+  Shows services + connections added/removed/modified. Read-only via direct
+  SQLite read; silent in non-Arcanon directories. Supports `--json` for
+  machine consumption. Diff engine factored into `worker/diff/` so Phase
+  119's `/arcanon:diff --shadow` can reuse it. Same-DB diff detects
+  added/removed only (production schema's UNIQUE constraints prevent same
+  row across two scans); true modify-detection requires shadow-DB pattern
+  (Phase 119).
+- **`--help` / `-h` / `help` flag on every `/arcanon:*` command** (HELP-01..04).
+  Usage and examples extracted from each command's own `## Help` section
+  (single source of truth — no separate help text file). New helper
+  `lib/help.sh` is the shared extractor invoked from each command's bash
+  block via `arcanon_print_help_if_requested`. bats test iterates every
+  command + asserts non-empty output and exit 0.
+- **`/api/scan-freshness` worker endpoint** (FRESH-03). Returns per-repo git
+  commits since last scan, computed from `git log <last_scanned_sha>..HEAD
+  --oneline | wc -l` per tracked repo. Mirrors `/api/scan-quality` and
+  `/api/version` patterns; the existing `/api/scan-quality` endpoint is
+  unchanged and remains available for back-compat. (Phase 116, FRESH-01..05)
+- **`scan_overrides` table + apply hook** (CORRECT-01, CORRECT-03). Migration
+  017 adds the table (kind ∈ {connection, service}, action ∈ {delete, update,
+  rename, set-base-path}, payload JSON, applied_in_scan_version_id nullable
+  for staged-vs-applied tracking). Scan pipeline applies pending overrides
+  between `persistFindings` and `endScan`, stamping `applied_in_scan_version_id`
+  per-override; idempotent re-apply.
+- **`/arcanon:correct` command** (CORRECT-02, CORRECT-04, CORRECT-06). Stages
+  a scan-overrides row per invocation. Subcommands cover all four (kind ×
+  action) combos: `connection --action delete|update`, `service --action
+  rename|set-base-path`. Override is queued (created_by='cli'), not applied
+  — the next `/arcanon:map` or `/arcanon:rescan` consumes it via the Phase
+  117-02 apply-hook. Silent in non-Arcanon directories.
+- **`/arcanon:rescan <repo>` command** (CORRECT-04, CORRECT-05, CORRECT-07).
+  Re-scans exactly one linked repo, bypassing the incremental change-detection
+  skip. Other repos in the project are not touched. Resolves the repo by path
+  or name with friendly disambiguation on multi-match (`worker/lib/repo-resolver.js`).
+  Pending `scan_overrides` for the rescanned repo are applied automatically
+  via the Phase 117-02 `applyPendingOverrides` hook between `persistFindings`
+  and `endScan`. **Markdown-orchestrated** — the slash command itself drives
+  the two-phase Claude agent workflow (discovery → deep scan) and persists
+  via `openDb` + `QueryEngine` inline, mirroring `/arcanon:map`'s pattern.
+  No worker HTTP route. Cross-repo reconciliation is preserved by reading
+  the existing `services.name` set from the live DB before downgrading
+  `external` connections to `cross-service`. Silent in non-Arcanon
+  directories.
+- **`/arcanon:shadow-scan` command** (SHADOW-01). Runs a scan into
+  `${ARCANON_DATA_DIR}/projects/<hash>/impact-map-shadow.db`, leaving the live
+  `impact-map.db` byte-untouched. Persistence routes through the new
+  `getShadowQueryEngine` pool helper (always-fresh, never cached — bypasses
+  the `openDb` process-singleton problem). **Markdown-orchestrated** — same
+  agent recipe as `/arcanon:map`, but the persistence step swaps `openDb`
+  for `getShadowQueryEngine`. No worker HTTP route. Shadow data NEVER
+  uploads to the Hub by construction (`/arcanon:sync` reads from the live
+  DB only). The repos to scan are derived from a read-only open of the
+  live `impact-map.db` (no WAL pragma write) so the byte-identity contract
+  on the live file is enforced structurally. Existing shadow DB triggers a
+  one-line warning and is overwritten in place (non-interactive). Silent
+  in non-Arcanon directories.
+- **`/arcanon:diff --shadow` mode** (SHADOW-02). Compares the LATEST completed
+  scan in the live `impact-map.db` against the LATEST completed scan in the
+  `impact-map-shadow.db`. Reuses Phase 115's `diffScanVersions(dbA, dbB,
+  scanIdA, scanIdB)` engine — passing the live DB handle and the shadow DB
+  handle as the two sources (115's engine is pool-agnostic + read-only by
+  contract — see scan-version-diff.js module docs). Both DBs opened READ-ONLY
+  so neither file is mutated. Exits 2 with a friendly error when either DB is
+  missing. Silent in non-Arcanon directories.
+- **`/arcanon:promote-shadow` command** (SHADOW-03). Atomically swaps the
+  shadow impact map over the live one (POSIX `rename(2)` — same filesystem
+  guaranteed by sibling-path placement under `projectHashDir(...)`), backing
+  up the prior live DB to `impact-map.db.pre-promote-<ISO-timestamp>`. WAL
+  sidecars (`-wal`, `-shm`) are renamed alongside the main file in BOTH the
+  backup and promote steps so SQLite never sees a stale log on next open.
+  Cached live `QueryEngine` is evicted from the worker pool BEFORE the rename
+  via the new `evictLiveQueryEngine(projectRoot)` helper (T-119-02-01 —
+  prevents fd-to-renamed-out-inode bug). Active scan-lock check refuses to
+  promote during a live `/arcanon:map` or `/arcanon:rescan` (T-119-02-04).
+  Backups are NEVER auto-deleted — clean up manually. Best-effort rollback on
+  mid-flight rename failure. Silent in non-Arcanon directories.
+- **`plugins/arcanon/data/known-externals.yaml` catalog** (INT-05). Curated
+  catalog of 20 common third-party services (Stripe, Auth0, OTel Collector,
+  S3, GitHub, Slack webhooks, Datadog, Sentry, etc.) spanning
+  api/webhook/observability/storage/auth/infra categories, with glob-style
+  host patterns and/or port lists. Schema is documented in the file header.
+- **Externals catalog enrichment pass** (INT-06). New scan enrichment pass
+  loads `data/known-externals.yaml` and labels actors with friendly names
+  (e.g., `api.stripe.com` becomes "Stripe API", `lambda.us-east-1.amazonaws.com`
+  becomes "AWS Lambda"). Migration 018 adds the `actors.label TEXT NULL`
+  column. `getGraph()` (used by the `/graph` endpoint and graph UI) now
+  includes `actors[].label`, falling back gracefully to `null` on
+  pre-migration-018 databases. The labeling pass runs once per repo after
+  per-service enrichment, is repo-scoped via `actor_connections` JOIN,
+  self-healing (clears stale labels when entries leave the catalog), and
+  failure-isolated (any error logs WARN; the scan continues).
+- **Externals catalog user extension** (INT-07). `arcanon.config.json` now
+  accepts an `external_labels` key with the same shape as the shipped
+  catalog. User entries merge with `data/known-externals.yaml` at scan time;
+  user keys override shipped keys on collision (so a project can rename
+  "Stripe API" to "Stripe (Production)"). The shipped YAML file is never
+  mutated — the merge is in-memory only. Malformed user entries log WARN and
+  are skipped; valid entries still load. Removing a user override reverts to
+  the shipped label on the next scan.
+- **Actor labels in `/arcanon:list`** (INT-08). The `Actors:` line now renders
+  friendly labels inline, e.g., `Actors: 4 external (Stripe API, GitHub API,
+  raw1.example.com, raw2.example.com)`. Inline list is capped at 5 labels
+  with a `+N more` tail for the remainder. JSON mode (`--json`) gains an
+  `actors` array of `{name, label}` objects with `label: null` when the
+  catalog has no match. Zero actors prints the bare `0 external` line with
+  no parenthetical.
+- **Bats coverage for `/arcanon:drift openapi --spec`** (INT-10). End-to-end
+  happy-path test with two real OpenAPI 3.0 fixtures (User.name ->
+  User.full_name rename) validates the explicit-spec entry point shipped in
+  Phase 120. Adds 4 tests to `tests/drift-openapi-explicit-spec.bats` (atop
+  the 5 INT-04 tests from Phase 120), plus a control test that proves the
+  explicit-spec code path is what runs — not a fallback through
+  auto-discovery. Tolerant substring matching covers both the `oasdiff`
+  rich-diff output and the `yq` structural-diff fallback. Fixtures live at
+  `plugins/arcanon/tests/fixtures/externals/openapi-spec-{a,b}.yaml`.
+
+### Changed
+
+- **`/arcanon:status` per-repo freshness reporting** (FRESH-01, FRESH-02,
+  FRESH-04). `/arcanon:status` now reports per-repo git commits since last
+  scan via the new `GET /api/scan-freshness` endpoint. The existing
+  `/api/scan-quality` endpoint is unchanged and remains available for
+  back-compat.
+
 ## [0.1.3] - 2026-04-25
 
 ### BREAKING

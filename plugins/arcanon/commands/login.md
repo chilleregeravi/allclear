@@ -28,6 +28,8 @@ Otherwise use AskUserQuestion to prompt the user:
 Run:
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/login.md" && exit 0
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh login --api-key "<KEY>"
 ```
 
@@ -44,3 +46,18 @@ If `arcanon.config.json` does not have `hub.auto-sync: true`, mention:
 > "Want Arcanon to upload automatically after every `/arcanon:map` scan?
 > Set `hub.auto-sync: true` in `arcanon.config.json`, or run
 > `/arcanon:upload` manually."
+
+## Help
+
+**Usage:** `/arcanon:login [arc_... api key]`
+
+Save your Arcanon Hub API key to `~/.arcanon/config.json` (mode `0600`) so
+other `/arcanon:*` commands can talk to the hub at `https://api.arcanon.dev`.
+
+**Options:**
+- `<api-key>` — positional `arc_...` API key. If omitted, prompts via AskUserQuestion.
+- `--help`, `-h`, `help` — print this help and exit
+
+**Examples:**
+- `/arcanon:login` — interactive prompt; paste the key when asked
+- `/arcanon:login arc_xxxxxxxxxxxx` — non-interactive (replace with your real key)

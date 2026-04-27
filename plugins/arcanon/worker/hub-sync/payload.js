@@ -22,6 +22,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { extractEvidenceLocation } from "./evidence-location.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -33,6 +35,21 @@ export const KNOWN_TOOLS = Object.freeze([
   "cli",
   "unknown",
 ]);
+
+/**
+ * Server-side enum for hub.evidence_mode (Phase 120-01 INT-01).
+ *
+ * - "full"      → connection.evidence emitted as a string when present
+ *                 (current behavior, byte-identical to v1.0/v1.1).
+ * - "hash-only" → connection.evidence replaced by {hash, start_line, end_line}
+ *                 object. Bumps payload.version to "1.2".
+ * - "none"      → connection.evidence omitted entirely. Bumps payload.version
+ *                 to "1.2".
+ *
+ * Default at every entry point is "full" — preserves byte-identical output
+ * for every existing caller and every legacy hub receiver.
+ */
+export const ALLOWED_EVIDENCE_MODES = Object.freeze(["full", "hash-only", "none"]);
 
 /** Raised when a payload cannot be built from the findings. */
 export class PayloadError extends Error {
@@ -81,19 +98,68 @@ export function deriveGitMetadata(repoPath) {
 }
 
 /**
+ * Project a connection's evidence field per `evidenceMode` (INT-01).
+ *
+ * Returns a spread-ready object so the call site stays readable. The HUB-05
+ * byte-identical contract is preserved by short-circuiting on falsy
+ * `c.evidence` — any mode emits the same `{}` (no key) when there's no
+ * snippet to project.
+ *
+ * @param {object} c — connection row (may carry .evidence and .source_file)
+ * @param {"full"|"hash-only"|"none"} evidenceMode
+ * @param {string|null|undefined} projectRoot — used for line derivation in
+ *        hash-only mode; ignored otherwise
+ * @returns {object} — `{}` or `{evidence: ...}`
+ */
+function projectEvidence(c, evidenceMode, projectRoot) {
+  // Common short-circuit — preserves HUB-05 byte-identical contract: when
+  // there's no evidence, no mode emits the field.
+  if (!c.evidence) return {};
+  if (evidenceMode === "none") return {};
+  if (evidenceMode === "hash-only") {
+    const loc = extractEvidenceLocation(
+      c.evidence,
+      c.source_file || null,
+      projectRoot || null,
+    );
+    return {
+      evidence: {
+        hash: loc.hash,
+        start_line: loc.start_line,
+        end_line: loc.end_line,
+      },
+    };
+  }
+  // "full" — preserve byte-identical legacy behavior.
+  return { evidence: c.evidence };
+}
+
+/**
  * Build the `findings` section of ScanPayloadV1 from a plugin scan result.
  *
  * Reconciles `connection.source` to `service.name` — connections that reference
  * services not in the `services` array are dropped with a warning. The hub's
  * Pydantic validator 422s on orphan connections, so we filter proactively.
  *
+ * Schema version derivation (state machine):
+ *   - evidenceMode="full" + libraryDepsEnabled=false                  → "1.0"
+ *   - evidenceMode="full" + libraryDepsEnabled=true, no deps          → "1.0" (HUB-04 fallback)
+ *   - evidenceMode="full" + libraryDepsEnabled=true + populated deps  → "1.1"
+ *   - evidenceMode="hash-only" (regardless of libraryDeps state)      → "1.2"
+ *   - evidenceMode="none"      (regardless of libraryDeps state)      → "1.2"
+ *
  * When `opts.libraryDepsEnabled` is true AND at least one service carries a
- * non-empty `dependencies` array, per-service `dependencies` are emitted and
- * `schemaVersion = "1.1"` is set. Otherwise returns v1.0 shape unchanged.
+ * non-empty `dependencies` array, per-service `dependencies` are emitted.
+ * Otherwise the dependencies key is suppressed (HUB-05 byte-identical
+ * contract).
  *
  * @param {{ services: Array, connections?: Array, schemas?: Array }} findings
- * @param {{ libraryDepsEnabled?: boolean }} [opts]
- * @returns {{ services: Array, connections: Array, schemas: Array, actors: Array, schemaVersion: "1.0"|"1.1", warnings: string[] }}
+ * @param {{
+ *   libraryDepsEnabled?: boolean,
+ *   evidenceMode?: "full"|"hash-only"|"none",
+ *   projectRoot?: string
+ * }} [opts]
+ * @returns {{ services: Array, connections: Array, schemas: Array, actors: Array, schemaVersion: "1.0"|"1.1"|"1.2", warnings: string[] }}
  */
 export function buildFindingsBlock(findings, opts = {}) {
   const services = Array.isArray(findings?.services) ? findings.services : [];
@@ -121,6 +187,23 @@ export function buildFindingsBlock(findings, opts = {}) {
     services.some((s) => Array.isArray(s.dependencies) && s.dependencies.length > 0);
   const schemaVersion = anyServiceHasDeps ? "1.1" : "1.0";
 
+  // Evidence mode (INT-01) — defaults to "full" so every legacy caller stays
+  // byte-identical. Unknown values warn-and-fall-back; never throws (a typo
+  // in arcanon.config.json must not break uploads).
+  const rawMode = opts.evidenceMode;
+  let evidenceMode = "full";
+  if (rawMode != null && rawMode !== "full") {
+    if (ALLOWED_EVIDENCE_MODES.includes(rawMode)) {
+      evidenceMode = rawMode;
+    } else {
+      console.warn(
+        `hub-sync/payload: unknown evidence_mode '${rawMode}', falling back to 'full'`,
+      );
+    }
+  }
+  const finalSchemaVersion =
+    evidenceMode === "hash-only" || evidenceMode === "none" ? "1.2" : schemaVersion;
+
   return {
     services: services.map((s) => ({
       name: s.name,
@@ -145,11 +228,11 @@ export function buildFindingsBlock(findings, opts = {}) {
       ...(c.path ? { path: c.path } : {}),
       ...(c.crossing ? { crossing: c.crossing } : {}),
       ...(c.confidence ? { confidence: c.confidence } : {}),
-      ...(c.evidence ? { evidence: c.evidence } : {}),
+      ...projectEvidence(c, evidenceMode, opts.projectRoot),
     })),
     schemas,
     actors: Array.isArray(findings?.actors) ? findings.actors : [],
-    schemaVersion,
+    schemaVersion: finalSchemaVersion,
     warnings,
   };
 }
@@ -170,6 +253,8 @@ export function buildFindingsBlock(findings, opts = {}) {
  * @param {Date|string} [opts.completedAt] — ISO 8601 timestamp, defaults to now
  * @param {number} [opts.filesScanned]
  * @param {boolean} [opts.libraryDepsEnabled=false] — HUB-03 feature flag; when true AND services carry non-empty `dependencies`, emits v1.1 payload
+ * @param {"full"|"hash-only"|"none"} [opts.evidenceMode] — INT-01 hub.evidence_mode flag; defaults to "full" (byte-identical to legacy). "hash-only" / "none" bump payload.version to "1.2".
+ * @param {string} [opts.projectRoot] — INT-01: absolute root used for evidence line-derivation in hash-only mode. Falls back to `repoPath` when omitted.
  * @returns {{payload: object, warnings: string[]}}
  * @throws {PayloadError} if required fields cannot be derived
  */
@@ -186,7 +271,9 @@ export function buildScanPayload(opts) {
     startedAt,
     completedAt,
     filesScanned,
-    libraryDepsEnabled = false,  // NEW — HUB-03 feature flag passthrough
+    libraryDepsEnabled = false,  // HUB-03 feature flag passthrough
+    evidenceMode,                // INT-01 — handled in buildFindingsBlock (defaults to "full")
+    projectRoot,                 // INT-01 — falls back to repoPath for hash-only line derivation
   } = opts || {};
 
   if (!findings || typeof findings !== "object") {
@@ -213,7 +300,11 @@ export function buildScanPayload(opts) {
     throw new PayloadError("repo_name could not be derived", { field: "repo_name" });
   }
 
-  const findingsBlock = buildFindingsBlock(findings, { libraryDepsEnabled });
+  const findingsBlock = buildFindingsBlock(findings, {
+    libraryDepsEnabled,
+    evidenceMode,
+    projectRoot: projectRoot || repoPath, // INT-01 — line derivation needs an absolute root
+  });
   if (findingsBlock.services.length === 0) {
     throw new PayloadError("findings.services must contain at least one entry", {
       field: "findings.services",

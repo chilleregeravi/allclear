@@ -68,6 +68,39 @@ worker_start_background() {
   return 0
 }
 
+# _arcanon_is_project_dir — silent project-detection probe (NAV-01).
+#
+# Returns 0 when the current working directory is an Arcanon-scanned project
+# (i.e. a populated impact-map.db exists at
+# "${ARCANON_DATA_DIR:-$HOME/.arcanon}/projects/<sha256(cwd)[0:12]>/impact-map.db"),
+# 1 otherwise. Mirrors the canonical hash-and-stat pattern from
+# scripts/session-start.sh:104-117.
+#
+# Contract (NIT 10): returns 0 / 1 ONLY. Does NOT echo the resolved DB path
+# on stdout — keep the helper a pure predicate so callers can chain it inside
+# `if`. A sibling helper can be added later if a callsite needs the path too.
+#
+# Consumers (this plan + future plans):
+#   - commands/list.md (NAV-01)  — silent no-op when not a project dir
+#   - commands/doctor.md (NAV-03, plan 114-03) — same use
+_arcanon_is_project_dir() {
+  local cwd; cwd="$(pwd)"
+  local hasher
+  if command -v shasum >/dev/null 2>&1; then
+    hasher="shasum -a 256"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    hasher="sha256sum"
+  else
+    return 1
+  fi
+  local project_hash
+  project_hash="$(printf '%s' "$cwd" | $hasher 2>/dev/null | awk '{print $1}' | cut -c1-12)"
+  [[ -n "$project_hash" ]] || return 1
+  local data_dir="${ARCANON_DATA_DIR:-$HOME/.arcanon}"
+  local db_path="${data_dir}/projects/${project_hash}/impact-map.db"
+  [[ -f "$db_path" ]]
+}
+
 worker_status_line() {
   local data_dir; data_dir="$(_arcanon_worker_data_dir)"
   local port_file="${data_dir}/worker.port"

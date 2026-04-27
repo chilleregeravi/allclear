@@ -18,6 +18,8 @@ and verify arrive in plans 98-02 and 98-03.
 Before writing any code, verify:
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/update.md" && exit 0
 claude plugin update --help 2>&1 | grep -i -- '--yes'
 ```
 
@@ -164,3 +166,20 @@ Restart Claude Code to activate v{TARGET_VER}
 ```
 
 The restart sentence must appear verbatim (with the `{TARGET_VER}` placeholder replaced). Session restart is required because new commands/hooks in the updated plugin only load at Claude Code startup — this is a hard constraint from the plugin runtime.
+
+## Help
+
+**Usage:** `/arcanon:update [--check-only]`
+
+Check the installed plugin version against the latest on the Arcanon
+marketplace, show a short changelog preview, and (after Phase 98-02 + 98-03
+ship) orchestrate a clean self-update.
+
+**Options:**
+- *(no flags)* — check + (when newer) prompt to update; full apply flow
+- `--check-only` — print the version comparison and exit without prompting
+- `--help`, `-h`, `help` — print this help and exit
+
+**Examples:**
+- `/arcanon:update` — check for a newer release and apply it interactively
+- `/arcanon:update --check-only` — version comparison only, no apply

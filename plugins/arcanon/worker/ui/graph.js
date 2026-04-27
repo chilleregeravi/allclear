@@ -167,7 +167,13 @@ export async function loadProject(hash, canvas) {
     const syntheticId = -actor.id;  // negative to avoid collision with service IDs
     state.graphData.nodes.push({
       id: syntheticId,
-      name: actor.name,
+      // INT-08: render the friendly label on the canvas when present; the raw
+      // actor name (URL/hostname) is preserved on raw_name and on _actorData
+      // for the detail panel + future "show raw URL" toggle. Search filter
+      // (renderer.js) walks node.name, so users searching for "Stripe" find
+      // the labeled Stripe actor.
+      name: actor.label || actor.name,
+      raw_name: actor.name,
       type: 'actor',
       _isActor: true,
       _actorData: actor,  // preserve full actor data for detail panel

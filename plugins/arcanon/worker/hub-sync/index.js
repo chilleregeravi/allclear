@@ -39,6 +39,9 @@ export { queueStats, listAllUploads, pruneDead } from "./queue.js";
  * @param {string} [opts.apiKey] — explicit override; else resolveCredentials()
  * @param {string} [opts.hubUrl]
  * @param {boolean} [opts.enqueueOnFailure=true]
+ * @param {boolean} [opts.libraryDepsEnabled] — HUB-03 feature flag passthrough
+ * @param {"full"|"hash-only"|"none"} [opts.evidenceMode] — INT-01 hub.evidence_mode passthrough
+ * @param {string} [opts.projectRoot] — INT-01 root for hash-only line derivation; defaults to repoPath
  * @param {Function} [opts.log]
  * @returns {Promise<{ ok: boolean, result?: object, error?: Error, enqueuedId?: number, warnings: string[] }>}
  */

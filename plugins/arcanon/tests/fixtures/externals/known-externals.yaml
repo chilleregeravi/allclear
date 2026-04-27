@@ -1,0 +1,23 @@
+version: 1
+entries:
+  stripe:
+    label: "Stripe API"
+    hosts:
+      - "api.stripe.com"
+  auth0:
+    label: "Auth0"
+    hosts:
+      - "*.auth0.com"
+  github:
+    label: "GitHub API"
+    hosts:
+      - "api.github.com"
+  slack:
+    label: "Slack"
+    hosts:
+      - "hooks.slack.com"
+  opentelemetry:
+    label: "OpenTelemetry Collector"
+    ports:
+      - 4317
+      - 4318

@@ -44,6 +44,8 @@ Verdicts are total — every connection gets exactly one. No `warning` or
 ## Step 1 — Detect worker
 
 ```bash
+source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
+arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/verify.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 WORKER_UP=$(worker_running && echo "yes" || echo "no")
 ```
@@ -99,3 +101,24 @@ It does **not**:
 - Trigger a rescan
 
 For corrective action, follow up with `/arcanon:correct` (deferred to v0.1.5).
+
+## Help
+
+**Usage:** `/arcanon:verify [--connection <id> | --source <path>] [--all] [--json]`
+
+Re-read cited source files and confirm the recorded evidence still exists.
+Read-only — never modifies scan data. Returns `ok` / `moved` / `missing` /
+`method_mismatch` per connection.
+
+**Options:**
+- *(no flags)* — verify ALL connections in the latest scan (capped at 1000)
+- `--connection <id>` — verify exactly one connection by integer ID
+- `--source <path>` — verify all connections whose `source_file` matches
+- `--all` — explicit form of the no-flag default
+- `--json` — emit machine-readable JSON instead of the human table
+- `--help`, `-h`, `help` — print this help and exit
+
+**Examples:**
+- `/arcanon:verify` — verify every connection in the latest scan
+- `/arcanon:verify --connection 42 --json` — single connection, machine-readable
+- `/arcanon:verify --source src/api/auth.ts` — scope to a single file

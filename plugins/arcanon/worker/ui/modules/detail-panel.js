@@ -327,7 +327,15 @@ function renderActorDetail(node) {
   if (!actor) return '<div class="detail-value" style="color: var(--color-text-muted)">No actor data</div>';
   const typeColor = getNodeColor(node);
 
-  let html = `<h3>${escapeHtml(actor.name)}</h3>`;
+  // INT-08: heading is the friendly label when populated; the raw URL/host
+  // is shown as a small subtitle so operators can audit the label-to-URL
+  // mapping. When label is null OR identical to the raw name, no subtitle
+  // is rendered (the original NAV-01 behavior is preserved).
+  const displayName = actor.label || actor.name;
+  let html = `<h3>${escapeHtml(displayName)}</h3>`;
+  if (actor.label && actor.label !== actor.name) {
+    html += `<div class="detail-subtle" style="color: var(--color-text-muted); font-size: 0.85em; margin-top: -4px; margin-bottom: 8px;">${escapeHtml(actor.name)}</div>`;
+  }
 
   html += `<div class="detail-section">
     <div class="detail-label">Type</div>

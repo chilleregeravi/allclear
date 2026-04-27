@@ -6,6 +6,8 @@ import fs from "node:fs";
 import { fileURLToPath } from "url";
 import { listProjects, getQueryEngineByHash } from "../db/pool.js";
 import { resolveConfigPath } from "../lib/config-path.js";
+import { getCommitsSince } from "../scan/git-state.js";
+import { extractEvidenceLocation } from "../hub-sync/evidence-location.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -87,21 +89,24 @@ function computeVerdict(conn, projectRoot) {
     };
   }
 
-  // 5. Search for literal evidence substring anywhere in the file.
-  const matchIdx = content.indexOf(evidence);
-  if (matchIdx === -1) {
+  // 5/6. Delegate hash + line-range derivation to the shared helper
+  //      (single source of truth for evidence-line semantics — Phase 120-01
+  //      INT-01). The helper does its own file-read; we accept the small
+  //      redundancy (one extra readFileSync per verify call) in exchange for
+  //      keeping the moved-vs-missing distinction the verify command needs:
+  //      the helper conflates "file unreadable" and "snippet not in file"
+  //      as evidence_present=false, so we keep the existsSync/readFileSync
+  //      blocks above to surface the moved verdict separately.
+  const loc = extractEvidenceLocation(evidence, conn.source_file, projectRoot);
+  if (!loc.evidence_present) {
     return {
       ...base,
       verdict: "missing",
       message: "evidence snippet not found in file",
     };
   }
-
-  // 6. Found — compute 1-indexed line_start by counting newlines before
-  //    the match index, line_end by adding newlines inside the snippet.
-  const lineStart = (content.slice(0, matchIdx).match(/\n/g) || []).length + 1;
-  const newlinesInSnippet = (evidence.match(/\n/g) || []).length;
-  const lineEnd = lineStart + newlinesInSnippet;
+  const lineStart = loc.start_line;
+  const lineEnd = loc.end_line;
   const truncatedSnippet =
     evidence.length > 80 ? evidence.slice(0, 80) + "…" : evidence;
 
@@ -283,6 +288,98 @@ async function createHttpServer(queryEngine, options = {}) {
     } catch (err) {
       httpLog("ERROR", err.message, {
         route: "/api/scan-quality",
+        stack: err.stack,
+      });
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  /**
+   * 1d. GET /api/scan-freshness — Latest scan freshness signal (FRESH-03).
+   *
+   * Strict superset of /api/scan-quality. Used by /arcanon:status to surface
+   *   "Latest scan: <date> (NN% high-confidence)"
+   *   "N repos have new commits since last scan: <name> (M new), ..."
+   *
+   * The /api/scan-quality route stays unchanged for back-compat (v0.1.3 → v0.1.4
+   * audit pre-flight constraint).
+   *
+   * Status codes:
+   *   200 — body matches the documented shape
+   *   404 — { error: "project_not_found" } when ?project= is set but resolver returned null
+   *   503 — { error: "no_scan_data" } when no completed scan exists
+   *   500 — { error: <message> } on uncaught exception
+   *
+   * Response 200 shape (FRESH-03):
+   *   {
+   *     last_scan_iso: string,            // ISO-8601 UTC of MAX(completed_at)
+   *     last_scan_age_seconds: number,    // (Date.now() - parse(last_scan_iso)) / 1000
+   *     scan_quality_pct: number | null,  // round(quality_score * 100); null if no quality data
+   *     repos: Array<{
+   *       name: string,
+   *       path: string,
+   *       last_scanned_sha: string | null,
+   *       new_commits: number | null,     // null when can't be determined (see git-state.js)
+   *     }>
+   *   }
+   */
+  fastify.get("/api/scan-freshness", async (request, reply) => {
+    const project = request.query?.project;
+    const qe = getQE(request);
+    if (!qe) {
+      if (project) return reply.code(404).send({ error: "project_not_found" });
+      return reply.code(503).send({ error: "no_scan_data" });
+    }
+    try {
+      const latest = qe._db
+        .prepare(
+          `SELECT id, completed_at FROM scan_versions
+            WHERE completed_at IS NOT NULL
+            ORDER BY completed_at DESC, id DESC
+            LIMIT 1`,
+        )
+        .get();
+      if (!latest) {
+        return reply.code(503).send({ error: "no_scan_data" });
+      }
+      const breakdown = qe.getScanQualityBreakdown(latest.id);
+      const qualityPct = breakdown && breakdown.quality_score !== null && breakdown.quality_score !== undefined
+        ? Math.round(breakdown.quality_score * 100)
+        : null;
+
+      // Compute age. completed_at is stored as 'YYYY-MM-DD HH:MM:SS' in UTC by
+      // SQLite's datetime('now') — append 'Z' to make it ISO-8601 explicit.
+      const completedIso = latest.completed_at.includes("T")
+        ? latest.completed_at
+        : latest.completed_at.replace(" ", "T") + "Z";
+      const ageSeconds = Math.max(0, Math.floor((Date.now() - Date.parse(completedIso)) / 1000));
+
+      // Per-repo: name, path, last_scanned_commit (from repo_state), new_commits via git.
+      const repoRows = qe._db
+        .prepare(
+          `SELECT r.name AS name, r.path AS path, rs.last_scanned_commit AS sha
+             FROM repos r
+             LEFT JOIN repo_state rs ON rs.repo_id = r.id
+             ORDER BY r.id ASC`,
+        )
+        .all();
+
+      const repos = repoRows.map((row) => ({
+        name: row.name,
+        path: row.path,
+        last_scanned_sha: row.sha || null,
+        new_commits: getCommitsSince(row.path, row.sha),
+      }));
+
+      return reply.send({
+        last_scan_iso: completedIso,
+        last_scan_age_seconds: ageSeconds,
+        scan_quality_pct: qualityPct,
+        repos,
+      });
+    } catch (err) {
+      httpLog("ERROR", err.message, {
+        route: "/api/scan-freshness",
         stack: err.stack,
       });
       return reply.code(500).send({ error: err.message });

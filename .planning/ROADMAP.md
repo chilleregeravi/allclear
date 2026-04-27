@@ -23,6 +23,7 @@
 - ✅ **v0.1.1 Command Cleanup + Update + Ambient Hooks** — Phases 97-100 (shipped 2026-04-21)
 - ✅ **v0.1.2 Ligamen Residue Purge** — Phases 101-105 (shipped 2026-04-23)
 - ✅ **v0.1.3 Trust & Foundations** — Phases 107-113 (shipped 2026-04-25)
+- ✅ **v0.1.4 Operator Surface** — Phases 114-122 (shipped 2026-04-27)
 
 ## Phases
 
@@ -212,6 +213,15 @@ Full details: `.planning/milestones/v0.1.2-ROADMAP.md`
 - [x] Phase 107-113: 7 phases, 14 plans — install architecture cleanup (drop runtime-deps.json, sha256 sentinel + binding-load validation, simplified mcp-wrapper.sh), `/arcanon:update --check` timeout decoupled, `/arcanon:upload` deprecated stub removed, scan trust hardening (path canonicalization, evidence-at-ingest, services.base_path, scan_versions.quality_score, enrichment_log + impact_audit_log MCP tool, new `/arcanon:verify` command)
 
 Full details: `.planning/milestones/v0.1.3-ROADMAP.md`
+
+</details>
+
+<details>
+<summary>✅ v0.1.4 Operator Surface (Phases 114-122) — SHIPPED 2026-04-27</summary>
+
+- [x] Phase 114-122: 9 phases, 21 plans — 9 new operator slash commands (`/list`, `/view`, `/doctor`, `/diff`, `/correct`, `/rescan`, `/shadow-scan`, `/promote-shadow`, `/diff --shadow`); universal `--help` system via `lib/help.sh`; per-repo git-commits-since-scan freshness via new `GET /api/scan-freshness`; scan-corrections workflow (`scan_overrides` table mig 017, `applyPendingOverrides` apply-hook); validate-before-commit shadow-DB pattern (atomic POSIX rename with WAL sidecars); hub payload v1.2 envelope (byte-identical for v1.1 callers via Test M11); offline + explicit-spec drift; `known-externals.yaml` curated catalog with user `external_labels` extension and `actors.label` migration 018. Architectural correction at release prep: `/arcanon:rescan` and `/arcanon:shadow-scan` re-shaped from worker-HTTP to markdown-orchestrated (cloning `/arcanon:map`'s pattern), eliminating production agent-runner gap. Zero deferred items at ship.
+
+Full details: `.planning/milestones/v0.1.4-ROADMAP.md`
 
 </details>
 
@@ -718,3 +728,12 @@ Plans:
 | 111 | v0.1.3 | 3/3 | Complete | 2026-04-25 |
 | 112 | v0.1.3 | 2/2 | Complete | 2026-04-25 |
 | 113 | v0.1.3 | 1/1 | Complete | 2026-04-25 |
+| 114 | v0.1.4 | 0/? | Pending | — |
+| 115 | v0.1.4 | 0/? | Pending | — |
+| 116 | v0.1.4 | 0/? | Pending | — |
+| 117 | v0.1.4 | 0/? | Pending (discuss-phase) | — |
+| 118 | v0.1.4 | 0/? | Pending | — |
+| 119 | v0.1.4 | 0/? | Pending | — |
+| 120 | v0.1.4 | 0/? | Pending | — |
+| 121 | v0.1.4 | 2/3 | In Progress | 2026-04-25 |
+| 122 | v0.1.4 | 0/? | Pending | — |

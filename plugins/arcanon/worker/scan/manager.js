@@ -37,7 +37,11 @@ import { createCodeownersEnricher } from "./codeowners.js";
 import { resolveDataDir } from "../lib/data-dir.js";
 import { resolveConfigPath } from "../lib/config-path.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
+import { applyPendingOverrides } from "./overrides.js";
 import { syncFindings, hasCredentials } from "../hub-sync/index.js";
+// INT-06/INT-07 (Phase 121): externals catalog + user merge + per-repo actor labeling
+import { loadMergedCatalog } from "./enrichment/externals-catalog.js";
+import { runActorLabeling } from "./enrichment/actor-labeler.js";
 
 // Register CODEOWNERS enricher once at module load (OWN-01).
 // Module-level registration runs before the first scan.
@@ -620,6 +624,15 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const scanMode = options.full === true ? 'full' : 'incremental';
   slog('INFO', 'scan BEGIN', { repoCount: repoPaths.length, mode: scanMode });
 
+  // INT-06/INT-07: Load the merged externals catalog ONCE per scanRepos
+  // invocation. The merge is shipped catalog + user's arcanon.config.json
+  // external_labels (user wins on collision). The shipped YAML file is never
+  // mutated — merge is in-memory only. Worker is per-project so process.cwd()
+  // is the project root for the user-config lookup. The shipped portion is
+  // module-cached; the user portion is re-read each scan so config edits land
+  // on the next /arcanon:map without a worker restart.
+  const _externalsCatalog = loadMergedCatalog(process.cwd(), _logger);
+
   // Load shared prompt components once
   const commonRules = readFileSync(join(__dirname, "agent-prompt-common.md"), "utf8");
   const schemaJson = readFileSync(join(__dirname, "agent-schema.json"), "utf8");
@@ -795,6 +808,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
 
     // 10. Persist findings and close scan bracket — success path only
     queryEngine.persistFindings(r.repoId, r.findings, r.currentHead, r.scanVersionId);
+
+    // 10b. CORRECT-03: apply pending operator overrides BEFORE endScan finalizes.
+    //      Reads scan_overrides WHERE applied_in_scan_version_id IS NULL, applies
+    //      each via direct UPDATE/DELETE on connections/services, stamps the row
+    //      with r.scanVersionId. Idempotent re-apply: already-stamped rows are
+    //      filtered by the SELECT WHERE clause.
+    await applyPendingOverrides(r.scanVersionId, queryEngine, slog);
+
     queryEngine.endScan(r.repoId, r.scanVersionId);
 
     // 10a. Back-fill DB ids onto r.findings.services so the hub auto-sync
@@ -862,6 +883,31 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
           });
         }
       }
+      // INT-06 (Phase 121): per-repo actor labeling pass.
+      // Runs after the per-service enrichment loop (so any future per-service
+      // enrichers that touch actors have already done so) and BEFORE the
+      // 'enrichment done' log line so the labels are observable as part of
+      // the same scan completion. Defense-in-depth try/catch — actor-labeler
+      // already swallows its own errors.
+      try {
+        const { matched, considered } = await runActorLabeling(
+          r.repoId,
+          queryEngine._db,
+          _logger,
+          _externalsCatalog,
+        );
+        slog('INFO', 'actor-labeling done', {
+          repoPath: r.repoPath,
+          matched,
+          considered,
+        });
+      } catch (err) {
+        slog('WARN', 'actor-labeling pass error', {
+          repoPath: r.repoPath,
+          error: err.message,
+        });
+      }
+
       // SCAN-02: Log enrichment done with number of services enriched
       slog('INFO', 'enrichment done', { repoPath: r.repoPath, enricherCount: services.length });
       // DEP-06: Log dep-scan coverage — ecosystems_scanned makes gaps visible
@@ -879,8 +925,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     results.push({ repoPath: r.repoPath, mode: r.mode, findings: r.findings });
   }
 
+  // SHADOW-01 (T-119-01-06): callers using a shadow QE set
+  // options.skipHubSync=true to suppress upload of synthetic shadow data.
+  // Default behaviour for live scans (no flag) is unchanged.
   // HUB-01: Optional Arcanon Hub sync — opt-in via ARCANON_API_KEY or config.hub.auto-sync.
   // Runs per-repo, fire-and-log — a hub failure never fails the scan.
+  if (options.skipHubSync) {
+    slog('INFO', 'hub auto-sync skipped — caller requested skipHubSync (shadow scan)');
+  } else {
   try {
     const { hubAutoSync, hubUrl, projectSlug, libraryDepsEnabled } = _readHubConfig();
     // Credential check spans env vars AND ~/.arcanon/config.json so that
@@ -944,6 +996,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   } catch (err) {
     slog('WARN', 'hub sync skipped', { error: err.message });
   }
+  } // end else (options.skipHubSync) — SHADOW-01
 
   // SCAN-01: Emit END event with totals and wall-clock duration
   const totalServices = results.reduce((n, r) => n + (Array.isArray(r.findings?.services) ? r.findings.services.length : 0), 0);

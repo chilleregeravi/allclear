@@ -1,0 +1,153 @@
+# known-externals.yaml — catalog of common third-party hosts and services
+# that frequently appear as actors in service dependency graphs.
+#
+# Schema (Phase 120 — INT-05; consumed by Phase 121 — INT-06..08):
+#
+#   externals: list of catalog entries
+#     - name: kebab-case unique identifier (used as dictionary key by consumers)
+#       label: human-friendly display name shown in UI / /arcanon:list output
+#       category: one of [api, webhook, observability, storage, auth, infra]
+#       hosts: optional list of glob-style hostname patterns (e.g. "*.auth0.com",
+#              "api.stripe.com"). NOT regex — glob: "*" matches one DNS label
+#              ("*.foo.com" matches "a.foo.com" but not "a.b.foo.com").
+#       ports: optional list of integer port numbers, for non-HTTP services
+#              (e.g. OpenTelemetry Collector's 4317/4318 gRPC/HTTP).
+#       evidence_url: optional documentation URL for the entry, surfaced in UI
+#                     as a link from the labeled actor.
+#
+# At least one of `hosts` or `ports` is required per entry — entries without
+# any match signal cannot be matched and are useless to consumers.
+#
+# User extension: arcanon.config.json may carry an `external_labels` key with
+# the same shape; user entries are MERGED with this catalog and take precedence
+# on `name` collision (Phase 121 INT-07).
+#
+# Adding entries: keep alphabetical-by-name within category as a soft preference.
+# When adding, update the entry count threshold in tests/known-externals-yaml.bats
+# if you want a strict floor.
+externals:
+  # ── api ────────────────────────────────────────────────────────────────
+  - name: github
+    label: GitHub API
+    category: api
+    hosts: ["api.github.com"]
+    evidence_url: https://docs.github.com/en/rest
+
+  - name: mailgun
+    label: Mailgun
+    category: api
+    hosts: ["api.mailgun.net", "api.eu.mailgun.net"]
+    evidence_url: https://documentation.mailgun.com/en/latest/api_reference.html
+
+  - name: pagerduty
+    label: PagerDuty
+    category: api
+    hosts: ["api.pagerduty.com", "events.pagerduty.com"]
+    evidence_url: https://developer.pagerduty.com/api-reference/
+
+  - name: sendgrid
+    label: SendGrid
+    category: api
+    hosts: ["api.sendgrid.com"]
+    evidence_url: https://docs.sendgrid.com/api-reference
+
+  - name: stripe
+    label: Stripe API
+    category: api
+    hosts: ["api.stripe.com"]
+    evidence_url: https://stripe.com/docs/api
+
+  - name: twilio
+    label: Twilio
+    category: api
+    hosts: ["api.twilio.com"]
+    evidence_url: https://www.twilio.com/docs/usage/api
+
+  # ── auth ───────────────────────────────────────────────────────────────
+  - name: auth0
+    label: Auth0
+    category: auth
+    hosts: ["*.auth0.com"]
+    evidence_url: https://auth0.com/docs/api
+
+  - name: dex
+    label: Dex Identity Provider
+    category: auth
+    ports: [5556, 5557]
+    evidence_url: https://dexidp.io/docs/
+
+  - name: okta
+    label: Okta
+    category: auth
+    hosts: ["*.okta.com", "*.oktapreview.com"]
+    evidence_url: https://developer.okta.com/docs/reference/
+
+  # ── infra ──────────────────────────────────────────────────────────────
+  - name: aws-lambda
+    label: AWS Lambda
+    category: infra
+    hosts: ["lambda.*.amazonaws.com"]
+    evidence_url: https://docs.aws.amazon.com/lambda/
+
+  - name: cloudflare
+    label: Cloudflare
+    category: infra
+    hosts: ["api.cloudflare.com"]
+    evidence_url: https://developers.cloudflare.com/api/
+
+  # ── observability ──────────────────────────────────────────────────────
+  - name: datadog
+    label: Datadog
+    category: observability
+    hosts: ["*.datadoghq.com", "*.datadoghq.eu"]
+    evidence_url: https://docs.datadoghq.com/api/
+
+  - name: mixpanel
+    label: Mixpanel
+    category: observability
+    hosts: ["api.mixpanel.com"]
+    evidence_url: https://developer.mixpanel.com/reference/overview
+
+  - name: otel-collector
+    label: OpenTelemetry Collector
+    category: observability
+    ports: [4317, 4318]
+    evidence_url: https://opentelemetry.io/docs/collector/
+
+  - name: segment
+    label: Segment
+    category: observability
+    hosts: ["api.segment.io", "cdn.segment.com"]
+    evidence_url: https://segment.com/docs/connections/sources/
+
+  - name: sentry
+    label: Sentry
+    category: observability
+    hosts: ["sentry.io", "*.ingest.sentry.io"]
+    evidence_url: https://docs.sentry.io/api/
+
+  # ── storage ────────────────────────────────────────────────────────────
+  - name: azure-blob
+    label: Azure Blob Storage
+    category: storage
+    hosts: ["*.blob.core.windows.net"]
+    evidence_url: https://learn.microsoft.com/en-us/rest/api/storageservices/blob-service-rest-api
+
+  - name: gcs
+    label: Google Cloud Storage
+    category: storage
+    hosts: ["storage.googleapis.com", "*.storage.googleapis.com"]
+    evidence_url: https://cloud.google.com/storage/docs/json_api
+
+  - name: s3
+    label: AWS S3
+    category: storage
+    hosts: ["*.s3.amazonaws.com", "s3.*.amazonaws.com"]
+    evidence_url: https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html
+
+  # ── webhook ────────────────────────────────────────────────────────────
+  - name: slack-webhooks
+    label: Slack Webhooks
+    category: webhook
+    hosts: ["hooks.slack.com"]
+    evidence_url: https://api.slack.com/messaging/webhooks

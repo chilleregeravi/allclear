@@ -1,0 +1,7 @@
+version: 1
+entries:
+  no_label:
+    hosts: ["foo.example.com"]
+  valid:
+    label: "Valid Entry"
+    hosts: ["valid.example.com"]
