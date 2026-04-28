@@ -745,7 +745,8 @@ Plans:
   3. `resolveCredentials(opts)` returns `{ apiKey, hubUrl, orgId, source }` honoring the precedence `opts.orgId` → `ARCANON_ORG_ID` → `~/.arcanon/config.json#default_org_id`; missing org id throws an `AuthError` whose message names all three sources and recommends `/arcanon:login --org-id <uuid>`
   4. Re-running `storeCredentials(apiKey, {hubUrl, defaultOrgId})` on an existing config preserves any unrelated keys via spread-merge; mode-0600 file permission preserved
   5. Setting `hub.org_id` in a per-repo `arcanon.config.json` causes that repo's scan upload to send the override even when `ARCANON_ORG_ID` is set globally — per-repo beats env beats machine default
-**Plans**: TBD (estimate 2 plans — Plan A: AUTH-03 + AUTH-01 + AUTH-05 coupled signature/contract, Plan B: AUTH-02 whoami client + AUTH-04 storage extension; ordering within phase is AUTH-03 first per C1)
+**Plans**: 1 plan
+- [ ] 124-PLAN.md — AUTH-03 → AUTH-01 → AUTH-04 → AUTH-02 → AUTH-05 → integration test (consolidated single-wave coupled block; per-plan file-ownership conflict on auth.js / client.js / index.js made splitting Plan A/B unsafe — single plan with 6 sequential atomic-commit tasks instead)
 
 **Plan-phase pre-flight requirement (from predecessor audit):**
 
