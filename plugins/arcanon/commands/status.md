@@ -20,6 +20,7 @@ The script reports:
 - Resolved config file (`arcanon.config.json`)
 - Project slug (from config)
 - Credential presence (missing → suggest `/arcanon:login`)
+- Identity (AUTH-07): resolved org id + source, key preview (`arc_xxxx…1234`), scopes, list of authorized orgs. Shows `(missing)` when no org id resolves; `(unavailable)` when the hub is unreachable.
 - Whether `hub.auto-sync` is enabled
 - Queue stats: pending / dead counts + oldest pending timestamp
 - Data directory path (`~/.arcanon/`)
@@ -27,7 +28,8 @@ The script reports:
 
 Relay the output verbatim. If anything is obviously broken (missing
 credentials with auto-sync on, dead rows in queue), call it out with
-the appropriate next command.
+the appropriate next command. If the Identity block shows `(missing)`
+org id, run `/arcanon:login` (or `/arcanon:login --org-id <uuid>`).
 
 The `Latest scan: YYYY-MM-DD (NN% high-confidence)` line surfaces the most
 recent successful scan's age and quality. The `N repo(s) have new commits
@@ -39,7 +41,7 @@ worker is offline or no completed scan exists.
 
 **Usage:** `/arcanon:status [--json]`
 
-Print a one-line health check for the current repo: worker, hub credentials,
+Print a one-line health check: worker, hub credentials, identity (org + scopes),
 upload queue, config, and latest-scan quality.
 
 **Options:**
