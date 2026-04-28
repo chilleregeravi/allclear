@@ -136,6 +136,153 @@ test("syncFindings enqueues payload when hub returns 5xx", async () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// AUTH-01..05 e2e: per-repo hub.org_id beats ARCANON_ORG_ID beats default_org_id;
+// X-Org-Id header lands on the request. Pinning the precedence wire end-to-end.
+// ---------------------------------------------------------------------------
+
+test("AUTH-01..05 e2e: opts.orgId (per-repo override) beats env beats default — X-Org-Id lands", async () => {
+  _resetQueueDb();
+  const repoPath = makeTempGitRepo();
+  process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), "arcanon-it-data-"),
+  );
+  // Setup: ~/.arcanon/config.json default_org_id + ARCANON_ORG_ID env + opts.orgId.
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-it-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tmpHome;
+  fs.mkdirSync(path.join(tmpHome, ".arcanon"), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmpHome, ".arcanon", "config.json"),
+    JSON.stringify({ api_key: "arc_x", default_org_id: "org-default" }),
+  );
+  process.env.ARCANON_API_KEY = "arc_x";
+  process.env.ARCANON_ORG_ID = "org-env";
+
+  let seen = null;
+  const { server, url } = await startMockHub((req, res) => {
+    seen = { orgId: req.headers["x-org-id"] };
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ scan_upload_id: "uuid", status: "processing" }));
+  });
+
+  try {
+    const outcome = await syncFindings({
+      findings: { services: [{ name: "svc" }], connections: [] },
+      repoPath,
+      projectSlug: "p",
+      hubUrl: url,
+      orgId: "org-repo", // per-repo override (this is what manager.js threads through)
+    });
+    assert.equal(outcome.ok, true);
+    assert.equal(
+      seen.orgId,
+      "org-repo",
+      "per-repo opts.orgId must beat ARCANON_ORG_ID env AND default_org_id home-config",
+    );
+  } finally {
+    await stopServer(server);
+    delete process.env.ARCANON_API_KEY;
+    delete process.env.ARCANON_ORG_ID;
+    delete process.env.ARCANON_DATA_DIR;
+    if (originalHome !== undefined) process.env.HOME = originalHome;
+    else delete process.env.HOME;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  }
+});
+
+test("AUTH-01..05 e2e: ARCANON_ORG_ID env beats default_org_id when opts.orgId is omitted", async () => {
+  _resetQueueDb();
+  const repoPath = makeTempGitRepo();
+  process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), "arcanon-it-data-"),
+  );
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-it-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tmpHome;
+  fs.mkdirSync(path.join(tmpHome, ".arcanon"), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmpHome, ".arcanon", "config.json"),
+    JSON.stringify({ api_key: "arc_x", default_org_id: "org-default" }),
+  );
+  process.env.ARCANON_API_KEY = "arc_x";
+  process.env.ARCANON_ORG_ID = "org-env";
+
+  let seen = null;
+  const { server, url } = await startMockHub((req, res) => {
+    seen = { orgId: req.headers["x-org-id"] };
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ scan_upload_id: "uuid", status: "processing" }));
+  });
+
+  try {
+    const outcome = await syncFindings({
+      findings: { services: [{ name: "svc" }], connections: [] },
+      repoPath,
+      projectSlug: "p",
+      hubUrl: url,
+      // No opts.orgId — env should win.
+    });
+    assert.equal(outcome.ok, true);
+    assert.equal(seen.orgId, "org-env", "ARCANON_ORG_ID env must beat default_org_id");
+  } finally {
+    await stopServer(server);
+    delete process.env.ARCANON_API_KEY;
+    delete process.env.ARCANON_ORG_ID;
+    delete process.env.ARCANON_DATA_DIR;
+    if (originalHome !== undefined) process.env.HOME = originalHome;
+    else delete process.env.HOME;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  }
+});
+
+test("AUTH-01..05 e2e: ~/.arcanon/config.json default_org_id is the final fallback", async () => {
+  _resetQueueDb();
+  const repoPath = makeTempGitRepo();
+  process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), "arcanon-it-data-"),
+  );
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-it-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tmpHome;
+  fs.mkdirSync(path.join(tmpHome, ".arcanon"), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmpHome, ".arcanon", "config.json"),
+    JSON.stringify({ api_key: "arc_x", default_org_id: "org-default" }),
+  );
+  // Note: NOT setting ARCANON_ORG_ID. ARCANON_API_KEY also NOT set so
+  // the home-config api_key path is exercised.
+  delete process.env.ARCANON_ORG_ID;
+  delete process.env.ARCANON_API_KEY;
+  delete process.env.ARCANON_API_TOKEN;
+
+  let seen = null;
+  const { server, url } = await startMockHub((req, res) => {
+    seen = { orgId: req.headers["x-org-id"], auth: req.headers.authorization };
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ scan_upload_id: "uuid", status: "processing" }));
+  });
+
+  try {
+    const outcome = await syncFindings({
+      findings: { services: [{ name: "svc" }], connections: [] },
+      repoPath,
+      projectSlug: "p",
+      hubUrl: url,
+      // No opts.orgId, no env — default_org_id wins.
+    });
+    assert.equal(outcome.ok, true);
+    assert.equal(seen.orgId, "org-default", "default_org_id must be the final fallback");
+    assert.equal(seen.auth, "Bearer arc_x", "api_key from home-config must be used");
+  } finally {
+    await stopServer(server);
+    delete process.env.ARCANON_DATA_DIR;
+    if (originalHome !== undefined) process.env.HOME = originalHome;
+    else delete process.env.HOME;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  }
+});
+
 test("syncFindings surfaces 422 without enqueueing", async () => {
   _resetQueueDb();
   const repoPath = makeTempGitRepo();
