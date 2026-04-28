@@ -13,8 +13,24 @@ import { getQueryEngine, getQueryEngineByHash, getQueryEngineByRepo } from '../d
 import { enrichImpactResult, enrichSearchResult, enrichAffectedResult } from '../db/query-engine.js';
 import { chromaSearch, isChromaAvailable } from '../server/chroma.js';
 import { resolveDataDir } from '../lib/data-dir.js';
+import { maskHomeDeep } from '../lib/path-mask.js';
 
 const dataDir = resolveDataDir();
+
+/**
+ * mcpReply — wrap a result object as an MCP `content[].text` reply with
+ * $HOME-masked JSON (PII-02). Highest-priority egress seam: only egress to
+ * a third party (Anthropic).
+ *
+ * Idempotent on already-relative agent paths (S1 mitigation handled inside
+ * maskHome) — `root_path: "src/"` round-trips unchanged.
+ *
+ * @param {*} obj result payload (success or `{error: string}` shape)
+ * @returns {{content: Array<{type: string, text: string}>}}
+ */
+function mcpReply(obj) {
+  return { content: [{ type: "text", text: JSON.stringify(maskHomeDeep(obj)) }] };
+}
 
 /** Maximum hop depth for transitive impact graph traversal. */
 const MAX_TRANSITIVE_DEPTH = 7;
@@ -1284,17 +1300,17 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const raw = await queryImpact(qe?._db ?? null, params);
       // Enrich with type-aware summary when db is available
       const result = qe?._db
         ? enrichImpactResult(qe._db, params.service, raw.results)
         : raw;
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('impact_query failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1325,17 +1341,17 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const raw = await queryChanged(qe?._db ?? null, params);
       const enrichedAffected = qe?._db
         ? enrichAffectedResult(qe._db, raw.affected)
         : raw.affected.map(r => ({ ...r, owner: null, auth_mechanism: null, db_backend: null }));
       const result = { ...raw, affected: enrichedAffected };
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('impact_changed failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1370,13 +1386,13 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const result = await queryGraph(qe?._db ?? null, params);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('impact_graph failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1409,7 +1425,7 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const raw = await querySearch(qe?._db ?? null, params);
       // Enrich results with actor relationship sentences
@@ -1417,10 +1433,10 @@ server.tool(
         ? enrichSearchResult(qe._db, raw.results)
         : raw.results;
       const result = { ...raw, results: enrichedResults };
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('impact_search failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1444,10 +1460,10 @@ server.tool(
   async (params) => {
     try {
       const result = await queryScan(params);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('impact_scan failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1466,13 +1482,13 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const result = await queryDriftVersions(qe?._db ?? null, params);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('drift_versions failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1491,13 +1507,13 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const result = await queryDriftTypes(qe?._db ?? null, params);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('drift_types failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1516,13 +1532,13 @@ server.tool(
     try {
       const qe = resolveDb(params.project);
       if (!qe && params.project) {
-        return { content: [{ type: "text", text: JSON.stringify({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" }) }] };
+        return mcpReply({ error: "no_scan_data", project: params.project, hint: "Run /arcanon:map first in that project" });
       }
       const result = await queryDriftOpenapi(qe?._db ?? null, params);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return mcpReply(result);
     } catch (err) {
       logger.error('drift_openapi failed', { error: err.message, stack: err.stack });
-      return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+      return mcpReply({ error: err.message });
     }
   },
 );
@@ -1562,10 +1578,10 @@ export async function handleImpactAuditLog(params) {
     const rows = qe.getEnrichmentLog(params.scan_version_id, {
       enricher: params.enricher,
     });
-    return { content: [{ type: "text", text: JSON.stringify(rows) }] };
+    return mcpReply(rows);
   } catch (err) {
     logger.error('impact_audit_log failed', { error: err.message, stack: err.stack });
-    return { content: [{ type: "text", text: JSON.stringify({ error: err.message }) }] };
+    return mcpReply({ error: err.message });
   }
 }
 
