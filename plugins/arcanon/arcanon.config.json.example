@@ -1,3 +1,10 @@
 {
-  "linked-repos": ["../api", "../ui", "../sdk"]
+  "project-name": "my-project",
+  "linked-repos": ["../api", "../ui", "../sdk"],
+  "hub": {
+    "auto-sync": false,
+    "url": "https://api.arcanon.dev",
+    "project-slug": "my-project",
+    "org_id": "00000000-0000-0000-0000-000000000000"
+  }
 }

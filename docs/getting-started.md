@@ -58,38 +58,57 @@ service graph across teammates and other repos:
 
 **a) Create an API key** at
 [https://app.arcanon.dev/settings/api-keys](https://app.arcanon.dev/settings/api-keys).
-Keys start with `arc_`. Org-scoped keys can upload for any project; project-
-scoped keys are locked to one project_slug.
+Keys start with `arc_`.
 
 **b) Log in:**
 
 ```
-/arcanon:login arc_...
+/arcanon:login arc_xxxxxxxxxxxx
 ```
 
-The key is stored in `~/.arcanon/config.json` with mode `0600`.
+The plugin calls the hub's `whoami` endpoint to learn which orgs your
+key is authorized for:
 
-**c) Upload your scan:**
+- If the key has **one** grant, that org is auto-selected and stored.
+- If the key has **multiple** grants, you'll be prompted to pick one.
+- If the key has **no** grants, login fails — ask your admin to grant
+  the key access.
+
+You can also pin an org id explicitly:
 
 ```
-/arcanon:upload
+/arcanon:login arc_xxxxxxxxxxxx --org-id 7f3e1234-…
 ```
 
-A `401` response means the key is invalid — regenerate one in the web
-dashboard and re-run `/arcanon:login`. A `202` response means you're in.
+The triple (api key, hub url, default org id) is stored in
+`~/.arcanon/config.json` with mode `0600`.
 
-Or turn on auto-upload in `arcanon.config.json`:
+**c) Verify with `/arcanon:status`:**
+
+```
+/arcanon:status
+```
+
+You should see an Identity block with your resolved org id and the list
+of orgs your key is authorized for.
+
+**d) Upload your scan:**
+
+```
+/arcanon:sync
+```
+
+Or turn on auto-sync in `arcanon.config.json`:
 
 ```json
 {
   "project-name": "my-service",
-  "hub": { "auto-upload": true }
+  "hub": { "auto-sync": true }
 }
 ```
 
-After that, every `/arcanon:map` run uploads automatically. Failed uploads
-enqueue locally and retry via `/arcanon:sync` (or opportunistically when
-the worker next starts).
+After that, every `/arcanon:map` run uploads automatically. Failed
+uploads enqueue locally and retry via `/arcanon:sync`.
 
 ## 4. Query cross-repo impact
 
@@ -115,15 +134,17 @@ your repo boundary.
 | --- | --- |
 | `/arcanon:map` | Refresh the scan. |
 | `/arcanon:map view` | Open the local graph UI. |
-| `/arcanon:upload` | Push to hub manually. |
-| `/arcanon:status` | Health snapshot. |
-| `/arcanon:sync` | Drain upload queue. |
+| `/arcanon:sync` | Push to hub (also drains the offline queue). |
+| `/arcanon:status` | Health snapshot (incl. Identity block). |
+| `/arcanon:login` | Sign in to the hub (whoami auto-resolves your org). |
 | `/arcanon:export --format mermaid` | Get a Mermaid block for PRs/docs. |
 
 ## Troubleshooting
 
 - **"no local scan" errors** → run `/arcanon:map` first.
-- **"hub returned 401"** → `/arcanon:login` again with a fresh key.
+- **"hub returned 401 / invalid_key"** → `/arcanon:login` again with a fresh key.
+- **"hub returned 403 / key_not_authorized_for_org"** → `/arcanon:login --org-id <uuid>`
+  to switch to an org your key has access to.
 - **"hub returned 422"** → the payload validator rejected something —
   report it with the warning list the CLI prints.
 - **Queue keeps growing** → `/arcanon:sync` drains it; check

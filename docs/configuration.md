@@ -27,9 +27,10 @@ Create this file in your project root and commit it to git. It tells Arcanon whi
     }
   ],
   "hub": {
-    "auto-upload": false,
+    "auto-sync": false,
     "url": "https://api.arcanon.dev",
-    "project-slug": "my-project"
+    "project-slug": "my-project",
+    "org_id": "00000000-0000-0000-0000-000000000000"
   }
 }
 ```
@@ -56,11 +57,24 @@ Controls Arcanon Hub sync. All keys are optional.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `hub.auto-upload` | `false` | When `true` **and** an API key is set, `/arcanon:map` uploads after every scan. |
+| `hub.auto-sync` | `false` | When `true` **and** an API key is set, `/arcanon:map` uploads after every scan. (Renamed from `hub.auto-upload` in v0.1.1; the legacy key is still honored with a one-time deprecation warning.) |
 | `hub.url` | `https://api.arcanon.dev` | Override the hub endpoint (also overridable via `$ARCANON_HUB_URL`). |
 | `hub.project-slug` | `project-name` | Project slug sent in `metadata.project_slug`. Required for org-scoped API keys. |
+| `hub.org_id` | _(empty)_ | Per-repo override of the default org id. Highest-precedence source — beats `$ARCANON_ORG_ID` and `~/.arcanon/config.json` `default_org_id`. Useful when one repo lives in a different org than your machine default. |
 
 The API key itself is **not** stored in this file by design — it lives in `~/.arcanon/config.json` (mode `0600`) or `$ARCANON_API_KEY`. See [hub-integration.md](hub-integration.md) for credential precedence.
+
+### Org id resolution
+
+The plugin resolves the org id sent in the `X-Org-Id` header on every
+upload via this precedence (first hit wins):
+
+1. Per-repo `arcanon.config.json` → `hub.org_id`
+2. `$ARCANON_ORG_ID` environment variable
+3. `~/.arcanon/config.json` → `default_org_id` (set by `/arcanon:login`)
+
+If none resolve, the upload fails fast with an actionable message
+naming all three sources. See [hub-integration.md](hub-integration.md#org-id-precedence).
 
 ### Impact Map
 
@@ -85,6 +99,7 @@ Set these environment variables to turn off specific automatic behaviors. The `A
 |----------|--------|
 | `ARCANON_API_KEY` | Bearer token for the hub (starts with `arc_`). Alias: `ARCANON_API_TOKEN`. |
 | `ARCANON_HUB_URL` | Override the hub endpoint. |
+| `ARCANON_ORG_ID` | Default org id sent as `X-Org-Id` on uploads. Beats `~/.arcanon/config.json` `default_org_id` but loses to per-repo `hub.org_id`. |
 
 ## Advanced: Machine Settings
 

@@ -98,22 +98,86 @@ Response codes the plugin reacts to:
 
 ## Credentials
 
-Precedence (first hit wins):
+The plugin authenticates with a **personal credential triple**: an API key,
+a hub URL, and a default org id. The hub validates all three on every
+upload via the `X-Org-Id` request header.
 
-1. `--api-key` flag to `/arcanon:upload` / `scripts/hub.sh`
-2. `$ARCANON_API_KEY` environment variable
-3. `$ARCANON_API_TOKEN` (alias for CI env ergonomics)
-4. `~/.arcanon/config.json` → `api_key`
-5. `~/.ligamen/config.json` → `api_key` *(legacy)*
+### Storage
 
-`/arcanon:login` writes `~/.arcanon/config.json` with mode `0600`.
+`/arcanon:login` writes `~/.arcanon/config.json` with mode `0600`. Shape:
 
-## Hub URL
+```json
+{
+  "api_key": "arc_xxxxxxxxxxxx",
+  "hub_url": "https://api.arcanon.dev",
+  "default_org_id": "7f3e1234-…-…"
+}
+```
+
+### API key precedence (first hit wins)
+
+1. `--api-key` flag to `/arcanon:sync` / `scripts/hub.sh`
+2. `$ARCANON_API_KEY` environment variable (alias: `$ARCANON_API_TOKEN`)
+3. `~/.arcanon/config.json` → `api_key`
+
+### Hub URL precedence
 
 1. `--hub-url` flag
 2. `$ARCANON_HUB_URL`
 3. `~/.arcanon/config.json` → `hub_url`
 4. Default: `https://api.arcanon.dev`
+
+### Org id precedence
+
+1. Per-repo `arcanon.config.json` → `hub.org_id`
+2. `$ARCANON_ORG_ID` environment variable
+3. `~/.arcanon/config.json` → `default_org_id`
+
+If no org id resolves, `uploadScan` fails fast (before the network call)
+with an `AuthError` whose message names all three sources and recommends
+`/arcanon:login --org-id <uuid>`.
+
+### `/arcanon:login` flow
+
+```
+/arcanon:login arc_xxxxxxxxxxxx                  # whoami picks the org
+/arcanon:login arc_xxxxxxxxxxxx --org-id <uuid>  # explicit pin
+```
+
+The plugin calls `GET /api/v1/auth/whoami` against the hub to learn
+which orgs the key is authorized for, then:
+
+- **0 grants** → fails with an admin-action message; nothing stored.
+- **1 grant** → auto-selects that org and stores the triple.
+- **N grants** → prompts the user (via AskUserQuestion in Claude Code)
+  to pick one, then stores the triple.
+
+With `--org-id` supplied, whoami is still called for verification: if
+the key isn't authorized for the supplied org, the plugin warns but
+stores the credential anyway (the server rejects at upload time with
+`key_not_authorized_for_org`).
+
+If the hub is unreachable or returns 5xx during login, the plugin
+**stores the credential when `--org-id` is supplied** (with a warning)
+and **refuses to store when no `--org-id` is supplied** (so a user
+without an org id is never silently stuck).
+
+### Server-side error codes
+
+`uploadScan` parses RFC 7807 problem-details responses with a custom
+`code` field and surfaces an actionable message for each known code:
+
+| `code` | User-facing message |
+| --- | --- |
+| `missing_x_org_id` | `X-Org-Id header missing — re-run /arcanon:login or set ARCANON_ORG_ID` |
+| `invalid_x_org_id` | `X-Org-Id is not a valid uuid — fix arcanon.config.json hub.org_id, ARCANON_ORG_ID, or re-run /arcanon:login --org-id <uuid>` |
+| `insufficient_scope` | `API key is missing the required scope — generate a key with scan:write` |
+| `key_not_authorized_for_org` | `API key is not authorized for this org — run /arcanon:login --org-id <uuid> to switch` |
+| `not_a_member` | `you are not a member of this org — ask an org admin to invite your user` |
+| `forbidden_scan` | `this scan is forbidden by org policy — contact your org admin` |
+| `invalid_key` | `API key is invalid or revoked — generate a new key, then /arcanon:login arc_…` |
+
+Unknown codes fall back to the existing RFC 7807 `title` rendering.
 
 ## Offline queue
 
