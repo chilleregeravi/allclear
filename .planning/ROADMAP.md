@@ -786,7 +786,8 @@ Plans:
   2. `worker/hub-sync/whoami.test.js` (new file) asserts: `getKeyInfo` returns parsed `{ user_id, key_id, scopes, grants }`; auth-class HTTP errors throw `AuthError`; transport errors throw `HubError`
   3. `worker/hub-sync/integration.test.js` asserts: `/arcanon:login --org-id <uuid>` round-trips through `storeCredentials` → `resolveCredentials`; `/arcanon:login` without `--org-id` calls `whoami`; precedence test: per-repo `hub.org_id` beats `ARCANON_ORG_ID` beats `default_org_id`
   4. `npm test` exits 0 on a clean tree with the new tests included; no pre-existing-mock carryforwards introduced
-**Plans**: TBD (estimate 1 plan — test suite is well-scoped after phases 124-125 set the contract; could be folded into 124+125 if compact, plan-phase decides)
+**Plans**: 1 plan
+- [ ] 126-01-PLAN.md — Pin AUTH-01..09 contract via test suite (client.test extended, whoami.test new, integration.test extended)
 
 ### Phase 127: Verification & Release Gate
 **Goal**: v0.1.5 is shippable: all manifests pinned at `0.1.5`, CHANGELOG entry written, full test suite green, and an end-to-end verification confirms the auth + PII paths against a real hub honoring THE-1030
