@@ -31,6 +31,9 @@ export { PayloadError } from "./payload.js";
 export { HubError } from "./client.js";
 export { AuthError, resolveCredentials, hasCredentials, storeCredentials } from "./auth.js";
 export { queueStats, listAllUploads, pruneDead } from "./queue.js";
+// AUTH-02 (THE-1029): consumed by Phase 125 /arcanon:login (AUTH-06) and
+// /arcanon:status (AUTH-07).
+export { getKeyInfo, WHOAMI_PATH } from "./whoami.js";
 
 /**
  * Build payload, POST to the hub, optionally enqueue on retriable failures.
