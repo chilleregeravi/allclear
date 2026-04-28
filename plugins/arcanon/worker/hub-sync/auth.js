@@ -182,16 +182,39 @@ export function hasCredentials() {
   }
 }
 
+/**
+ * Persist credentials to ~/.arcanon/config.json (mode 0600, dir 0700).
+ *
+ * Existing fields are preserved via spread-merge — rotating only `api_key`
+ * keeps `hub_url`, `default_org_id`, and any unknown future keys intact
+ * (C3 regression guard pinned by Test S2).
+ *
+ * @param {string} apiKey — must start with "arc_"
+ * @param {{ hubUrl?: string, defaultOrgId?: string }} [opts]
+ *   - opts.hubUrl: persisted as `hub_url`
+ *   - opts.defaultOrgId: persisted as `default_org_id` (AUTH-04 / THE-1029)
+ * @returns {string} absolute path to the config file written
+ */
 export function storeCredentials(apiKey, opts = {}) {
   if (!apiKey || !apiKey.startsWith(API_KEY_PREFIX)) {
     throw new AuthError(`api_key must start with "${API_KEY_PREFIX}"`);
   }
   const dir = path.join(os.homedir(), ".arcanon");
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  // Belt-and-suspenders: mkdirSync `mode` is masked by umask on macOS, so
+  // re-chmod after creation to guarantee 0700 on POSIX.
+  try {
+    fs.chmodSync(dir, 0o700);
+  } catch {
+    // Non-POSIX FS (e.g. Windows) — ignore.
+  }
   const file = path.join(dir, "config.json");
   const existing = readJsonSafe(file) || {};
   const next = { ...existing, api_key: apiKey };
   if (opts.hubUrl) next.hub_url = opts.hubUrl;
+  // AUTH-04: persist default_org_id alongside api_key + hub_url. Additive only —
+  // when omitted, the spread-merge above preserves any pre-existing value.
+  if (opts.defaultOrgId) next.default_org_id = opts.defaultOrgId;
   fs.writeFileSync(file, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
   try {
     fs.chmodSync(file, 0o600);

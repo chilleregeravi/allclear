@@ -245,6 +245,105 @@ test("storeCredentials rejects keys without arc_ prefix", () => {
   });
 });
 
+// AUTH-04 Test S1 — write all three fields fresh
+test("AUTH-04 S1: storeCredentials writes api_key + hub_url + default_org_id together", () => {
+  withTempHome((home) => {
+    clearEnv();
+    const file = storeCredentials("arc_new", {
+      hubUrl: "https://h",
+      defaultOrgId: "org-1",
+    });
+    const content = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(content.api_key, "arc_new");
+    assert.equal(content.hub_url, "https://h");
+    assert.equal(content.default_org_id, "org-1");
+    assert.ok(file.startsWith(home));
+  });
+});
+
+// AUTH-04 Test S2 — C3 spread-merge: rotating api_key preserves default_org_id + hub_url
+test("AUTH-04 S2 (C3): storeCredentials(api_key only) preserves existing default_org_id and hub_url", () => {
+  withTempHome((home) => {
+    clearEnv();
+    const dir = path.join(home, ".arcanon");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "config.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        api_key: "arc_old",
+        hub_url: "https://h",
+        default_org_id: "org-existing",
+      }),
+    );
+    // Rotate api_key only — no opts.hubUrl, no opts.defaultOrgId.
+    storeCredentials("arc_rotated");
+    const content = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(content.api_key, "arc_rotated", "api_key should be rotated");
+    assert.equal(content.hub_url, "https://h", "hub_url must be preserved");
+    assert.equal(
+      content.default_org_id,
+      "org-existing",
+      "default_org_id must be preserved (C3 spread-merge guard)",
+    );
+  });
+});
+
+// AUTH-04 Test S3 — file mode 0600 + dir mode 0700 after every write
+test("AUTH-04 S3: storeCredentials sets file mode 0600 and dir mode 0700", () => {
+  if (process.platform === "win32") return; // POSIX-only
+  withTempHome((home) => {
+    clearEnv();
+    const file = storeCredentials("arc_x", {
+      hubUrl: "https://h",
+      defaultOrgId: "org-1",
+    });
+    const fileStat = fs.statSync(file);
+    assert.equal(fileStat.mode & 0o777, 0o600, "file must be 0600");
+    const dirStat = fs.statSync(path.join(home, ".arcanon"));
+    assert.equal(dirStat.mode & 0o777, 0o700, "dir must be 0700");
+  });
+});
+
+// AUTH-04 Test S4 — no hub_url default-fill when opt is omitted
+test("AUTH-04 S4: storeCredentials with no hubUrl opt does not write hub_url field", () => {
+  withTempHome(() => {
+    clearEnv();
+    const file = storeCredentials("arc_x", { defaultOrgId: "org-2" });
+    const content = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(content.api_key, "arc_x");
+    assert.equal(content.default_org_id, "org-2");
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(content, "hub_url"),
+      false,
+      "hub_url must NOT be present when no opt + no existing key",
+    );
+  });
+});
+
+// AUTH-04 Test S5 — forward-compat: unknown future_field on existing config preserved
+test("AUTH-04 S5: storeCredentials preserves unknown future fields via spread-merge", () => {
+  withTempHome((home) => {
+    clearEnv();
+    const dir = path.join(home, ".arcanon");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "config.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        api_key: "x",
+        hub_url: "h",
+        future_field: "preserved",
+      }),
+    );
+    storeCredentials("arc_x");
+    const content = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(content.api_key, "arc_x");
+    assert.equal(content.hub_url, "h");
+    assert.equal(content.future_field, "preserved");
+  });
+});
+
 test("hasCredentials returns false when nothing is configured", () => {
   withTempHome(() => {
     clearEnv();
