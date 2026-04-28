@@ -1279,7 +1279,11 @@ async function cmdDoctor(flags) {
     await runCheck(8, "hub_credentials", "non-critical", async () => {
       let creds;
       try {
-        creds = resolveCredentials();
+        // Check 8 only needs apiKey + hubUrl for the GET /api/version probe;
+        // org_id is not part of that round-trip. Opt out of the AUTH-03 org-id
+        // requirement so a "creds present but no org_id" config doesn't get
+        // mis-classified as SKIP. (See doctor.bats NAV-03 tests 9-10.)
+        creds = resolveCredentials({ orgIdRequired: false });
       } catch {
         return { status: "SKIP", detail: "no credentials configured" };
       }

@@ -142,13 +142,24 @@ function _resolveOrgId(opts = {}, homeCfg = null) {
  * Throws AuthError when no apiKey can be found, or when no orgId can be
  * resolved (per AUTH-03 / THE-1029 — every upload requires an X-Org-Id).
  *
- * @param {{ apiKey?: string, hubUrl?: string, orgId?: string }} [opts]
- * @returns {{ apiKey: string, hubUrl: string, orgId: string, source: string }}
+ * Pass `{ orgIdRequired: false }` to disable the org-id requirement for
+ * callers that only need apiKey + hubUrl (e.g. doctor check 8 round-trips
+ * `GET /api/version` without `X-Org-Id`). On opt-out, `orgId` is the
+ * best-effort resolution (opts → env → home-config) or `null` if none.
+ *
+ * @param {{ apiKey?: string, hubUrl?: string, orgId?: string, orgIdRequired?: boolean }} [opts]
+ * @returns {{ apiKey: string, hubUrl: string, orgId: string|null, source: string }}
  */
 export function resolveCredentials(opts = {}) {
   const homeCfg = readHomeConfig();
   const { apiKey, hubUrl, source } = _resolveApiKey(opts, homeCfg);
-  const orgId = _resolveOrgId(opts, homeCfg);
+  let orgId;
+  if (opts.orgIdRequired === false) {
+    orgId =
+      opts.orgId || process.env.ARCANON_ORG_ID || homeCfg.default_org_id || null;
+  } else {
+    orgId = _resolveOrgId(opts, homeCfg);
+  }
   return { apiKey, hubUrl, orgId, source };
 }
 
