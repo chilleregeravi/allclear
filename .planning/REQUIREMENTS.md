@@ -48,21 +48,28 @@ Personal-credential auth: every upload carries `X-Org-Id`; the plugin discovers 
 
 Mask `$HOME` at every serialization seam where a path could leave the worker process. DB storage stays absolute (needed for git operations); masking is at egress only.
 
-- [ ] **PII-01**: New module `worker/lib/path-mask.js` exports:
+- [x] **PII-01
+**: New module `worker/lib/path-mask.js` exports:
   - `maskHome(p)` — replaces `$HOME` prefix with `~`. Idempotent. Non-string input passes through. Exact-`$HOME` match returns `~`.
   - `maskHomeDeep(obj)` — walks an object/array, masks any string property whose key is path-y (`path`, `repo_path`, `source_file`, `target_file`, `root_path`, plus a configurable allowlist).
 
-- [ ] **PII-02**: `worker/mcp/server.js` — every MCP tool response payload that references `repo.path`, `path`, `source_file`, `target_file`, or `root_path` runs through `maskHomeDeep` before returning to the client. **Highest priority** — only egress to a third party (Anthropic).
+- [x] **PII-02
+**: `worker/mcp/server.js` — every MCP tool response payload that references `repo.path`, `path`, `source_file`, `target_file`, or `root_path` runs through `maskHomeDeep` before returning to the client. **Highest priority** — only egress to a third party (Anthropic).
 
-- [ ] **PII-03**: `worker/server/http.js` — `/api/scan-freshness`, `/projects`, and `/graph` responses run through `maskHomeDeep` before serialization. The `repo_path` column from `query-engine.js:1591` is masked. (Note: prior REQ wording referenced `/api/repos`; that route does not exist — the actual surface is `GET /projects` plus `repos[].path` arrays nested inside `/api/scan-freshness` and `/graph` response bodies.)
+- [x] **PII-03
+**: `worker/server/http.js` — `/api/scan-freshness`, `/projects`, and `/graph` responses run through `maskHomeDeep` before serialization. The `repo_path` column from `query-engine.js:1591` is masked. (Note: prior REQ wording referenced `/api/repos`; that route does not exist — the actual surface is `GET /projects` plus `repos[].path` arrays nested inside `/api/scan-freshness` and `/graph` response bodies.)
 
-- [ ] **PII-04**: `worker/lib/logger.js` — `extra` fields and stack-trace strings are masked before write to `~/.arcanon/logs/worker.log`. Console output (TTY mode) uses the same mask path.
+- [x] **PII-04
+**: `worker/lib/logger.js` — `extra` fields and stack-trace strings are masked before write to `~/.arcanon/logs/worker.log`. Console output (TTY mode) uses the same mask path.
 
-- [ ] **PII-05**: `worker/cli/export*.js` — mermaid, dot, and html exports run repo path strings through `maskHome` before emitting.
+- [x] **PII-05
+**: `worker/cli/export*.js` — mermaid, dot, and html exports run repo path strings through `maskHome` before emitting.
 
-- [ ] **PII-06**: `worker/scan/findings.js parseAgentOutput` rejects `source_file` values starting with `/` — log WARN with the offending value (also masked), drop the field, do not fail the scan. Belt-and-suspenders against future agent regressions.
+- [x] **PII-06
+**: `worker/scan/findings.js parseAgentOutput` rejects `source_file` values starting with `/` — log WARN with the offending value (also masked), drop the field, do not fail the scan. Belt-and-suspenders against future agent regressions.
 
-- [ ] **PII-07**: Tests:
+- [x] **PII-07
+**: Tests:
   - `worker/lib/path-mask.test.js` — round-trip cases: HOME prefix, no prefix, exact HOME match, `${HOME}other` (no false positive), nested object walk, idempotency.
   - bats — grep-assertion that no `/Users/` strings appear in MCP tool responses (`tools/list` + sample tool call), default-mode `/arcanon:export` outputs, worker log lines after a clean scan, `/api/scan-freshness` JSON.
 

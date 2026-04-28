@@ -85,6 +85,6 @@ These are operator-facing manual scenarios — phase 114 automated VERIFICATION.
 
 ## Session Continuity
 
-Last session: 2026-04-27T23:05:00.000Z
-Stopped at: Roadmap approved; awaiting Phase 123 plan (PII Path Masking)
-Resume file: .planning/ROADMAP.md (Phase 123 details)
+Last session: 2026-04-28T15:55:00.000Z
+Stopped at: Phase 123 (PII Path Masking) complete (commit c9b3527 SUMMARY); next is Phase 124 (Hub Auth Core), gated on arcanon-hub THE-1030 deploy
+Resume file: .planning/phases/123-pii-path-masking/123-SUMMARY.md → .planning/ROADMAP.md (Phase 124 details)
