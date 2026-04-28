@@ -31,6 +31,8 @@
  * @typedef {{ valid: true, findings: Findings, warnings: string[] } | { valid: false, error: string }} FindingsResult
  */
 
+import { maskHome } from "../lib/path-mask.js";
+
 /** @type {string[]} */
 export const VALID_PROTOCOLS = [
   "rest",
@@ -192,6 +194,19 @@ export function validateFindings(obj) {
     // source_file must be string or null
     if (conn.source_file !== null && typeof conn.source_file !== "string") {
       return err(`connection[${i}].source_file must be a string or null`);
+    }
+    // PII-06 (X2 mitigation): the agent contract mandates RELATIVE source_file
+    // paths (worker/scan/agent-prompt-service.md:89). If the agent regresses
+    // and emits an absolute path, drop the offending field with a WARN and
+    // KEEP the rest of the connection — do NOT fail the scan. The WARN value
+    // itself is masked via maskHome so the rejection message can't leak the
+    // path. Defense in depth: warnings flow through the PII-04 logger seam,
+    // which masks them again at log-write time.
+    if (typeof conn.source_file === "string" && conn.source_file.startsWith("/")) {
+      warnings.push(
+        `connection[${i}].source_file is absolute ("${maskHome(conn.source_file)}") — agent contract requires relative paths; dropping field`,
+      );
+      conn.source_file = null;
     }
     // target_file is optional — but if present must be string or null
     if (
