@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.1.5
 milestone_name: Identity & Privacy
-status: Phases 123-124 complete (PII masking + hub auth core; 12 REQs closed; all 7 risk mitigations green). Doctor check 8 regression caught and fixed inline (orgIdRequired:false opt-out). Advancing to Phase 125 (login & status UX).
-stopped_at: Phase 124 complete; advancing to Phase 125
-last_updated: "2026-04-28T19:45:00.000Z"
-last_activity: 2026-04-28
+status: executing
+stopped_at: Phase 125 (Login & Status UX) complete (commits d554225..1301fdc, SUMMARY at .planning/phases/125-login-and-status-ux/125-SUMMARY.md); 2 manual checkpoints deferred to Phase 127 pending arcanon-hub THE-1030 deploy. Next is Phase 126 (Auth Test Suite, AUTH-10).
+last_updated: "2026-04-28T18:29:09Z"
+last_activity: 2026-04-28 -- Phase 125 (Login & Status UX) shipped 6 implementation commits + SUMMARY; 2 manual checkpoints deferred pending arcanon-hub THE-1030 deploy
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 2
-  percent: 40
+  completed_plans: 4
+  percent: 60
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-27)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** v0.1.5 — Identity & Privacy (THE-1029 hub auth + THE-1031 PII masking)
+**Current focus:** Phase 126 — Auth Test Suite (AUTH-10)
 
 ## Current Position
 
-Phase: 125 (Login & Status UX) — not started
-Plan: —
-Status: Phases 123-124 complete (8 + 7 commits; PII-01..07 + AUTH-01..05 mitigations green; doctor check 8 regression fix `e107463`). Advancing to Phase 125 (login flow + status Identity block + error-code parser + docs).
-Last activity: 2026-04-28 — Phase 124 finalized inline after executor stalled; node 820/821, doctor.bats 12/12.
+Phase: 125 (Login & Status UX) — COMPLETE (with 2 deferred manual checkpoints)
+Plan: 2 of 2 (both implementation plans landed: 125-01 + 125-02)
+Status: Phase 125 shipped; awaiting Phase 126 plan-phase
+Last activity: 2026-04-28 -- 125-SUMMARY.md created; 6 atomic commits in main
 
 ## Performance Metrics
 
@@ -54,19 +54,24 @@ Last activity: 2026-04-28 — Phase 124 finalized inline after executor stalled;
 
 ### v0.1.5 Decisions (in-flight, pending validation)
 
-- **Auto-default-org via `whoami` at login** — forcing user to type a UUID is hostile; hub knows which orgs the key is authorized for.
+- **Auto-default-org via `whoami` at login** — forcing user to type a UUID is hostile; hub knows which orgs the key is authorized for. ✓ shipped Phase 125 (D-125-02 4×2 branch table).
 - **Mask `$HOME` at egress seams, not in DB** — DB needs absolute paths for git operations; masking-at-egress preserves runtime correctness while closing the third-party leak (MCP → Anthropic).
 - **THE-1029 ships only after hub-side THE-1030 lands** — brief upload outage between merges accepted (nothing has shipped publicly).
 - **Phase 123 (PII) ordered first** — independent of hub-side THE-1030; ships even if the hub PR slips. Phases 124-127 sequenced behind the hub deploy.
 - **AUTH-01 + AUTH-03 + AUTH-05 land in one phase (124)** — coupled signature/contract block per predecessor-audit C1+X1; AUTH-02 included in same phase since AUTH-06 depends on it.
-- **`hasCredentials()` semantics in C2** — to be decided at Phase 124 plan-phase: option (a) tolerate missing org_id and defer throw to upload time, OR option (b) tighten and surface a manager.js WARN when auto-sync gates off. Plan-phase picks one explicitly.
-- **AUTH-08 server error JSON shape** — coordinate at Phase 125 plan-phase with arcanon-hub THE-1030 owner; expected RFC 7807 `{type, title, status, detail, code}`.
+- **`hasCredentials()` semantics in C2** — option (a) chosen in Phase 124: tolerates missing org_id; defers throw to upload time so the AuthError lands in scan-end logs verbatim.
+- **AUTH-08 server error JSON shape (D-125-01)** — RFC 7807 `{type, title, status, detail, code}` with custom `code` extension. Plugin reads `body.code` first; falls back to `body.title` for forward-compat. 7 codes pinned via frozen `HUB_ERROR_CODE_MESSAGES` in client.js. ✓ shipped Phase 125.
+- **D-125-03 nested identity contract** — `/arcanon:status --json` emits identity as nested `identity: {…}` object; existing top-level keys (plugin_version, data_dir, config_file, project_slug, hub_auto_sync, credentials, queue, scan_freshness) unchanged. ✓ shipped Phase 125.
+- **CLI exit-code-7 + `__ARCANON_GRANT_PROMPT__` stdout sentinel** — markdown-layer ↔ Node-CLI re-entry pattern for multi-grant AskUserQuestion. Established in Phase 125 cmdLogin; reusable for any future CLI flow that needs human-in-the-loop choice.
 - **PII-04 logger seam** — single masking edit at `worker/lib/logger.js:42–68` between `Object.assign` and `JSON.stringify`; NOT 30 call-site edits.
 - **PII-03 routes** — REQUIREMENTS.md mentions `/api/repos`; the actual surface is `GET /projects` plus `repos[].path` arrays nested inside `/api/scan-freshness` and `/graph` response bodies. Plan must target the correct routes.
 
 ### Pending Todos
 
-Phase 124 (Hub Auth Core) is next — gated on arcanon-hub THE-1030 deploy.
+- Phase 126 (Auth Test Suite, AUTH-10) is next — depends on Phase 125 surfaces (all in place).
+- Phase 127 (Release Gate) must re-run the 2 deferred manual checkpoints from Phase 125 against the deployed dev hub before v0.1.5 final ship:
+  1. **125-01 Task 4** — Manual login walkthrough (8 e2e steps: auto-select / multi-grant prompt / mismatch warn / AuthError / network error / hub-unreachable refuse).
+  2. **125-02 Task 4** — Manual `/arcanon:status` Identity block populated against real grants + docs read-through.
 
 ### Blockers/Concerns
 
@@ -80,11 +85,15 @@ Carried forward from v0.1.4 close (2026-04-27):
 | Category | Item | Status |
 |----------|------|--------|
 | uat_gap | Phase 114: 114-UAT.md (7 pending operator scenarios — cold-start, list, view, doctor x4) | testing |
+| checkpoint_deferred | Phase 125 / Plan 125-01 Task 4: Manual login walkthrough (8 e2e steps against deployed hub) | pending Phase 127 (THE-1030 deploy required) |
+| checkpoint_deferred | Phase 125 / Plan 125-02 Task 4: Manual /arcanon:status Identity block + docs read-through | pending Phase 127 (THE-1030 deploy required) |
 
-These are operator-facing manual scenarios — phase 114 automated VERIFICATION.md is `passed` (31/31 bats green); the UAT is the operator's own "feels-right" gate, not a release blocker. Run them in a real terminal at your convenience and update `114-UAT.md` results in place.
+The Phase 114 entries are operator-facing manual scenarios — phase 114 automated VERIFICATION.md is `passed` (31/31 bats green); the UAT is the operator's own "feels-right" gate, not a release blocker. Run them in a real terminal at your convenience and update `114-UAT.md` results in place.
+
+The Phase 125 deferred checkpoints are pre-approved deferrals (per executor 2026-04-28 session): the manual e2e walkthroughs require arcanon-hub THE-1030 deployed against the dev hub for the whoami round-trips to produce real grants. All per-task `<automated>` smoke verifies passed before deferral. Phase 127 (Release Gate) plan owner must re-run them before v0.1.5 final ship.
 
 ## Session Continuity
 
-Last session: 2026-04-28T15:55:00.000Z
-Stopped at: Phase 123 (PII Path Masking) complete (commit c9b3527 SUMMARY); next is Phase 124 (Hub Auth Core), gated on arcanon-hub THE-1030 deploy
-Resume file: .planning/phases/123-pii-path-masking/123-SUMMARY.md → .planning/ROADMAP.md (Phase 124 details)
+Last session: 2026-04-28T18:29:09Z
+Stopped at: Phase 125 (Login & Status UX) complete — 6 atomic implementation commits (d554225..1301fdc) + 125-SUMMARY.md. 2 manual checkpoints (125-01 T4 + 125-02 T4) deferred to Phase 127 pending arcanon-hub THE-1030 deploy.
+Resume file: .planning/phases/125-login-and-status-ux/125-SUMMARY.md → .planning/ROADMAP.md (Phase 126 Auth Test Suite details).

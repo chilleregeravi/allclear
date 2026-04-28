@@ -25,19 +25,19 @@ Personal-credential auth: every upload carries `X-Org-Id`; the plugin discovers 
 
 - [ ] **AUTH-05**: `worker/scan/manager.js _readHubConfig` reads per-repo `cfg.hub.org_id` override from `arcanon.config.json` and threads it into `uploadScan` ahead of the resolver chain (so per-repo override beats env beats machine default).
 
-- [ ] **AUTH-06**: `/arcanon:login arc_xxx [--org-id <uuid>]` flow:
+- [x] **AUTH-06**: `/arcanon:login arc_xxx [--org-id <uuid>]` flow:
   - With `--org-id`: store the triple after calling `whoami` for verification (warn-but-allow if the key isn't authorized for that org — server will reject at upload time).
   - Without `--org-id`: call `whoami`. Exactly **1 grant** → auto-select and announce. **N grants** → prompt via AskUserQuestion. **0 grants** → fail loud with "key has no org grants — ask your admin".
 
-- [ ] **AUTH-07**: `/arcanon:status` adds an Identity block showing: resolved org id + source (env / repo config / machine default), key preview (`arc_xxxx…1234`), scopes, and the list of orgs the key is authorized for. Shows `(missing)` when no org id resolves.
+- [x] **AUTH-07**: `/arcanon:status` adds an Identity block showing: resolved org id + source (env / repo config / machine default), key preview (`arc_xxxx…1234`), scopes, and the list of orgs the key is authorized for. Shows `(missing)` when no org id resolves.
 
-- [ ] **AUTH-08**: `uploadScan` parses these server error codes and surfaces actionable messages (no opaque "401 Unauthorized"):
+- [x] **AUTH-08**: `uploadScan` parses these server error codes and surfaces actionable messages (no opaque "401 Unauthorized"):
   - `missing_x_org_id`, `invalid_x_org_id`
   - `insufficient_scope`
   - `key_not_authorized_for_org` ("key not authorized for this org — run `/arcanon:login --org-id <uuid>` to switch")
   - `not_a_member`, `forbidden_scan`, `invalid_key`
 
-- [ ] **AUTH-09**: `commands/login.md`, `arcanon.config.json.example`, and the three docs (`docs/hub-integration.md`, `docs/getting-started.md`, `docs/configuration.md`) document the new field, env var, login flow, and resolution order.
+- [x] **AUTH-09**: `commands/login.md`, `arcanon.config.json.example`, and the three docs (`docs/hub-integration.md`, `docs/getting-started.md`, `docs/configuration.md`) document the new field, env var, login flow, and resolution order.
 
 - [ ] **AUTH-10**: Tests:
   - `worker/hub-sync/client.test.js` — header lands; missing `orgId` fails fast; each new error code produces its own message; success → `scan_upload_id`.
@@ -115,10 +115,10 @@ Filled by `/gsd-roadmapper` after roadmap approval (2026-04-27).
 | AUTH-03 | Phase 124 | not started |
 | AUTH-04 | Phase 124 | not started |
 | AUTH-05 | Phase 124 | not started |
-| AUTH-06 | Phase 125 | not started |
-| AUTH-07 | Phase 125 | not started |
-| AUTH-08 | Phase 125 | not started |
-| AUTH-09 | Phase 125 | not started |
+| AUTH-06 | Phase 125 | complete (2026-04-28; manual e2e walkthrough deferred to Phase 127) |
+| AUTH-07 | Phase 125 | complete (2026-04-28; manual e2e walkthrough deferred to Phase 127) |
+| AUTH-08 | Phase 125 | complete (2026-04-28; full enumeration test in Phase 126 M-AUTH-08) |
+| AUTH-09 | Phase 125 | complete (2026-04-28; manual docs read-through deferred to Phase 127) |
 | AUTH-10 | Phase 126 | not started |
 | PII-01 | Phase 123 | not started |
 | PII-02 | Phase 123 | not started |
