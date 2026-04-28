@@ -8,6 +8,7 @@ import { listProjects, getQueryEngineByHash } from "../db/pool.js";
 import { resolveConfigPath } from "../lib/config-path.js";
 import { getCommitsSince } from "../scan/git-state.js";
 import { extractEvidenceLocation } from "../hub-sync/evidence-location.js";
+import { maskHomeDeep } from "../lib/path-mask.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -371,12 +372,14 @@ async function createHttpServer(queryEngine, options = {}) {
         new_commits: getCommitsSince(row.path, row.sha),
       }));
 
-      return reply.send({
+      // PII-03: mask absolute repo paths before egress (S2 mitigation —
+      // repos[].path is the documented surface that S2 calls out).
+      return reply.send(maskHomeDeep({
         last_scan_iso: completedIso,
         last_scan_age_seconds: ageSeconds,
         scan_quality_pct: qualityPct,
         repos,
-      });
+      }));
     } catch (err) {
       httpLog("ERROR", err.message, {
         route: "/api/scan-freshness",
@@ -537,7 +540,8 @@ async function createHttpServer(queryEngine, options = {}) {
   // 2. GET /projects — list all projects with DBs
   fastify.get("/projects", async (_request, reply) => {
     try {
-      return reply.send(listProjects());
+      // PII-03: mask absolute project paths before egress.
+      return reply.send(maskHomeDeep(listProjects()));
     } catch (err) {
       httpLog('ERROR', err.message, { route: '/projects', stack: err.stack });
       return reply.code(500).send({ error: err.message });
@@ -575,7 +579,9 @@ async function createHttpServer(queryEngine, options = {}) {
         }
       } catch { /* no config file or no boundaries key — return empty array */ }
 
-      return reply.send({ ...graph, boundaries });
+      // PII-03: mask repo_path / root_path / repo_name absolute prefixes
+      // (services[].root_path, services[].repo_path from query-engine.js:1591).
+      return reply.send(maskHomeDeep({ ...graph, boundaries }));
     } catch (err) {
       httpLog('ERROR', err.message, { route: '/graph', stack: err.stack });
       return reply.code(500).send({ error: err.message });
