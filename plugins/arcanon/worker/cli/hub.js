@@ -376,6 +376,9 @@ async function cmdStatus(flags) {
   // is no longer consumed by /arcanon:status.
   const freshness = await _fetchScanFreshness(process.cwd());
 
+  // AUTH-07 / D-125-03: Identity block.
+  const identity = await _buildIdentityBlock(cfg);
+
   const report = {
     plugin_version: readPackageVersion(),
     data_dir: resolveDataDir(),
@@ -385,6 +388,7 @@ async function cmdStatus(flags) {
     credentials: hasCreds ? "present" : "missing",
     queue: stats,
     scan_freshness: freshness?.report ?? null,
+    identity,
   };
 
   if (flags.json) {
@@ -399,6 +403,23 @@ async function cmdStatus(flags) {
     `  queue:        ${stats.pending} pending, ${stats.dead} dead${stats.oldestPending ? `, oldest ${stats.oldestPending}` : ""}`,
     `  data dir:     ${report.data_dir}`,
   ];
+
+  // AUTH-07 / D-125-03: Identity block (4 indented lines under "Identity:" header).
+  // Rendered after data dir, before Latest scan freshness lines.
+  lines.push(`  Identity:`);
+  const idOrgId = identity.org_id || "(missing)";
+  const idSource = identity.org_id_source || "—";
+  lines.push(`    org id:        ${idOrgId}  (source: ${idSource})`);
+  lines.push(`    key:           ${identity.key_preview || "(missing)"}`);
+  if (identity.whoami_status === "ok") {
+    lines.push(`    scopes:        ${identity.scopes.length > 0 ? identity.scopes.join(", ") : "(none)"}`);
+    const slugs = identity.authorized_orgs.map((o) => o.slug || o.id).join(", ");
+    lines.push(`    authorized:    ${slugs || "(none)"}`);
+  } else {
+    lines.push(`    scopes:        (unavailable: ${identity.whoami_status})`);
+    lines.push(`    authorized:    (unavailable)`);
+  }
+
   if (freshness?.qualityLine) {
     lines.push(`  ${freshness.qualityLine}`);
   }
@@ -406,6 +427,101 @@ async function cmdStatus(flags) {
     lines.push(`  ${line}`);
   }
   emit(report, flags, lines.join("\n"));
+}
+
+/**
+ * AUTH-07 / D-125-03: Build the Identity block surfaced in /arcanon:status.
+ *
+ * Resolution:
+ *   1. Try resolveCredentials({orgIdRequired:false}) — gives apiKey + hubUrl + best-effort orgId.
+ *      If no creds at all → return all-null with whoami_status: "skipped".
+ *   2. Build key_preview as `${apiKey.slice(0,8)}…${apiKey.slice(-4)}` (e.g. arc_xxxx…1234).
+ *   3. Determine org_id_source by inspecting opts/env/repo-config/home-config in precedence order.
+ *   4. If apiKey + hubUrl resolve, call getKeyInfo(apiKey, hubUrl) with a 4 s timeout.
+ *      - On success → populate scopes, authorized_orgs, whoami_status:"ok".
+ *      - On AuthError → whoami_status:"auth_error".
+ *      - On HubError 5xx → whoami_status:"hub_error".
+ *      - On HubError network (status:null + retriable) → whoami_status:"network_error".
+ *
+ * @param {object} cfg - Already-loaded project config (from readProjectConfig()).
+ * @returns {Promise<{
+ *   org_id: string|null,
+ *   org_id_source: string|null,
+ *   key_preview: string|null,
+ *   scopes: string[],
+ *   authorized_orgs: Array<{id: string, slug: string}>,
+ *   whoami_status: "ok"|"auth_error"|"hub_error"|"network_error"|"skipped",
+ * }>}
+ */
+async function _buildIdentityBlock(cfg) {
+  const empty = {
+    org_id: null,
+    org_id_source: null,
+    key_preview: null,
+    scopes: [],
+    authorized_orgs: [],
+    whoami_status: "skipped",
+  };
+
+  // Determine org_id_source by inspecting precedence chain explicitly.
+  // Order: per-repo hub.org_id → ARCANON_ORG_ID env → home-config default_org_id.
+  const repoOrgId = cfg?.hub?.org_id || null;
+  const envOrgId = process.env.ARCANON_ORG_ID || null;
+
+  let creds;
+  try {
+    creds = resolveCredentials({
+      orgId: repoOrgId || undefined,
+      orgIdRequired: false,
+    });
+  } catch {
+    return empty;
+  }
+
+  const { apiKey, hubUrl, orgId } = creds;
+  const keyPreview = apiKey && apiKey.length >= 12
+    ? `${apiKey.slice(0, 8)}…${apiKey.slice(-4)}`
+    : (apiKey ? "arc_***" : null);
+
+  // Compute org_id_source: which precedence tier produced the resolved orgId?
+  let orgIdSource = null;
+  if (orgId) {
+    if (repoOrgId && orgId === repoOrgId) orgIdSource = "repo_config";
+    else if (envOrgId && orgId === envOrgId) orgIdSource = "env";
+    else orgIdSource = "config_default";
+  }
+
+  // Best-effort whoami call with 4-second timeout cap so /arcanon:status never hangs.
+  let scopes = [];
+  let authorizedOrgs = [];
+  let whoamiStatus = "ok";
+  try {
+    const info = await getKeyInfo(apiKey, hubUrl, { timeoutMs: 4000 });
+    scopes = Array.isArray(info?.scopes) ? info.scopes : [];
+    const grants = Array.isArray(info?.grants) ? info.grants : [];
+    authorizedOrgs = grants.map((g) => ({
+      id: g.org_id,
+      slug: g.org_name || g.slug || g.org_id,
+    }));
+  } catch (err) {
+    if (err instanceof AuthError) {
+      whoamiStatus = "auth_error";
+    } else if (err instanceof HubError) {
+      whoamiStatus = (err.status === null && err.retriable) ? "network_error" : "hub_error";
+    } else {
+      // Unexpected — treat as hub_error so /arcanon:status still renders cleanly.
+      whoamiStatus = "hub_error";
+    }
+  }
+
+  return {
+    org_id: orgId || null,
+    org_id_source: orgIdSource,
+    key_preview: keyPreview,
+    scopes,
+    authorized_orgs: authorizedOrgs,
+    whoami_status: whoamiStatus,
+  };
 }
 
 /**
