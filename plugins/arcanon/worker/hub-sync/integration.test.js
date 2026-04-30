@@ -16,6 +16,8 @@ import { execFileSync } from "node:child_process";
 
 import { syncFindings } from "./index.js";
 import { _resetQueueDb, queueStats } from "./queue.js";
+import { storeCredentials, resolveCredentials, AuthError } from "./auth.js";
+import { getKeyInfo } from "./whoami.js";
 
 function makeTempGitRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-integration-"));
@@ -282,6 +284,130 @@ test("AUTH-01..05 e2e: ~/.arcanon/config.json default_org_id is the final fallba
     fs.rmSync(tmpHome, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// AUTH-10 / Phase 126: Login flow integration — storeCredentials → resolveCredentials
+// round-trip + getKeyInfo auto-select. cmdLogin itself uses process.exit() and
+// can't be unit-called; these tests pin the underlying primitives that cmdLogin
+// composes (whoami → store → resolve), which is the contract under test.
+// ---------------------------------------------------------------------------
+
+async function withTempHome(fn) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "arcanon-it-home-"));
+  const originalHome = process.env.HOME;
+  process.env.HOME = tmp;
+  try {
+    return await fn(tmp);
+  } finally {
+    if (originalHome !== undefined) process.env.HOME = originalHome;
+    else delete process.env.HOME;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+test("AUTH-10 L1: /arcanon:login --org-id round-trips through storeCredentials → resolveCredentials", async () => {
+  await withTempHome(async (tmpHome) => {
+    const originalOrgEnv = process.env.ARCANON_ORG_ID;
+    const originalKeyEnv = process.env.ARCANON_API_KEY;
+    const originalTokenEnv = process.env.ARCANON_API_TOKEN;
+    const originalHubEnv = process.env.ARCANON_HUB_URL;
+    delete process.env.ARCANON_ORG_ID;
+    delete process.env.ARCANON_API_KEY;
+    delete process.env.ARCANON_API_TOKEN;
+    delete process.env.ARCANON_HUB_URL;
+
+    try {
+      const file = storeCredentials("arc_login", {
+        hubUrl: "https://hub.arcanon.test",
+        defaultOrgId: "00000000-0000-0000-0000-000000000042",
+      });
+      assert.ok(
+        file.startsWith(tmpHome),
+        `config path must live under tmp HOME (got ${file}, tmpHome=${tmpHome})`,
+      );
+      const persisted = JSON.parse(fs.readFileSync(file, "utf8"));
+      assert.equal(persisted.api_key, "arc_login");
+      assert.equal(persisted.hub_url, "https://hub.arcanon.test");
+      assert.equal(persisted.default_org_id, "00000000-0000-0000-0000-000000000042");
+
+      const creds = resolveCredentials();
+      assert.equal(creds.apiKey, "arc_login");
+      assert.equal(creds.hubUrl, "https://hub.arcanon.test");
+      assert.equal(creds.orgId, "00000000-0000-0000-0000-000000000042");
+      assert.equal(creds.source, "home-config");
+    } finally {
+      if (originalOrgEnv !== undefined) process.env.ARCANON_ORG_ID = originalOrgEnv;
+      if (originalKeyEnv !== undefined) process.env.ARCANON_API_KEY = originalKeyEnv;
+      if (originalTokenEnv !== undefined) process.env.ARCANON_API_TOKEN = originalTokenEnv;
+      if (originalHubEnv !== undefined) process.env.ARCANON_HUB_URL = originalHubEnv;
+    }
+  });
+});
+
+test("AUTH-10 L2: /arcanon:login WITHOUT --org-id calls whoami and auto-selects on N=1 grant", async () => {
+  await withTempHome(async () => {
+    const originalOrgEnv = process.env.ARCANON_ORG_ID;
+    const originalKeyEnv = process.env.ARCANON_API_KEY;
+    const originalTokenEnv = process.env.ARCANON_API_TOKEN;
+    const originalHubEnv = process.env.ARCANON_HUB_URL;
+    delete process.env.ARCANON_ORG_ID;
+    delete process.env.ARCANON_API_KEY;
+    delete process.env.ARCANON_API_TOKEN;
+    delete process.env.ARCANON_HUB_URL;
+
+    let whoamiHit = false;
+    const { server, url } = await startMockHub((req, res) => {
+      if (req.url === "/api/v1/auth/whoami") {
+        whoamiHit = true;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            user_id: "u-only",
+            key_id: "k-only",
+            scopes: ["scan:write"],
+            grants: [{ org_id: "11111111-1111-1111-1111-111111111111", role: "member" }],
+          }),
+        );
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+
+    try {
+      const keyInfo = await getKeyInfo("arc_test", url);
+      assert.equal(whoamiHit, true, "whoami endpoint must be called when --org-id is omitted");
+      assert.equal(keyInfo.grants.length, 1);
+      const autoSelected = keyInfo.grants[0].org_id;
+      assert.equal(autoSelected, "11111111-1111-1111-1111-111111111111");
+
+      storeCredentials("arc_test", { hubUrl: url, defaultOrgId: autoSelected });
+
+      const creds = resolveCredentials();
+      assert.equal(
+        creds.orgId,
+        "11111111-1111-1111-1111-111111111111",
+        "auto-selected org_id from whoami N=1 grant must round-trip through home-config",
+      );
+      assert.equal(creds.apiKey, "arc_test");
+    } finally {
+      await stopServer(server);
+      if (originalOrgEnv !== undefined) process.env.ARCANON_ORG_ID = originalOrgEnv;
+      if (originalKeyEnv !== undefined) process.env.ARCANON_API_KEY = originalKeyEnv;
+      if (originalTokenEnv !== undefined) process.env.ARCANON_API_TOKEN = originalTokenEnv;
+      if (originalHubEnv !== undefined) process.env.ARCANON_HUB_URL = originalHubEnv;
+    }
+  });
+});
+
+// NOTE: Plan 126-01 Test 8 (multi-grant AskUserQuestion mock) is intentionally
+// SKIPPED. cmdLogin in plugins/arcanon/worker/cli/hub.js uses process.exit(7)
+// + an `__ARCANON_GRANT_PROMPT__` stdout sentinel; the markdown layer handles
+// the AskUserQuestion prompt and re-invokes cmdLogin with --org-id <chosen>.
+// There is no in-process injectable seam for AskUserQuestion. Pinning the
+// multi-grant prompt requires an end-to-end test against the deployed hub
+// (Phase 127 VER-04 manual e2e walkthrough). The N=1 auto-select path above
+// exercises the same whoami → storeCredentials chain.
 
 test("syncFindings surfaces 422 without enqueueing", async () => {
   _resetQueueDb();
