@@ -235,3 +235,49 @@ test("AUTH-01 C4: 4xx response with body.title still surfaces title in error mes
     },
   );
 });
+
+// AUTH-08 / AUTH-10: Each of the 7 RFC 7807 server error codes must surface as
+// its own HubError with .code populated and a recognisable user message.
+// Substring matching (NOT exact equality) so Phase 125 copy edits don't fail
+// the regression suite. This is the auth-test-suite gate (REQ AUTH-10).
+test("AUTH-10 M-AUTH-08: 7 server error codes each surface a distinct HubError with .code populated", async () => {
+  const CASES = [
+    { code: "missing_x_org_id", status: 400, expectedSubstring: "x-org-id" },
+    { code: "invalid_x_org_id", status: 400, expectedSubstring: "uuid" },
+    { code: "insufficient_scope", status: 403, expectedSubstring: "scope" },
+    { code: "key_not_authorized_for_org", status: 403, expectedSubstring: "not authorized" },
+    { code: "not_a_member", status: 403, expectedSubstring: "member" },
+    { code: "forbidden_scan", status: 403, expectedSubstring: "forbidden" },
+    { code: "invalid_key", status: 401, expectedSubstring: "invalid" },
+  ];
+  for (const { code, status, expectedSubstring } of CASES) {
+    const fetchImpl = async () =>
+      jsonResponse(status, {
+        type: "https://errors.arcanon.dev/" + code,
+        title: "auth error",
+        status,
+        detail: "test",
+        code,
+      });
+    await assert.rejects(
+      () =>
+        uploadScan(mkPayload(), {
+          apiKey: "arc_test",
+          hubUrl: BASE_URL,
+          orgId: "org-1",
+          fetchImpl,
+          backoffsMs: [0, 0, 0],
+        }),
+      (err) => {
+        assert.ok(err instanceof HubError, `code=${code}: expected HubError`);
+        assert.equal(err.status, status, `code=${code}: status mismatch`);
+        assert.equal(err.code, code, `code=${code}: HubError.code must be populated`);
+        assert.ok(
+          err.message.toLowerCase().includes(expectedSubstring.toLowerCase()),
+          `code=${code}: expected message to include "${expectedSubstring}"; got: ${err.message}`,
+        );
+        return true;
+      },
+    );
+  }
+});
