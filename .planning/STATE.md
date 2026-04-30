@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.1.5
 milestone_name: Identity & Privacy
 status: executing
-stopped_at: Phase 126 (Auth Test Suite) complete (commits 62fd1fc + 6b9dffb, SUMMARY at .planning/phases/126-auth-test-suite/126-01-SUMMARY.md); npm test 823/824 passing, 1 carry-forward fail unchanged. Next is Phase 127 (Verification & Release Gate, VER-01..04).
-last_updated: "2026-04-30T17:05:00Z"
-last_activity: 2026-04-30 -- Phase 126 (Auth Test Suite) shipped 2 atomic test commits inline + SUMMARY; 7-code RFC 7807 table + login round-trip + whoami auto-select pinned
+stopped_at: Phase 127 (Verification & Release Gate) Tasks 1-3 COMPLETE (commits b27eccc + 4070a8c, SUMMARY at .planning/phases/127-verification-and-release-gate/127-01-SUMMARY.md). Manifests pinned at 0.1.5, CHANGELOG [0.1.5] section drafted, bats 458/459 + node 823/824 green at v0.1.4 flake floors. Task 4 (VER-04 operator e2e walkthrough) BLOCKED pending arcanon-hub THE-1030 deploy — same dependency as deferred Phase 125 T4 checkpoints.
+last_updated: "2026-04-30T17:30:00Z"
+last_activity: 2026-04-30 -- Phase 127 Tasks 1-3 (VER-01..03) shipped 2 atomic commits inline + SUMMARY; Task 4 BLOCKED on hub-side THE-1030 deploy
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 5
   completed_plans: 5
-  percent: 80
+  percent: 95
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-27)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 127 — Verification & Release Gate (VER-01..04)
+**Current focus:** v0.1.5 ship gate — awaiting arcanon-hub THE-1030 deploy for the 3 deferred operator e2e walkthroughs
 
 ## Current Position
 
-Phase: 126 (Auth Test Suite) — COMPLETE
-Plan: 1 of 1 (126-01 inline + SUMMARY)
-Status: Phase 126 shipped; awaiting Phase 127 plan-phase / execute
-Last activity: 2026-04-30 -- 126-01-SUMMARY.md created; 2 atomic test commits in main (62fd1fc + 6b9dffb)
+Phase: 127 (Verification & Release Gate) — Tasks 1-3 COMPLETE; Task 4 BLOCKED on hub-side THE-1030
+Plan: 1 of 1 (VER-01 manifest bumps ✓, VER-02 CHANGELOG ✓, VER-03 test suites green ✓, VER-04 e2e walkthrough ⛔)
+Status: All implementation work landed. v0.1.5 ship blocked on operator e2e walkthrough against THE-1030-honoring hub.
+Last activity: 2026-04-30 -- 127-01-SUMMARY.md created; 2 atomic commits in main (b27eccc manifest bump + 4070a8c CHANGELOG)
 
 ## Performance Metrics
 
@@ -68,10 +68,11 @@ Last activity: 2026-04-30 -- 126-01-SUMMARY.md created; 2 atomic test commits in
 
 ### Pending Todos
 
-- Phase 127 (Verification & Release Gate, VER-01..04) is next — manifest bumps to 0.1.5, CHANGELOG verbatim from 124-CHANGELOG-DRAFT.md, full bats + node green, e2e walkthrough Task 4.
-- Phase 127 (Release Gate) must re-run the 2 deferred manual checkpoints from Phase 125 against the deployed dev hub before v0.1.5 final ship:
+- Phase 127 Tasks 1-3 SHIPPED. v0.1.5 ship is gated on a single operator session against a THE-1030-honoring hub instance:
   1. **125-01 Task 4** — Manual login walkthrough (8 e2e steps: auto-select / multi-grant prompt / mismatch warn / AuthError / network error / hub-unreachable refuse).
   2. **125-02 Task 4** — Manual `/arcanon:status` Identity block populated against real grants + docs read-through.
+  3. **127-01 Task 4** — VER-04 4-step walkthrough (login round-trip / Identity block / MCP zero-`/Users/` / `/arcanon:sync` with server-side `X-Org-Id` proof via hub admin endpoint, log line, or DB row).
+- Run all 3 in a single session — same hub instance covers all of them. Then update each phase's SUMMARY with the operator-confirmed PASS marks and run `/gsd-complete-milestone v0.1.5`.
 
 ### Blockers/Concerns
 
@@ -85,8 +86,9 @@ Carried forward from v0.1.4 close (2026-04-27):
 | Category | Item | Status |
 |----------|------|--------|
 | uat_gap | Phase 114: 114-UAT.md (7 pending operator scenarios — cold-start, list, view, doctor x4) | testing |
-| checkpoint_deferred | Phase 125 / Plan 125-01 Task 4: Manual login walkthrough (8 e2e steps against deployed hub) | pending Phase 127 (THE-1030 deploy required) |
-| checkpoint_deferred | Phase 125 / Plan 125-02 Task 4: Manual /arcanon:status Identity block + docs read-through | pending Phase 127 (THE-1030 deploy required) |
+| checkpoint_deferred | Phase 125 / Plan 125-01 Task 4: Manual login walkthrough (8 e2e steps against deployed hub) | pending THE-1030 deploy |
+| checkpoint_deferred | Phase 125 / Plan 125-02 Task 4: Manual /arcanon:status Identity block + docs read-through | pending THE-1030 deploy |
+| checkpoint_deferred | Phase 127 / Plan 127-01 Task 4: VER-04 4-step e2e walkthrough (login + status + MCP zero-/Users/ + /arcanon:sync server-side X-Org-Id proof) | pending THE-1030 deploy — v0.1.5 ship blocker |
 
 The Phase 114 entries are operator-facing manual scenarios — phase 114 automated VERIFICATION.md is `passed` (31/31 bats green); the UAT is the operator's own "feels-right" gate, not a release blocker. Run them in a real terminal at your convenience and update `114-UAT.md` results in place.
 
@@ -94,6 +96,6 @@ The Phase 125 deferred checkpoints are pre-approved deferrals (per executor 2026
 
 ## Session Continuity
 
-Last session: 2026-04-30T17:05:00Z
-Stopped at: Phase 126 (Auth Test Suite) complete — 2 atomic test commits (62fd1fc + 6b9dffb) + 126-01-SUMMARY.md. npm test: 823 passing, 1 carry-forward fail (server-search.test.js:159 v0.1.2 mock). Phase 124+125 over-delivered on test coverage; Phase 126 filled the 7-code RFC 7807 table gap and login-flow integration gaps.
-Resume file: .planning/phases/126-auth-test-suite/126-01-SUMMARY.md → .planning/ROADMAP.md (Phase 127 Verification & Release Gate details).
+Last session: 2026-04-30T17:30:00Z
+Stopped at: Phase 127 (Verification & Release Gate) Tasks 1-3 (VER-01..03) COMPLETE — manifests pinned at 0.1.5 (commit b27eccc, lockfile regenerated), CHANGELOG [0.1.5] section drafted with BREAKING/Added/Changed (commit 4070a8c), bats 458/459 + node 823/824 green at v0.1.4 flake floors with no new pre-existing-mock carryforwards. Task 4 (VER-04 operator e2e walkthrough) BLOCKED on arcanon-hub THE-1030 deploy — bundles with the 2 deferred Phase 125 checkpoints.
+Resume file: .planning/phases/127-verification-and-release-gate/127-01-SUMMARY.md (defer-list at the bottom) → run all 3 walkthroughs in a single operator session once THE-1030 lands, then `/gsd-complete-milestone v0.1.5`.
