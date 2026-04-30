@@ -6,6 +6,143 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-04-30
+
+### BREAKING
+
+- **Hub uploads now require `org_id` (THE-1029, paired with arcanon-hub THE-1030).**
+  Every scan upload sends an `X-Org-Id: <uuid>` HTTP header. Calling `uploadScan`
+  without an `orgId` throws `HubError(status=400, code='missing_org_id')` BEFORE the
+  network attempt. Resolution precedence: `opts.orgId` → `ARCANON_ORG_ID` env →
+  `~/.arcanon/config.json#default_org_id`. Per-repo override (`hub.org_id` in
+  `arcanon.config.json`) beats env beats machine default.
+
+  **Upgrade path for v0.1.4 users:** Existing `~/.arcanon/config.json` files contain
+  `{api_key, hub_url}` but no `default_org_id`. The next `/arcanon:sync` (or any
+  auto-sync on scan-end) will fail with:
+
+  ```
+  AuthError: Missing org_id (sources tried: opts.orgId, ARCANON_ORG_ID env, ~/.arcanon/config.json#default_org_id).
+    Run /arcanon:login --org-id <uuid> to set the machine default.
+    Or set ARCANON_ORG_ID in your environment.
+    Or add hub.org_id to this repo's arcanon.config.json for a per-repo override.
+  ```
+
+  Re-run `/arcanon:login arc_xxx` (auto-selects when the key has 1 grant; prompts
+  on N>1; accepts explicit `--org-id <uuid>`) to populate `default_org_id` and
+  resume uploads.
+
+- **Hard prerequisite: arcanon-hub THE-1030 deploy.** v0.1.5 plugin code targets the
+  server-side personal-credential rewrite + `whoami` endpoint + `X-Org-Id`
+  enforcement shipped in arcanon-hub THE-1030. If the plugin is upgraded without
+  the hub deploy, every upload fails fast with an actionable error — no silent
+  data loss.
+
+- **Internal: `uploadScan(payload, opts)` requires `opts.orgId` (AUTH-01).** No
+  public-facing breakage. External tooling that imported `worker/hub-sync/client.js`
+  directly must thread an org id.
+
+### Added
+
+- **`X-Org-Id` header on every scan upload** (AUTH-01). `uploadScan` sends the
+  resolved org id on every POST to `${hubUrl}/api/v1/scans/upload`. Missing
+  `orgId` throws `HubError(status=400, code='missing_org_id')` before any
+  network call.
+- **`worker/hub-sync/whoami.js` module** (AUTH-02). New module exporting
+  `getKeyInfo(apiKey, hubUrl)` that calls `GET /api/v1/auth/whoami` and returns
+  `{user_id, key_id, scopes, grants}`. Auth-class HTTP errors throw `AuthError`;
+  transport errors throw `HubError`.
+- **`/arcanon:login [arc_xxx] [--org-id <uuid>]` whoami flow** (AUTH-06). With
+  `--org-id`: store the credential triple after a `whoami` verification pass
+  (warn-but-allow if the key is not authorized for that org — the hub rejects
+  at upload time anyway). Without `--org-id`: call `whoami` and branch — exactly
+  **1 grant** auto-selects, **N grants** prompt via `AskUserQuestion` (CLI
+  exit-code 7 + `__ARCANON_GRANT_PROMPT__` stdout sentinel for markdown-layer
+  re-entry), **0 grants** fail loud with "key has no org grants — ask your
+  admin". Hub-unreachable case: store the credential anyway when `--org-id` is
+  supplied, emit a WARN that grants could not be verified.
+- **Identity block in `/arcanon:status`** (AUTH-07). Renders resolved org id +
+  source (env / repo config / machine default), key preview (`arc_xxxx…1234`),
+  scopes, and the list of orgs the key is authorized for. Shows `(missing)` when
+  no org id resolves. `--json` mode emits `identity: {…}` as a nested object
+  (no top-level field churn for existing JSON consumers).
+- **`worker/lib/path-mask.js` module** (PII-01). Exports `maskHome(p)` (`$HOME`
+  prefix → `~`; idempotent; non-string passes through; exact-`$HOME` match
+  returns `~`) and `maskHomeDeep(obj)` (walks an object/array, masks any string
+  property whose key is path-y: `path`, `repo_path`, `source_file`,
+  `target_file`, `root_path`, plus a configurable allowlist; cycle-safe via
+  WeakSet).
+- **`ARCANON_ORG_ID` environment variable** (AUTH-03). Mid-precedence source
+  for org id: `opts.orgId` → `ARCANON_ORG_ID` env →
+  `~/.arcanon/config.json#default_org_id`.
+- **`arcanon.config.json hub.org_id` per-repo override** (AUTH-05). Threaded
+  into `uploadScan` ahead of the resolver chain (per-repo override beats env
+  beats machine default).
+- **Server error code parsing on `uploadScan` failures** (AUTH-08). Recognized:
+  `missing_x_org_id`, `invalid_x_org_id`, `insufficient_scope`,
+  `key_not_authorized_for_org`, `not_a_member`, `forbidden_scan`,
+  `invalid_key`. Each surfaces a user-actionable message via the frozen
+  `HUB_ERROR_CODE_MESSAGES` map; unknown codes fall back to the existing
+  RFC 7807 `body.title` rendering. `HubError` gains a `.code` field
+  (string|null) without breaking `.status`, `.retriable`, `.body`, `.attempts`.
+- **PII test gates** (PII-07). New `worker/lib/path-mask.test.js` (12 cases),
+  `worker/scan/findings.pii06.test.js` (4 cases), and `tests/pii-masking.bats`
+  (10 grep-assertions across MCP responses, HTTP responses, and worker logs).
+- **Auth test suite** (AUTH-10). New `worker/hub-sync/whoami.test.js` (7 tests
+  pinning parsed grants, `AuthError` on 401/403, `HubError` on transport / 5xx).
+  Extended `client.test.js` (12 tests: `X-Org-Id` lands, missing-orgId throws
+  before fetch, table-driven 7-code RFC 7807 contract, body.title fallback).
+  Extended `integration.test.js` (8 tests: 3 e2e precedence sub-cases, login
+  round-trip, whoami auto-select on N=1).
+
+### Changed
+
+- **`resolveCredentials(opts)` return shape** (AUTH-03). Now returns
+  `{apiKey, hubUrl, orgId, source}` (was `{apiKey, hubUrl, source}`). Strict
+  superset — existing destructures `{apiKey, hubUrl}` continue to work. Missing
+  org id throws `AuthError` whose message names the three resolution sources
+  and suggests `/arcanon:login --org-id <uuid>`. New
+  `resolveCredentials({orgIdRequired: false})` opt-out for non-upload callers
+  (e.g. doctor check 8) returns `orgId: null` instead of throwing.
+- **`hasCredentials()` semantics (C2 option-a)** stays org_id-tolerant. Reports
+  on api_key presence only; the missing-org_id throw is deferred to upload time
+  so the actionable `AuthError` lands in scan-end logs verbatim. Preserves the
+  v0.1.4 → v0.1.5 upgrade path (no silent auto-sync gating-off on first upgrade).
+- **`storeCredentials(apiKey, opts)`** accepts `opts.defaultOrgId` and persists
+  it as `default_org_id` in `~/.arcanon/config.json`. Existing keys preserved
+  via spread-merge. File mode 0600 / dir mode 0700 unchanged.
+- **MCP tool responses are masked** (PII-02). Every MCP tool response payload
+  referencing `repo.path`, `path`, `source_file`, `target_file`, or `root_path`
+  runs through `maskHomeDeep` before returning to the client. **Highest
+  priority** — only egress to a third party (Anthropic).
+- **HTTP responses are masked** (PII-03). `/api/scan-freshness`, `/projects`,
+  and `/graph` responses run through `maskHomeDeep` before serialization. The
+  `repo_path` projection from `query-engine.js` is masked at the response
+  boundary, not in the DB.
+- **Worker logger masks `extra` and stack traces** (PII-04). A single masking
+  seam in `worker/lib/logger.js` (between the `Object.assign(lineObj, extra)`
+  merge and the `JSON.stringify` serialize) routes all log output through
+  `maskHomeDeep`. Stack-trace strings inside `extra.stack` are also masked.
+  Console (TTY) output uses the same path.
+- **CLI exporters mask repo paths** (PII-05). `worker/cli/export*.js` —
+  mermaid, dot, and html exports run repo path strings through `maskHome`
+  before emitting.
+- **`parseAgentOutput` rejects absolute `source_file` values** (PII-06).
+  `worker/scan/findings.js` logs WARN with the offending value (also masked),
+  drops the field, does not fail the scan. Belt-and-suspenders against future
+  agent regressions; the agent prompt contract already mandates relative paths.
+- **`_readHubConfig` reads `cfg.hub.org_id`** (AUTH-05). `worker/scan/manager.js`
+  threads the per-repo override into `uploadScan` ahead of the resolver chain.
+- **Doctor check 8** (NAV-03 regression fix) uses
+  `resolveCredentials({orgIdRequired: false})` so the round-trip works without
+  an org id seeded in fixtures.
+- **`commands/login.md`, `commands/status.md`, `arcanon.config.json.example`,
+  `docs/hub-integration.md`, `docs/getting-started.md`,
+  `docs/configuration.md`** (AUTH-09). Document the new `default_org_id` field,
+  the `ARCANON_ORG_ID` env var, the `/arcanon:login [--org-id <uuid>]` flow
+  with grant-count branching, the resolution-order precedence, and the
+  Identity block in `/arcanon:status`.
+
 ## [0.1.4] - 2026-04-27
 
 ### Added
