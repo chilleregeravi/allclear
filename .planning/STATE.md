@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.1.5
 milestone_name: Identity & Privacy
 status: executing
-stopped_at: Phase 125 (Login & Status UX) complete (commits d554225..1301fdc, SUMMARY at .planning/phases/125-login-and-status-ux/125-SUMMARY.md); 2 manual checkpoints deferred to Phase 127 pending arcanon-hub THE-1030 deploy. Next is Phase 126 (Auth Test Suite, AUTH-10).
-last_updated: "2026-04-28T18:29:09Z"
-last_activity: 2026-04-28 -- Phase 125 (Login & Status UX) shipped 6 implementation commits + SUMMARY; 2 manual checkpoints deferred pending arcanon-hub THE-1030 deploy
+stopped_at: Phase 126 (Auth Test Suite) complete (commits 62fd1fc + 6b9dffb, SUMMARY at .planning/phases/126-auth-test-suite/126-01-SUMMARY.md); npm test 823/824 passing, 1 carry-forward fail unchanged. Next is Phase 127 (Verification & Release Gate, VER-01..04).
+last_updated: "2026-04-30T17:05:00Z"
+last_activity: 2026-04-30 -- Phase 126 (Auth Test Suite) shipped 2 atomic test commits inline + SUMMARY; 7-code RFC 7807 table + login round-trip + whoami auto-select pinned
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 5
-  completed_plans: 4
-  percent: 60
+  completed_plans: 5
+  percent: 80
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-27)
 
 **Core value:** Every edit is automatically formatted and linted, every quality check runs with one command, and breaking changes across repos are caught before they ship.
-**Current focus:** Phase 126 — Auth Test Suite (AUTH-10)
+**Current focus:** Phase 127 — Verification & Release Gate (VER-01..04)
 
 ## Current Position
 
-Phase: 125 (Login & Status UX) — COMPLETE (with 2 deferred manual checkpoints)
-Plan: 2 of 2 (both implementation plans landed: 125-01 + 125-02)
-Status: Phase 125 shipped; awaiting Phase 126 plan-phase
-Last activity: 2026-04-28 -- 125-SUMMARY.md created; 6 atomic commits in main
+Phase: 126 (Auth Test Suite) — COMPLETE
+Plan: 1 of 1 (126-01 inline + SUMMARY)
+Status: Phase 126 shipped; awaiting Phase 127 plan-phase / execute
+Last activity: 2026-04-30 -- 126-01-SUMMARY.md created; 2 atomic test commits in main (62fd1fc + 6b9dffb)
 
 ## Performance Metrics
 
@@ -68,7 +68,7 @@ Last activity: 2026-04-28 -- 125-SUMMARY.md created; 6 atomic commits in main
 
 ### Pending Todos
 
-- Phase 126 (Auth Test Suite, AUTH-10) is next — depends on Phase 125 surfaces (all in place).
+- Phase 127 (Verification & Release Gate, VER-01..04) is next — manifest bumps to 0.1.5, CHANGELOG verbatim from 124-CHANGELOG-DRAFT.md, full bats + node green, e2e walkthrough Task 4.
 - Phase 127 (Release Gate) must re-run the 2 deferred manual checkpoints from Phase 125 against the deployed dev hub before v0.1.5 final ship:
   1. **125-01 Task 4** — Manual login walkthrough (8 e2e steps: auto-select / multi-grant prompt / mismatch warn / AuthError / network error / hub-unreachable refuse).
   2. **125-02 Task 4** — Manual `/arcanon:status` Identity block populated against real grants + docs read-through.
@@ -94,6 +94,6 @@ The Phase 125 deferred checkpoints are pre-approved deferrals (per executor 2026
 
 ## Session Continuity
 
-Last session: 2026-04-28T18:29:09Z
-Stopped at: Phase 125 (Login & Status UX) complete — 6 atomic implementation commits (d554225..1301fdc) + 125-SUMMARY.md. 2 manual checkpoints (125-01 T4 + 125-02 T4) deferred to Phase 127 pending arcanon-hub THE-1030 deploy.
-Resume file: .planning/phases/125-login-and-status-ux/125-SUMMARY.md → .planning/ROADMAP.md (Phase 126 Auth Test Suite details).
+Last session: 2026-04-30T17:05:00Z
+Stopped at: Phase 126 (Auth Test Suite) complete — 2 atomic test commits (62fd1fc + 6b9dffb) + 126-01-SUMMARY.md. npm test: 823 passing, 1 carry-forward fail (server-search.test.js:159 v0.1.2 mock). Phase 124+125 over-delivered on test coverage; Phase 126 filled the 7-code RFC 7807 table gap and login-flow integration gaps.
+Resume file: .planning/phases/126-auth-test-suite/126-01-SUMMARY.md → .planning/ROADMAP.md (Phase 127 Verification & Release Gate details).
