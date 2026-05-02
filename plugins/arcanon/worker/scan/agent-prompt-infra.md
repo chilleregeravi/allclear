@@ -6,7 +6,7 @@ This repo contains infrastructure-as-code (Kubernetes manifests, Terraform, Helm
 
 {{COMMON_RULES}}
 
-## Discovery Context (from Phase 1)
+## Discovery Context (from Stage 1)
 
 {{DISCOVERY_JSON}}
 

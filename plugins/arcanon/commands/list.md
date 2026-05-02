@@ -28,7 +28,7 @@ existing worker HTTP endpoints (`/graph` + `/api/scan-quality`) plus a direct
 
 In a directory with no `impact-map.db` (i.e. a non-Arcanon project), the
 command produces zero output and exits 0 — same silent-no-op contract that
-`SessionStart` enrichment uses (RESEARCH §6 / SSE-05).
+`SessionStart` enrichment uses .
 
 ## Output shape (human mode)
 
@@ -80,7 +80,7 @@ source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
 arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/list.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
-  exit 0  # silent in non-Arcanon directories per NAV-01 contract
+  exit 0  # silent when not in an Arcanon-mapped repo
 fi
 if ! worker_running; then
   bash ${CLAUDE_PLUGIN_ROOT}/scripts/worker-start.sh > /dev/null 2>&1

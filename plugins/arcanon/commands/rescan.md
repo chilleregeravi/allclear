@@ -1,16 +1,16 @@
 ---
-description: Re-scan exactly one linked repo using Claude agents. Other linked repos in the project are NOT touched. Always full mode — incremental skip is bypassed. Pending scan_overrides for that repo are applied during the rescan via Phase 117's apply hook.
+description: Re-scan exactly one linked repo using Claude agents. Other linked repos in the project are NOT touched. Always full mode — incremental skip is bypassed. Pending scan_overrides for that repo are applied during the rescan via the override apply hook.
 argument-hint: "<repo-path-or-name>"
 allowed-tools: Bash, Read, AskUserQuestion, Agent
 ---
 
 # Arcanon Rescan — Single-Repo Re-scan
 
-Re-scan exactly one linked repo using the same two-phase Claude-agent
+Re-scan exactly one linked repo using the same two-stage Claude-agent
 workflow as `/arcanon:map`, scoped to a single repo. Other repos registered
 in the project are NOT re-scanned — their `services`, `connections`, and
 `scan_versions` rows are byte-untouched. Pending `scan_overrides` rows for
-the rescanned repo are consumed via Phase 117's `applyPendingOverrides` hook
+the rescanned repo are consumed via the `applyPendingOverrides` hook
 between `persistFindings` and `endScan`.
 
 **Core task:** Resolve `<repo>` → run discovery + deep agents → reconcile →
@@ -99,7 +99,7 @@ of the steps.
 
 Same scan recipe as `/arcanon:map` but for one repo only.
 
-**Phase 1 — Discovery** (fast, reads only structure files):
+**Stage 1 — Discovery** (fast, reads only structure files):
 
 Read the discovery prompt template using the Read tool:
 
@@ -120,7 +120,7 @@ Agent(
 The agent returns a JSON with `languages`, `frameworks`, `service_hints`,
 `route_files`, etc.
 
-**Phase 2 — Deep scan** (reads source code, targeted by discovery):
+**Stage 2 — Deep scan** (reads source code, targeted by discovery):
 
 Read the deep-scan prompt template using the Read tool:
 
@@ -129,7 +129,7 @@ Read(${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-deep.md)
 ```
 
 Replace `{{REPO_PATH}}` with `$REPO_PATH` and `{{DISCOVERY_JSON}}` with the
-Phase 1 output. Spawn the deep agent:
+Stage 1 output. Spawn the deep agent:
 
 ```
 Agent(
@@ -145,8 +145,8 @@ Print progress:
 
 ```
 Scanning ${REPO_NAME}...
-  Phase 1: discovered (${LANGS}, ${FRAMEWORKS}, N service hints, M route files)
-  Phase 2: scanned (P services, Q connections, R endpoints exposed)
+  Stage 1: discovered (${LANGS}, ${FRAMEWORKS}, N service hints, M route files)
+  Stage 2: scanned (P services, Q connections, R endpoints exposed)
 ```
 
 ---
@@ -170,7 +170,7 @@ for (const service of (findings.services || [])) {
 
 For every connection in the new findings: if `crossing === "external"` AND
 `target` is in `knownServices`, change it to `"cross-service"` and capture
-`_reconciliation` for the audit log (TRUST-06):
+`_reconciliation` for the audit log:
 
 ```javascript
 let _reconciledCount = 0;
@@ -247,7 +247,7 @@ node --input-type=module -e "
   qe.endScan(repoId, scanVersionId);
   console.log('Rescanned: ' + findings.repo_name + ' (repo_id=' + repoId + ', scan_version_id=' + scanVersionId + ')');
   console.log('Mode: full (incremental skip bypassed)');
-  // TRUST-05 quality breakdown — same surface as /arcanon:map.
+  // quality breakdown — same surface as /arcanon:map.
   const breakdown = qe.getScanQualityBreakdown(scanVersionId);
   if (breakdown && breakdown.quality_score !== null) {
     const pct = Math.round(breakdown.quality_score * 100);
@@ -255,7 +255,7 @@ node --input-type=module -e "
   } else if (breakdown) {
     console.log('Scan quality: n/a (' + breakdown.total + ' connections)');
   }
-  // TRUST-06 audit rows for reconciled connections (mirrors map.md Step 5).
+  // audit rows for reconciled connections (mirrors map.md Step 5).
   for (const conn of (findings.connections || [])) {
     if (!conn._reconciliation) continue;
     const sourceRow = db.prepare(
@@ -299,7 +299,7 @@ Then suggest the next step:
 
 Re-scan exactly one linked repo using Claude agents. Always full mode —
 incremental skip is bypassed. Other repos are NOT touched. Pending
-`scan_overrides` for that repo are applied via Phase 117's apply hook.
+`scan_overrides` for that repo are applied via the override apply hook.
 
 **Options:**
 - `<repo-path-or-name>` — required positional; absolute or relative path,

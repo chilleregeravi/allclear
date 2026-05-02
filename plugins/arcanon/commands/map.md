@@ -154,7 +154,7 @@ PROJECT_ROOT="$(pwd)"
    Skip this repo? (yes / no — force re-scan this repo)
    ```
 
-2. **Phase 1 — Discovery** (fast, reads only structure files):
+2. **Stage 1 — Discovery** (fast, reads only structure files):
    Read the discovery prompt template using the Read tool:
 
    ```
@@ -173,14 +173,14 @@ PROJECT_ROOT="$(pwd)"
 
    The agent returns a JSON with `languages`, `frameworks`, `service_hints`, `route_files`, etc. This takes seconds.
 
-3. **Phase 2 — Deep scan** (reads source code, targeted by discovery):
+3. **Stage 2 — Deep scan** (reads source code, targeted by discovery):
    Read the deep scan prompt template using the Read tool:
 
    ```
    Read(${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-deep.md)
    ```
 
-   Replace `{{REPO_PATH}}` with the absolute path. Replace `{{DISCOVERY_JSON}}` with the Phase 1 JSON output. Spawn a focused agent:
+   Replace `{{REPO_PATH}}` with the absolute path. Replace `{{DISCOVERY_JSON}}` with the Stage 1 JSON output. Spawn a focused agent:
 
    ```
    Agent(
@@ -198,8 +198,8 @@ PROJECT_ROOT="$(pwd)"
 
    ```
    Scanning 1/N: api...
-     Phase 1: discovered (python, fastapi, 2 services, 5 route files)
-     Phase 2: scanned (2 services, 5 connections, 8 endpoints exposed)
+     Stage 1: discovered (python, fastapi, 2 services, 5 route files)
+     Stage 2: scanned (2 services, 5 connections, 8 endpoints exposed)
    Scanning 2/N: auth... (skipped — no changes)
    ```
 
@@ -226,14 +226,14 @@ for (const finding of allFindings) {
 
 **Downgrade external to cross-service:**
 
-For every connection across all findings: if `crossing === "external"` AND `target` is in `knownServices`, change `crossing` to `"cross-service"`. Capture the original value on the connection object so Step 5 can write an `enrichment_log` audit row after `endScan` resolves the connection's DB id (TRUST-06, defer-and-write per Phase 111 CONTEXT D-04):
+For every connection across all findings: if `crossing === "external"` AND `target` is in `knownServices`, change `crossing` to `"cross-service"`. Capture the original value on the connection object so Step 5 can write an `enrichment_log` audit row after `endScan` resolves the connection's DB id:
 
 ```javascript
 let _reconciledCount = 0;
 for (const finding of allFindings) {
   for (const conn of (finding.connections || [])) {
     if (conn.crossing === 'external' && knownServices.has(conn.target)) {
-      // Capture original value BEFORE mutation for audit log (TRUST-06).
+      // Capture original value BEFORE mutation for the enrichment audit log.
       // The `_reconciliation` field rides through the JSON write-then-read
       // round-trip in Step 5 (it's a plain own enumerable property).
       conn._reconciliation = {
@@ -308,7 +308,7 @@ node --input-type=module -e "
   qe.persistFindings(repoId, findings, findings.commit || null, scanVersionId);
   qe.endScan(repoId, scanVersionId);
   console.log('saved');
-  // TRUST-05: surface scan quality at end-of-output. Format string locked in
+  // surface scan quality at end-of-output. Format string locked in
   // CONTEXT D-01 — \"Scan quality: NN% high-confidence, M prose-evidence warnings\".
   // prose_evidence_warnings is a 0 placeholder for v0.1.3 (D-01).
   const breakdown = qe.getScanQualityBreakdown(scanVersionId);
@@ -318,7 +318,7 @@ node --input-type=module -e "
   } else if (breakdown) {
     console.log('Scan quality: n/a (' + breakdown.total + ' connections)');
   }
-  // TRUST-06: write audit rows for connections reclassified by Step 3 reconciliation.
+  // write audit rows for connections reclassified by Step 3 reconciliation.
   // The \`_reconciliation\` field was attached in Step 3 BEFORE persistFindings so
   // it survives the JSON write-then-read round-trip (plain own enumerable property).
   // We resolve each reconciled connection's DB id by looking up the persisted

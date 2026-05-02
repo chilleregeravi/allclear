@@ -4,7 +4,7 @@ You are a code analysis agent scanning `{{REPO_PATH}}` to extract its **service 
 
 {{COMMON_RULES}}
 
-## Discovery Context (from Phase 1)
+## Discovery Context (from Stage 1)
 
 {{DISCOVERY_JSON}}
 
@@ -91,7 +91,7 @@ For `sdk` connections: the `path` must be the specific exported function(s) the 
 - Use the file that contains the call — not the file that defines the target.
 - For SDK connections, use the file that imports and invokes the SDK function.
 - `source_file: null` is only valid when the call site is dynamically generated or the source file is minified/bundled with no recoverable origin.
-- Absolute paths starting with `/` are REJECTED at parse time — the field is dropped, the connection still persists. The agent MUST emit relative paths (PII-06).
+- Absolute paths starting with `/` are REJECTED at parse time — the field is dropped, the connection still persists. The agent MUST emit relative paths.
 
 ## Example
 

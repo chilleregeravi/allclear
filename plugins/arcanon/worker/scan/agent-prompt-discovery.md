@@ -1,4 +1,4 @@
-# Arcanon Discovery Agent — Phase 1
+# Arcanon Discovery Agent
 
 You are a code structure discovery agent. Your task is to quickly analyze the repository at `{{REPO_PATH}}` and report its structure WITHOUT reading every file.
 
@@ -60,7 +60,7 @@ Return ONLY a fenced JSON code block:
 **Rules:**
 
 - Do NOT read source code files (_.py, _.ts, _.rs, _.go) line by line — only check if they exist
-- Do NOT report connections or endpoints — that's Phase 2's job
+- Do NOT report connections or endpoints — that's Stage 2's job
 - Be fast — this should take seconds, not minutes
 - If a repo has multiple services (mono-repo detected via subdirectory manifests), list each subdirectory service as a separate `service_hints` entry with the correct `root_path`
 

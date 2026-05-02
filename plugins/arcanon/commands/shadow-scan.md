@@ -9,7 +9,7 @@ allowed-tools: Bash, Read, AskUserQuestion, Agent
 Performs a scan into `${ARCANON_DATA_DIR}/projects/<hash>/impact-map-shadow.db`
 instead of the live `impact-map.db`. The live DB is byte-untouched.
 
-**Core task:** Same two-phase Claude-agent recipe as `/arcanon:map`, but
+**Core task:** Same two-stage Claude-agent recipe as `/arcanon:map`, but
 persistence routes to the shadow DB via `getShadowQueryEngine`. After the
 shadow scan you can `/arcanon:diff --shadow` to compare or
 `/arcanon:promote-shadow` to atomically swap shadow into live.
@@ -20,7 +20,7 @@ shadow scan you can `/arcanon:diff --shadow` to compare or
   dependency graph and want to see the new graph before mutating the live one.
 - **Compare scans cleanly.** A live re-scan replaces the previous scan in
   place; a shadow scan keeps both DBs side-by-side for `/arcanon:diff --shadow`.
-- **Trial pending overrides.** Phase 117's apply hook fires inside the
+- **Trial pending overrides.** the override apply hook fires inside the
   shadow scan transparently — pending `scan_overrides` rows are read from
   and written to the SHADOW DB's `scan_overrides` table. Live overrides
   are unaffected.
@@ -101,7 +101,7 @@ echo "Shadow-scanning ${REPO_COUNT} repo(s) into ${SHADOW_DB}"
 Same scan recipe as `/arcanon:map` Step 2 — discovery + deep — for each
 repo. Iterate over the repos JSON. For each `{ id, path, name }`:
 
-**Phase 1 — Discovery:**
+**Stage 1 — Discovery:**
 
 ```
 Read(${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-discovery.md)
@@ -117,7 +117,7 @@ Agent(
 )
 ```
 
-**Phase 2 — Deep scan:**
+**Stage 2 — Deep scan:**
 
 ```
 Read(${CLAUDE_PLUGIN_ROOT}/worker/scan/agent-prompt-deep.md)
@@ -138,8 +138,8 @@ repo (mirrors map.md):
 
 ```
 Scanning 1/N: <repo-name>...
-  Phase 1: discovered (<langs>, <frameworks>, P service hints, Q route files)
-  Phase 2: scanned (R services, S connections, T endpoints exposed)
+  Stage 1: discovered (<langs>, <frameworks>, P service hints, Q route files)
+  Stage 2: scanned (R services, S connections, T endpoints exposed)
 ```
 
 Collect all findings into one array `allFindings` (one entry per repo).
@@ -241,7 +241,7 @@ node --input-type=module -e "
       shadowQE.endScan(repoId, scanVersionId);
       serviceTotal += (findings.services || []).length;
       connectionTotal += (findings.connections || []).length;
-      // TRUST-06 audit rows for reconciled connections (mirrors map.md Step 5).
+      // audit rows for reconciled connections (mirrors map.md Step 5).
       const db = shadowQE._db;
       for (const conn of (findings.connections || [])) {
         if (!conn._reconciliation) continue;

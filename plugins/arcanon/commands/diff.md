@@ -1,5 +1,5 @@
 ---
-description: Compare two scan versions (NAV-04) or live vs shadow (--shadow, SHADOW-02). Shows services/connections added, removed, or modified.
+description: Compare two scan versions or live vs shadow (--shadow). Shows services/connections added, removed, or modified.
 argument-hint: "<scanA> <scanB> | --shadow [--json]"
 allowed-tools: Bash
 ---
@@ -12,7 +12,7 @@ Compare two scan versions of the current project's impact map. Selectors accepte
 - **HEAD shorthand** — `/arcanon:diff HEAD HEAD~1`
 - **ISO date** — `/arcanon:diff 2026-04-20 2026-04-25` (resolves to most recent scan ≤ each cutoff)
 - **Branch name** — `/arcanon:diff main feature-x` (resolves via `repo_state.last_scanned_commit`)
-- **`--shadow`** — `/arcanon:diff --shadow` compares live LATEST vs shadow LATEST (Phase 119, SHADOW-02). Requires both `impact-map.db` and `impact-map-shadow.db` to exist; run `/arcanon:shadow-scan` first if shadow is missing.
+- **`--shadow`** — `/arcanon:diff --shadow` compares live LATEST vs shadow LATEST . Requires both `impact-map.db` and `impact-map-shadow.db` to exist; run `/arcanon:shadow-scan` first if shadow is missing.
 
 Read-only via direct SQLite access — does not require the worker to be running.
 
@@ -34,7 +34,7 @@ Silent (no output, exit 0) when run from a directory without an `impact-map.db`.
 ## Help
 
 **Usage:** `/arcanon:diff <scanA> <scanB> [--json]`
-**Usage:** `/arcanon:diff --shadow [--json]` (Phase 119, SHADOW-02)
+**Usage:** `/arcanon:diff --shadow [--json]` 
 
 Compare two scan versions and show services/connections added, removed, or
 modified between them.
@@ -53,7 +53,7 @@ modified between them.
 - `/arcanon:diff --shadow` — live vs shadow comparison (after `/arcanon:shadow-scan`)
 - `/arcanon:diff --shadow --json` — machine-readable live-vs-shadow
 
-## --shadow flag (SHADOW-02 / Phase 119)
+## --shadow flag
 
 `/arcanon:diff --shadow` compares the LATEST completed scan in the live
 `impact-map.db` against the LATEST completed scan in the
@@ -76,7 +76,7 @@ source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
 arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/diff.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
-  exit 0  # silent in non-Arcanon directories per NAV-04 contract
+  exit 0  # silent when not in an Arcanon-mapped repo
 fi
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh diff $ARGUMENTS
 ```

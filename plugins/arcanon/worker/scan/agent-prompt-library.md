@@ -6,7 +6,7 @@ This repo is a **shared library or SDK** — not a deployable service. Your job 
 
 {{COMMON_RULES}}
 
-## Discovery Context (from Phase 1)
+## Discovery Context (from Stage 1)
 
 {{DISCOVERY_JSON}}
 

@@ -1,5 +1,5 @@
 ---
-description: Check for a newer Arcanon release and (after Phase 2-3 plans) apply it cleanly.
+description: Check for a newer Arcanon release and apply it cleanly.
 allowed-tools: Bash
 argument-hint: "[--check-only]"
 ---
@@ -7,11 +7,9 @@ argument-hint: "[--check-only]"
 # Arcanon Update
 
 Check the installed plugin version against the latest on the Arcanon marketplace,
-show a short changelog preview if there is one, and (after Phase 98-02 + 98-03
-ship) orchestrate a clean self-update.
+show a short changelog preview if there is one, and orchestrate a clean self-update.
 
-**Phase 1 status:** only the `--check` step is wired. Confirmation, kill, prune,
-and verify arrive in plans 98-02 and 98-03.
+**Current implementation status:** only the `--check` step is wired. Confirmation, kill, prune, and verify will arrive in subsequent patch releases.
 
 ## Pre-flight (one-time, during implementation)
 
@@ -68,7 +66,7 @@ Otherwise:
 > `Arcanon v{remote} is available. Changes:`
 > `{PREVIEW verbatim, one bullet per line}`
 
-## Step 3 — Ask for confirmation (default No) [REQ UPD-05]
+## Step 3 — Ask for confirmation (default No)
 
 Only reached when `status=newer`. Show the installed/remote/changelog summary, then ask:
 
@@ -80,7 +78,7 @@ Default is No. Only proceed if the user types `y` or `yes` (case-insensitive). A
 
 Wait for the user's literal response. Do NOT auto-proceed.
 
-## Step 4 — Check for active scan and kill the worker [REQ UPD-07, UPD-08]
+## Step 4 — Check for active scan and kill the worker
 
 Run:
 
@@ -98,7 +96,7 @@ Branch on `KILL_STATUS`:
 
 Never proceed to reinstall while a scan is running.
 
-## Step 5 — Run the plugin reinstall [REQ UPD-06]
+## Step 5 — Run the plugin reinstall
 
 **Note:** Pre-flight validation (recorded in 98-01 SUMMARY) confirmed that `claude plugin update` does NOT support `--yes` / `-y` / `--non-interactive`. The reinstall will run interactively — the user may be prompted to confirm by the `claude` CLI itself.
 
@@ -112,7 +110,7 @@ Tell the user:
 
 If the reinstall command exits non-zero, relay its stderr verbatim and stop — do NOT continue to Step 6/7.
 
-## Step 6 — Prune stale cache directories [REQ UPD-09]
+## Step 6 — Prune stale cache directories
 
 Run:
 
@@ -133,7 +131,7 @@ LOCKED=$(printf '%s' "$PRUNE_OUT" | jq -r '.locked | length')
 
 Never fail the update because of prune issues — this step is housekeeping, not correctness-critical.
 
-## Step 7 — Verify new worker + final message [REQ UPD-10, UPD-12]
+## Step 7 — Verify new worker + final message
 
 Run:
 
@@ -157,7 +155,7 @@ Extract `RUNNING_VER` when needed:
 RUNNING_VER=$(printf '%s' "$VERIFY_OUT" | jq -r '.running // "unknown"')
 ```
 
-**Success path — the final message (REQ UPD-12):**
+**Success path — the final message :**
 
 ```
 Arcanon v{TARGET_VER} installed and verified.
@@ -172,8 +170,7 @@ The restart sentence must appear verbatim (with the `{TARGET_VER}` placeholder r
 **Usage:** `/arcanon:update [--check-only]`
 
 Check the installed plugin version against the latest on the Arcanon
-marketplace, show a short changelog preview, and (after Phase 98-02 + 98-03
-ship) orchestrate a clean self-update.
+marketplace, show a short changelog preview, and orchestrate a clean self-update.
 
 **Options:**
 - *(no flags)* — check + (when newer) prompt to update; full apply flow

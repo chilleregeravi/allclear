@@ -1,5 +1,5 @@
 ---
-description: Stage a correction to scan findings (insert into scan_overrides). Override is queued, not applied — the next /arcanon:map or /arcanon:rescan run consumes it via Phase 117's apply hook. Per invocation, exactly one override row is written.
+description: Stage a correction to scan findings (insert into scan_overrides). Override is queued, not applied — the next /arcanon:map or /arcanon:rescan run consumes it via the override apply hook. Per invocation, exactly one override row is written.
 argument-hint: "connection|service --action delete|update|rename|set-base-path [--connection <id> | --service <name>] [--source <svc>] [--target <svc>] [--new-name <name>] [--base-path <path>] [--json]"
 allowed-tools: Bash
 ---
@@ -71,7 +71,7 @@ source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
 arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/correct.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
-  exit 0  # silent in non-Arcanon directories per the CORRECT-02 contract
+  exit 0  # silent when not in an Arcanon-mapped repo
 fi
 ```
 
@@ -82,7 +82,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh correct $ARGUMENTS
 ```
 
 The handler validates the argument matrix, resolves the target, builds the
-per-action payload, and inserts via Phase 117-01's `qe.upsertOverride`. The
+per-action payload, and inserts via `qe.upsertOverride`. The
 human output line is:
 
 > `correct: queued (override_id=<id>) — kind=<k>, target_id=<t>, action=<a>`
@@ -94,7 +94,7 @@ This command does **not** apply the override. Two ways to consume it:
 
 1. Run `/arcanon:map` — the scan pipeline calls `applyPendingOverrides`
    between `persistFindings` and `endScan`, applying every pending row and
-   stamping `applied_in_scan_version_id`. (Phase 117-02.)
+   stamping `applied_in_scan_version_id`. 
 2. Run `/arcanon:rescan` once it ships in plan 118-02 — explicit re-scan
    trigger, same apply-hook code path.
 

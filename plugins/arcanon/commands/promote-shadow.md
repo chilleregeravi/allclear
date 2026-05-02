@@ -60,7 +60,7 @@ source ${CLAUDE_PLUGIN_ROOT}/lib/help.sh
 arcanon_print_help_if_requested "$ARGUMENTS" "${CLAUDE_PLUGIN_ROOT}/commands/promote-shadow.md" && exit 0
 source ${CLAUDE_PLUGIN_ROOT}/lib/worker-client.sh
 if ! _arcanon_is_project_dir; then
-  exit 0  # silent in non-Arcanon directories per the SHADOW-03 contract
+  exit 0  # silent when not in an Arcanon-mapped repo
 fi
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/hub.sh promote-shadow $ARGUMENTS
 ```
