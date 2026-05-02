@@ -3,6 +3,7 @@
   "version": "0.1.5",
   "description": "Arcanon — cross-repo service dependency scanner for Claude Code",
   "license": "Apache-2.0",
+  "author": "Arcanon",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -18,7 +19,11 @@
     "arcanon",
     "service-graph",
     "cross-repo",
-    "dependency-mapping"
+    "dependency-mapping",
+    "identity",
+    "privacy",
+    "auth",
+    "drift-detection"
   ],
   "dependencies": {
     "@fastify/cors": "^10.0.0",

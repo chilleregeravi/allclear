@@ -14,7 +14,10 @@
     "cross-repo",
     "dependency-mapping",
     "architecture",
-    "drift-detection"
+    "drift-detection",
+    "identity",
+    "privacy",
+    "auth"
   ],
   "userConfig": {
     "api_token": {

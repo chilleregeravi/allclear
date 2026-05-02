@@ -13,3 +13,12 @@ node_modules/
 # Local Claude Code config (per-machine, not for distribution)
 .claude/
 AGENTS.md
+
+# Credentials / secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+secrets.json

@@ -36,6 +36,7 @@ import { collectDependencies } from "./enrichment/dep-collector.js";
 import { createCodeownersEnricher } from "./codeowners.js";
 import { resolveDataDir } from "../lib/data-dir.js";
 import { resolveConfigPath } from "../lib/config-path.js";
+import { readHubAutoSync as _readHubAutoSync } from "../lib/hub-config.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
 import { applyPendingOverrides } from "./overrides.js";
 import { syncFindings, hasCredentials } from "../hub-sync/index.js";
@@ -46,36 +47,6 @@ import { runActorLabeling } from "./enrichment/actor-labeler.js";
 // Register CODEOWNERS enricher once at module load (OWN-01).
 // Module-level registration runs before the first scan.
 registerEnricher("codeowners", createCodeownersEnricher());
-
-// Module-level guard ensures the deprecation warning fires at most
-// once per worker process, even if _readHubAutoSync is called thousands of
-// times across sequential scans.
-let _autoUploadDeprecationWarned = false;
-
-/**
- * Read hub.auto-sync with a legacy fallback to hub.auto-upload.
- * Writes a one-time stderr deprecation warning when the legacy key is the
- * sole activator. Remove this helper in v0.2.0 when the fallback is dropped.
- *
- * @param {Record<string, unknown>|undefined} hubBlock The `cfg.hub` object.
- * @returns {boolean} Effective flag value.
- */
-function _readHubAutoSync(hubBlock) {
-  const newKey = hubBlock?.["auto-sync"];
-  const legacyKey = hubBlock?.["auto-upload"];
-  // Explicit undefined check so that auto-sync:false beats auto-upload:true.
-  if (typeof newKey !== "undefined") return Boolean(newKey);
-  if (typeof legacyKey !== "undefined") {
-    if (!_autoUploadDeprecationWarned) {
-      process.stderr.write(
-        "arcanon: config key 'hub.auto-upload' is deprecated — rename to 'hub.auto-sync' (legacy key will be dropped in v0.2.0)\n"
-      );
-      _autoUploadDeprecationWarned = true;
-    }
-    return Boolean(legacyKey);
-  }
-  return false;
-}
 
 /**
  * Read hub config from arcanon.config.json.
