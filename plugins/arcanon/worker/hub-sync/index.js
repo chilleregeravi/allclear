@@ -31,8 +31,8 @@ export { PayloadError } from "./payload.js";
 export { HubError } from "./client.js";
 export { AuthError, resolveCredentials, hasCredentials, storeCredentials } from "./auth.js";
 export { queueStats, listAllUploads, pruneDead } from "./queue.js";
-// AUTH-02 (THE-1029): consumed by Phase 125 /arcanon:login (AUTH-06) and
-// /arcanon:status (AUTH-07).
+// consumed by  /arcanon:login  and
+// arcanon:status .
 export { getKeyInfo, WHOAMI_PATH } from "./whoami.js";
 
 /**
@@ -41,12 +41,12 @@ export { getKeyInfo, WHOAMI_PATH } from "./whoami.js";
  * @param {object} opts — fields forwarded to buildScanPayload, plus:
  * @param {string} [opts.apiKey] — explicit override; else resolveCredentials()
  * @param {string} [opts.hubUrl]
- * @param {string} [opts.orgId] — per-repo override threaded by manager.js (AUTH-05).
+ * @param {string} [opts.orgId] — per-repo override threaded by manager.js .
  *   Wins precedence over ARCANON_ORG_ID env and ~/.arcanon/config.json default_org_id.
  * @param {boolean} [opts.enqueueOnFailure=true]
- * @param {boolean} [opts.libraryDepsEnabled] — HUB-03 feature flag passthrough
- * @param {"full"|"hash-only"|"none"} [opts.evidenceMode] — INT-01 hub.evidence_mode passthrough
- * @param {string} [opts.projectRoot] — INT-01 root for hash-only line derivation; defaults to repoPath
+ * @param {boolean} [opts.libraryDepsEnabled] —  feature flag passthrough
+ * @param {"full"|"hash-only"|"none"} [opts.evidenceMode] —  hub.evidence_mode passthrough
+ * @param {string} [opts.projectRoot] —  root for hash-only line derivation; defaults to repoPath
  * @param {Function} [opts.log]
  * @returns {Promise<{ ok: boolean, result?: object, error?: Error, enqueuedId?: number, warnings: string[] }>}
  */
@@ -113,7 +113,7 @@ export async function syncFindings(opts = {}) {
  * @param {object} [opts]
  * @param {string} [opts.apiKey]
  * @param {string} [opts.hubUrl]
- * @param {string} [opts.orgId] — AUTH-05 per-repo override; threaded into uploadScan as X-Org-Id.
+ * @param {string} [opts.orgId] —  per-repo override; threaded into uploadScan as X-Org-Id.
  * @param {number} [opts.limit=50]
  * @param {Function} [opts.log]
  * @returns {Promise<{ attempted: number, succeeded: number, failed: number, dead: number, stats: object }>}

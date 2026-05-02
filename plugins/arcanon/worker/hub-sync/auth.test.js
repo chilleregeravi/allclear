@@ -39,7 +39,7 @@ test("resolveCredentials throws when nothing is configured", () => {
 test("resolveCredentials honors explicit apiKey", () => {
   withTempHome(() => {
     clearEnv();
-    // Provide an orgId source so the AUTH-03 org_id resolver succeeds.
+    // Provide an orgId source so the  org_id resolver succeeds.
     const { apiKey, hubUrl, source, orgId } = resolveCredentials({
       apiKey: "arc_explicit",
       orgId: "org-explicit",
@@ -87,8 +87,8 @@ test("resolveCredentials rejects keys without arc_ prefix", () => {
   });
 });
 
-// AUTH-03 Test A1 — explicit opts.orgId beats everything
-test("AUTH-03 A1: resolveCredentials returns explicit opts.orgId verbatim", () => {
+// Test A1 — explicit opts.orgId beats everything
+test("resolveCredentials returns explicit opts.orgId verbatim", () => {
   withTempHome(() => {
     clearEnv();
     const { apiKey, hubUrl, orgId, source } = resolveCredentials({
@@ -103,8 +103,8 @@ test("AUTH-03 A1: resolveCredentials returns explicit opts.orgId verbatim", () =
   });
 });
 
-// AUTH-03 Test A2 — ARCANON_ORG_ID env var
-test("AUTH-03 A2: resolveCredentials reads ARCANON_ORG_ID env var", () => {
+// Test A2 — ARCANON_ORG_ID env var
+test("resolveCredentials reads ARCANON_ORG_ID env var", () => {
   withTempHome(() => {
     clearEnv();
     process.env.ARCANON_ORG_ID = "org-env";
@@ -114,8 +114,8 @@ test("AUTH-03 A2: resolveCredentials reads ARCANON_ORG_ID env var", () => {
   });
 });
 
-// AUTH-03 Test A3 — ~/.arcanon/config.json default_org_id
-test("AUTH-03 A3: resolveCredentials reads default_org_id from ~/.arcanon/config.json", () => {
+// Test A3 — ~/.arcanon/config.json default_org_id
+test("resolveCredentials reads default_org_id from ~/.arcanon/config.json", () => {
   withTempHome((home) => {
     clearEnv();
     const dir = path.join(home, ".arcanon");
@@ -130,8 +130,8 @@ test("AUTH-03 A3: resolveCredentials reads default_org_id from ~/.arcanon/config
   });
 });
 
-// AUTH-03 Test A4 — precedence: opts.orgId > ARCANON_ORG_ID > default_org_id
-test("AUTH-03 A4: orgId precedence — opts beats env beats config", () => {
+// Test A4 — precedence: opts.orgId > ARCANON_ORG_ID > default_org_id
+test("orgId precedence — opts beats env beats config", () => {
   withTempHome((home) => {
     clearEnv();
     const dir = path.join(home, ".arcanon");
@@ -157,8 +157,8 @@ test("AUTH-03 A4: orgId precedence — opts beats env beats config", () => {
   });
 });
 
-// AUTH-03 Test A5 — missing orgId throws AuthError naming all 3 sources + remediation
-test("AUTH-03 A5: missing orgId throws AuthError naming all three sources and /arcanon:login --org-id", () => {
+// Test A5 — missing orgId throws AuthError naming all 3 sources + remediation
+test("missing orgId throws AuthError naming all three sources and /arcanon:login --org-id", () => {
   withTempHome(() => {
     clearEnv();
     let caught = null;
@@ -185,8 +185,8 @@ test("AUTH-03 A5: missing orgId throws AuthError naming all three sources and /a
   });
 });
 
-// AUTH-03 Test A6 — existing api-key-error message must not change
-test("AUTH-03 A6: missing apiKey still throws original 'No Arcanon Hub API key found' AuthError", () => {
+// Test A6 — existing api-key-error message must not change
+test("missing apiKey still throws original 'No Arcanon Hub API key found' AuthError", () => {
   withTempHome(() => {
     clearEnv();
     let caught = null;
@@ -203,8 +203,8 @@ test("AUTH-03 A6: missing apiKey still throws original 'No Arcanon Hub API key f
   });
 });
 
-// AUTH-03 Test A7 — option-a guard: hasCredentials() returns true when api_key resolves but org_id does NOT.
-test("AUTH-03 A7 (option-a): hasCredentials returns true on api-key-only configs (no org_id)", () => {
+// Test A7 — option-a guard: hasCredentials returns true when api_key resolves but org_id does NOT.
+test("hasCredentials returns true on api-key-only configs (no org_id)", () => {
   withTempHome(() => {
     clearEnv();
     process.env.ARCANON_API_KEY = "arc_x";
@@ -231,7 +231,7 @@ test("storeCredentials writes an 0600 config file and round-trips", () => {
     assert.equal(content.api_key, "arc_stored");
     assert.equal(content.hub_url, "https://api.arcanon.test");
 
-    // Provide an orgId source so the AUTH-03 org_id resolver succeeds.
+    // Provide an orgId source so the  org_id resolver succeeds.
     process.env.ARCANON_ORG_ID = "org-roundtrip";
     const { apiKey, hubUrl } = resolveCredentials();
     assert.equal(apiKey, "arc_stored");
@@ -245,8 +245,8 @@ test("storeCredentials rejects keys without arc_ prefix", () => {
   });
 });
 
-// AUTH-04 Test S1 — write all three fields fresh
-test("AUTH-04 S1: storeCredentials writes api_key + hub_url + default_org_id together", () => {
+// Test S1 — write all three fields fresh
+test("storeCredentials writes api_key + hub_url + default_org_id together", () => {
   withTempHome((home) => {
     clearEnv();
     const file = storeCredentials("arc_new", {
@@ -261,8 +261,8 @@ test("AUTH-04 S1: storeCredentials writes api_key + hub_url + default_org_id tog
   });
 });
 
-// AUTH-04 Test S2 — C3 spread-merge: rotating api_key preserves default_org_id + hub_url
-test("AUTH-04 S2 (C3): storeCredentials(api_key only) preserves existing default_org_id and hub_url", () => {
+// Test S2 — C3 spread-merge: rotating api_key preserves default_org_id + hub_url
+test("storeCredentials(api_key only) preserves existing default_org_id and hub_url", () => {
   withTempHome((home) => {
     clearEnv();
     const dir = path.join(home, ".arcanon");
@@ -289,8 +289,8 @@ test("AUTH-04 S2 (C3): storeCredentials(api_key only) preserves existing default
   });
 });
 
-// AUTH-04 Test S3 — file mode 0600 + dir mode 0700 after every write
-test("AUTH-04 S3: storeCredentials sets file mode 0600 and dir mode 0700", () => {
+// Test S3 — file mode 0600 + dir mode 0700 after every write
+test("storeCredentials sets file mode 0600 and dir mode 0700", () => {
   if (process.platform === "win32") return; // POSIX-only
   withTempHome((home) => {
     clearEnv();
@@ -305,8 +305,8 @@ test("AUTH-04 S3: storeCredentials sets file mode 0600 and dir mode 0700", () =>
   });
 });
 
-// AUTH-04 Test S4 — no hub_url default-fill when opt is omitted
-test("AUTH-04 S4: storeCredentials with no hubUrl opt does not write hub_url field", () => {
+// Test S4 — no hub_url default-fill when opt is omitted
+test("storeCredentials with no hubUrl opt does not write hub_url field", () => {
   withTempHome(() => {
     clearEnv();
     const file = storeCredentials("arc_x", { defaultOrgId: "org-2" });
@@ -321,8 +321,8 @@ test("AUTH-04 S4: storeCredentials with no hubUrl opt does not write hub_url fie
   });
 });
 
-// AUTH-04 Test S5 — forward-compat: unknown future_field on existing config preserved
-test("AUTH-04 S5: storeCredentials preserves unknown future fields via spread-merge", () => {
+// Test S5 — forward-compat: unknown future_field on existing config preserved
+test("storeCredentials preserves unknown future fields via spread-merge", () => {
   withTempHome((home) => {
     clearEnv();
     const dir = path.join(home, ".arcanon");

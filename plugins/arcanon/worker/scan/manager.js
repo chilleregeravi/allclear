@@ -6,13 +6,13 @@
  *   buildScanContext(repoPath, repoId, qe, opts) - Determines scan mode
  *   scanRepos(repoPaths, options, queryEngine)   - Main scan entry point
  *   setAgentRunner(fn)                           - Inject agent invoker (test + MCP server use)
- *   runDiscoveryPass(repoPath, template, runner, slog) - Discovery agent (Phase 1)
+ *   runDiscoveryPass(repoPath, template, runner, slog) - Discovery agent 
  *
  * Agent invocation uses an injected runner to decouple from Claude's Task tool.
  * Background subagents cannot access MCP tools (Claude Code issue #13254) — all
  * agent invocations run in the foreground via the MCP server's agentRunner.
  *
- * SREL-01 (THE-933): Incremental scan constraint injection
+ * Incremental scan constraint injection
  *   When buildScanContext returns mode='incremental', a hard constraint block
  *   (INCREMENTAL_CONSTRAINT) listing only the changed files is appended to the
  *   prompt before it is passed to agentRunner. This ensures the agent focuses
@@ -39,7 +39,7 @@ import { resolveConfigPath } from "../lib/config-path.js";
 import { extractAuthAndDb } from "./enrichment/auth-db-extractor.js";
 import { applyPendingOverrides } from "./overrides.js";
 import { syncFindings, hasCredentials } from "../hub-sync/index.js";
-// INT-06/INT-07 (Phase 121): externals catalog + user merge + per-repo actor labeling
+// externals catalog + user merge + per-repo actor labeling
 import { loadMergedCatalog } from "./enrichment/externals-catalog.js";
 import { runActorLabeling } from "./enrichment/actor-labeler.js";
 
@@ -47,7 +47,7 @@ import { runActorLabeling } from "./enrichment/actor-labeler.js";
 // Module-level registration runs before the first scan.
 registerEnricher("codeowners", createCodeownersEnricher());
 
-// CLN-08: Module-level guard ensures the deprecation warning fires at most
+// Module-level guard ensures the deprecation warning fires at most
 // once per worker process, even if _readHubAutoSync is called thousands of
 // times across sequential scans.
 let _autoUploadDeprecationWarned = false;
@@ -96,7 +96,7 @@ function _readHubConfig() {
       hubUrl: cfg?.hub?.url,
       projectSlug: cfg?.hub?.["project-slug"] || cfg?.["project-name"],
       libraryDepsEnabled: Boolean(cfg?.hub?.beta_features?.library_deps),
-      // AUTH-05 / THE-1029: per-repo org_id override. Threaded into syncFindings
+      // per-repo org_id override. Threaded into syncFindings
       // and ultimately resolveCredentials({orgId}) where it beats env + default.
       orgId: cfg?.hub?.org_id,
     };
@@ -111,7 +111,7 @@ function _readHubConfig() {
   }
 }
 
-// Register auth/DB extractor enricher (AUTHDB-01, AUTHDB-02).
+// Register auth/DB extractor enricher .
 registerEnricher("auth-db", extractAuthAndDb);
 
 // ---------------------------------------------------------------------------
@@ -433,7 +433,7 @@ export function buildScanContext(repoPath, repoId, queryEngine, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// buildIncrementalConstraint (SREL-01 / THE-933)
+// buildIncrementalConstraint 
 // ---------------------------------------------------------------------------
 
 /**
@@ -465,7 +465,7 @@ export function buildIncrementalConstraint(changedFiles) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run the discovery agent for a single repo (Phase 1 of two-phase scan).
+ * Run the discovery agent for a single repo ( of two-phase scan).
  * Interpolates {{REPO_PATH}}, calls agentRunner, extracts fenced JSON block.
  * Returns parsed discovery JSON on success, or {} on failure/no-JSON.
  * Discovery output is ephemeral — never persisted to DB.
@@ -605,7 +605,7 @@ export function releaseScanLock(lockPath) {
  *   On agentRunner throw (after retry), endScan is NOT called — bracket stays open,
  *   prior data is preserved.
  *
- * SREL-01: Incremental scans inject a changed-files constraint into the prompt.
+ * Incremental scans inject a changed-files constraint into the prompt.
  *   When modified.length === 0, the scan is a no-op (no agent, no bracket).
  *
  * @param {string[]} repoPaths - Absolute paths to repos to scan
@@ -639,7 +639,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const scanMode = options.full === true ? 'full' : 'incremental';
   slog('INFO', 'scan BEGIN', { repoCount: repoPaths.length, mode: scanMode });
 
-  // INT-06/INT-07: Load the merged externals catalog ONCE per scanRepos
+  // Load the merged externals catalog ONCE per scanRepos
   // invocation. The merge is shipped catalog + user's arcanon.config.json
   // external_labels (user wins on collision). The shipped YAML file is never
   // mutated — merge is in-memory only. Worker is per-project so process.cwd()
@@ -654,7 +654,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   const promptService = readFileSync(join(__dirname, "agent-prompt-service.md"), "utf8");
   const promptLibrary = readFileSync(join(__dirname, "agent-prompt-library.md"), "utf8");
   const promptInfra = readFileSync(join(__dirname, "agent-prompt-infra.md"), "utf8");
-  // Discovery prompt for Phase 1 structure analysis (SARC-01)
+  // Discovery prompt for  structure analysis (SARC-01)
   const promptDiscovery = readFileSync(join(__dirname, "agent-prompt-discovery.md"), "utf8");
 
   const promptComponents = { commonRules, schemaJson, promptService, promptLibrary, promptInfra, promptDiscovery };
@@ -684,14 +684,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       return { repoPath, mode: "skip", findings: null };
     }
 
-    // 3b. Incremental no-op — diff returned empty modified list (SREL-01 / THE-933)
+    // 3b. Incremental no-op — diff returned empty modified list 
     //     Check BEFORE beginScan — no bracket should be opened for a no-op.
     if (ctx.mode === "incremental" && ctx.files !== null && ctx.files.modified.length === 0) {
       slog('DEBUG', 'incremental-noop — no changed files', { repoPath });
       return { repoPath, mode: "incremental-noop", findings: null };
     }
 
-    // 4. Discovery pass — Phase 1: structure analysis (SARC-01)
+    // 4. Discovery pass — : structure analysis (SARC-01)
     // Runs BEFORE beginScan — does not open a scan bracket.
     const discoveryContext = await runDiscoveryPass(repoPath, promptComponents.promptDiscovery, agentRunner, slog);
 
@@ -709,7 +709,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     const repoType = detectRepoType(repoPath);
     slog('DEBUG', 'repo type detected', { repoPath, repoType });
 
-    // Deep scan — Phase 2: use type-specific prompt with discovery context (SARC-03)
+    // Deep scan — : use type-specific prompt with discovery context (SARC-03)
     const discoveryJson = JSON.stringify(discoveryContext, null, 2);
     const typePrompt = repoType === "library" ? promptComponents.promptLibrary
       : repoType === "infra" ? promptComponents.promptInfra
@@ -721,14 +721,14 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       .replaceAll("{{COMMON_RULES}}", promptComponents.commonRules.replaceAll("{{REPO_PATH}}", repoPath))
       .replaceAll("{{SCHEMA_JSON}}", promptComponents.schemaJson);
 
-    // 7. Inject changed-files constraint for incremental scans (SREL-01 / THE-933)
+    // 7. Inject changed-files constraint for incremental scans 
     //     The constraint is a hard directive — "You MUST only examine" — not advisory.
     let finalPrompt = interpolatedPrompt;
     if (ctx.mode === "incremental" && ctx.files !== null) {
       finalPrompt = interpolatedPrompt + buildIncrementalConstraint(ctx.files.modified);
     }
 
-    // 8. Invoke agent — with retry-once on agentRunner throw (SREL-01)
+    // 8. Invoke agent — with retry-once on agentRunner throw 
     slog('INFO', 'scan started', { repoPath, mode: ctx.mode });
     let rawResponse;
     try {
@@ -824,7 +824,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     // 10. Persist findings and close scan bracket — success path only
     queryEngine.persistFindings(r.repoId, r.findings, r.currentHead, r.scanVersionId);
 
-    // 10b. CORRECT-03: apply pending operator overrides BEFORE endScan finalizes.
+    // 10b. : apply pending operator overrides BEFORE endScan finalizes.
     //      Reads scan_overrides WHERE applied_in_scan_version_id IS NULL, applies
     //      each via direct UPDATE/DELETE on connections/services, stamps the row
     //      with r.scanVersionId. Idempotent re-apply: already-stamped rows are
@@ -834,7 +834,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     queryEngine.endScan(r.repoId, r.scanVersionId);
 
     // 10a. Back-fill DB ids onto r.findings.services so the hub auto-sync
-    // loop (step HUB-01) can call getDependenciesForService(svc.id).
+    // loop (step ) can call getDependenciesForService(svc.id).
     // persistFindings builds a name→id map internally but does not write ids
     // back onto the findings objects. We resolve them here via a single SELECT.
     if (Array.isArray(r.findings?.services) && r.findings.services.length > 0) {
@@ -861,7 +861,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
       for (const service of services) {
         await runEnrichmentPass(service, queryEngine._db, _logger, r.repoPath);
 
-        // DEP-09: collect library deps after enrichment — MUST NOT touch scan bracket.
+        // collect library deps after enrichment — MUST NOT touch scan bracket.
         // Runs AFTER endScan() has closed the bracket (line ~766 above). Stale
         // cleanup for dep rows is handled by ON DELETE CASCADE from services(id)
         // when the NEXT scan's endScan() removes a stale service.
@@ -890,7 +890,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
           }
           for (const eco of ecosystems_scanned) ecosystemsSeen.add(eco);
         } catch (err) {
-          // DEP-09: any throw from the collector is swallowed — the scan completes
+          // any throw from the collector is swallowed — the scan completes
           slog('WARN', 'dep-scan: collector error', {
             repoPath: r.repoPath,
             service: service.id,
@@ -898,7 +898,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
           });
         }
       }
-      // INT-06 (Phase 121): per-repo actor labeling pass.
+      // per-repo actor labeling pass.
       // Runs after the per-service enrichment loop (so any future per-service
       // enrichers that touch actors have already done so) and BEFORE the
       // 'enrichment done' log line so the labels are observable as part of
@@ -925,7 +925,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
 
       // SCAN-02: Log enrichment done with number of services enriched
       slog('INFO', 'enrichment done', { repoPath: r.repoPath, enricherCount: services.length });
-      // DEP-06: Log dep-scan coverage — ecosystems_scanned makes gaps visible
+      // Log dep-scan coverage — ecosystems_scanned makes gaps visible
       slog('INFO', 'dep-scan done', {
         repoPath: r.repoPath,
         serviceCount: services.length,
@@ -940,10 +940,10 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     results.push({ repoPath: r.repoPath, mode: r.mode, findings: r.findings });
   }
 
-  // SHADOW-01 (T-119-01-06): callers using a shadow QE set
+  // (T-119-01-06): callers using a shadow QE set
   // options.skipHubSync=true to suppress upload of synthetic shadow data.
   // Default behaviour for live scans (no flag) is unchanged.
-  // HUB-01: Optional Arcanon Hub sync — opt-in via ARCANON_API_KEY or config.hub.auto-sync.
+  // Optional Arcanon Hub sync — opt-in via ARCANON_API_KEY or config.hub.auto-sync.
   // Runs per-repo, fire-and-log — a hub failure never fails the scan.
   if (options.skipHubSync) {
     slog('INFO', 'hub auto-sync skipped — caller requested skipHubSync (shadow scan)');
@@ -964,7 +964,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
     if (hasCredentials() && hubAutoSync) {
       for (const r of results) {
         if (!r.findings) continue;
-        // HUB-01 / HUB-03: when the feature flag is on, attach per-service deps
+        // when the feature flag is on, attach per-service deps
         // fetched from the local DB. When the flag is off, skip the DB read entirely
         // and let buildFindingsBlock emit v1.0 unchanged.
         if (libraryDepsEnabled && Array.isArray(r.findings.services)) {
@@ -980,16 +980,16 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
             repoPath: r.repoPath,
             projectSlug,
             hubUrl,
-            // AUTH-05 / THE-1029: per-repo override into AUTH-03 precedence chain
+            // per-repo override into  precedence chain
             // (opts.orgId beats ARCANON_ORG_ID env beats ~/.arcanon/config.json
             // default_org_id). When undefined here, the resolver falls through
             // to env / home-config; if all three are missing, resolveCredentials
             // throws AuthError and the outcome.error.message lands in the WARN
             // log below — surfacing the actionable remediation to the user
-            // (C2 option-a).
+            // .
             orgId,
             scanMode: r.mode,
-            libraryDepsEnabled,   // HUB-03 feature flag — gates v1.1 emission
+            libraryDepsEnabled,   // feature flag — gates v1.1 emission
             log: (level, msg, data) => slog(level, `hub-sync: ${msg}`, data),
           });
           if (outcome.ok) {
@@ -1019,7 +1019,7 @@ export async function scanRepos(repoPaths, options = {}, queryEngine) {
   } catch (err) {
     slog('WARN', 'hub sync skipped', { error: err.message });
   }
-  } // end else (options.skipHubSync) — SHADOW-01
+  } // end else (options.skipHubSync) —
 
   // SCAN-01: Emit END event with totals and wall-clock duration
   const totalServices = results.reduce((n, r) => n + (Array.isArray(r.findings?.services) ? r.findings.services.length : 0), 0);

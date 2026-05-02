@@ -19,7 +19,7 @@ const dataDir = resolveDataDir();
 
 /**
  * mcpReply — wrap a result object as an MCP `content[].text` reply with
- * $HOME-masked JSON (PII-02). Highest-priority egress seam: only egress to
+ * $HOME-masked JSON . Highest-priority egress seam: only egress to
  * a third party (Anthropic).
  *
  * Idempotent on already-relative agent paths (S1 mitigation handled inside
@@ -1545,7 +1545,7 @@ server.tool(
 
 // ── impact_audit_log ─────────────────────────────────────────
 /**
- * Handler for the `impact_audit_log` MCP tool. (TRUST-06 / TRUST-14, Plan 111-03.)
+ * Handler for the `impact_audit_log` MCP tool. (, .)
  *
  * Returns rows from `enrichment_log` for a given scan_version_id, optionally
  * filtered by `enricher`. Resolves the per-project DB via `resolveDb` exactly
@@ -1615,7 +1615,7 @@ server.tool(
 // subprocesses) so we can detect that path reliably without affecting the
 // production stdio bootstrap. Without this gate, importing server.js from a
 // test file would hold stdin open for the lifetime of the test process and
-// hang the runner after all tests pass (Plan 111-03 deviation Rule 3).
+// hang the runner after all tests pass ( deviation Rule 3).
 if (!process.env.NODE_TEST_CONTEXT) {
   const transport = new StdioServerTransport();
   await server.connect(transport);

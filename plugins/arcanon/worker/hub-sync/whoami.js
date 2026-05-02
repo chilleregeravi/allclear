@@ -1,10 +1,10 @@
 /**
- * worker/hub-sync/whoami.js — Arcanon Hub /auth/whoami client (THE-1030).
+ * worker/hub-sync/whoami.js — Arcanon Hub /auth/whoami client .
  *
  * Calls GET ${hubUrl}/api/v1/auth/whoami with Bearer token. Returns the
  * parsed `{user_id, key_id, scopes, grants}` payload on 200. Used by
- * /arcanon:login (AUTH-06, Phase 125) to discover the user's org grants
- * and by /arcanon:status (AUTH-07, Phase 125) to render the Identity block.
+ * arcanon:login  to discover the user's org grants
+ * and by /arcanon:status  to render the Identity block.
  *
  * Does NOT carry X-Org-Id — whoami is the bootstrap call that DISCOVERS the
  * org_id (chicken-and-egg). Requiring X-Org-Id here would block the very
@@ -17,7 +17,7 @@
  *   - network/transport failure -> throws HubError(retriable=true)
  *   - 4xx (other) -> throws HubError(status=<code>, retriable=false)
  *
- * Hard external dependency: arcanon-hub THE-1030 deploy. All Phase 124
+ * Hard external dependency: arcanon-hub  deploy. All 
  * unit tests use a fakeFetch and pass independent of the hub deploy.
  */
 

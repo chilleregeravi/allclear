@@ -12,7 +12,7 @@
  *   3. ~/.arcanon/config.json  { "hub_url": "..." }
  *   4. Default: https://api.arcanon.dev
  *
- * Org ID precedence (AUTH-03 / THE-1029):
+ * Org ID precedence :
  *   1. opts.orgId (per-repo override threaded by manager.js from arcanon.config.json hub.org_id)
  *   2. process.env.ARCANON_ORG_ID
  *   3. ~/.arcanon/config.json  { "default_org_id": "<uuid>" }
@@ -60,7 +60,7 @@ function readHomeConfig() {
 /**
  * Internal: resolve only the api_key + hub_url + source. Used by both
  * `resolveCredentials` and `hasCredentials` so the latter never trips
- * on missing org_id (C2 option-a).
+ * on missing org_id .
  *
  * @param {{ apiKey?: string, hubUrl?: string }} [opts]
  * @param {object} [homeCfg] — pre-read ~/.arcanon/config.json (avoid double-reading)
@@ -139,7 +139,7 @@ function _resolveOrgId(opts = {}, homeCfg = null) {
  * existing destructures at hub.js:179, 777, 1282 depend on this shape).
  *
  * Throws AuthError when no apiKey can be found, or when no orgId can be
- * resolved (per AUTH-03 / THE-1029 — every upload requires an X-Org-Id).
+ * resolved (per  /  — every upload requires an X-Org-Id).
  *
  * Pass `{ orgIdRequired: false }` to disable the org-id requirement for
  * callers that only need apiKey + hubUrl (e.g. doctor check 8 round-trips
@@ -189,12 +189,12 @@ export function hasCredentials() {
  *
  * Existing fields are preserved via spread-merge — rotating only `api_key`
  * keeps `hub_url`, `default_org_id`, and any unknown future keys intact
- * (C3 regression guard pinned by Test S2).
+ * .
  *
  * @param {string} apiKey — must start with "arc_"
  * @param {{ hubUrl?: string, defaultOrgId?: string }} [opts]
  *   - opts.hubUrl: persisted as `hub_url`
- *   - opts.defaultOrgId: persisted as `default_org_id` (AUTH-04 / THE-1029)
+ *   opts.defaultOrgId: persisted as `default_org_id` 
  * @returns {string} absolute path to the config file written
  */
 export function storeCredentials(apiKey, opts = {}) {
@@ -214,7 +214,7 @@ export function storeCredentials(apiKey, opts = {}) {
   const existing = readJsonSafe(file) || {};
   const next = { ...existing, api_key: apiKey };
   if (opts.hubUrl) next.hub_url = opts.hubUrl;
-  // AUTH-04: persist default_org_id alongside api_key + hub_url. Additive only —
+  // persist default_org_id alongside api_key + hub_url. Additive only —
   // when omitted, the spread-merge above preserves any pre-existing value.
   if (opts.defaultOrgId) next.default_org_id = opts.defaultOrgId;
   fs.writeFileSync(file, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });

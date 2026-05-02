@@ -1,8 +1,8 @@
 /**
- * whoami.test.js — Tests for AUTH-02 GET /api/v1/auth/whoami client.
+ * whoami.test.js — Tests for  GET /api/v1/auth/whoami client.
  *
  * Uses a fakeFetch (no real network) so all tests pass regardless of
- * arcanon-hub THE-1030 deploy timing. Phase 125 AUTH-06 will exercise the
+ * arcanon-hub  deploy timing.   will exercise the
  * end-to-end login flow against a real hub.
  */
 
@@ -22,8 +22,8 @@ function jsonResponse(status, body, headers = {}) {
   });
 }
 
-// AUTH-02 Test W1 — 200 returns parsed grants verbatim
-test("AUTH-02 W1: getKeyInfo returns parsed {user_id, key_id, scopes, grants} on 200", async () => {
+// Test W1 — 200 returns parsed grants verbatim
+test("getKeyInfo returns parsed {user_id, key_id, scopes, grants} on 200", async () => {
   const fetchImpl = async () =>
     jsonResponse(200, {
       user_id: "u1",
@@ -40,8 +40,8 @@ test("AUTH-02 W1: getKeyInfo returns parsed {user_id, key_id, scopes, grants} on
   assert.equal(info.grants[0].org_name, "Acme");
 });
 
-// AUTH-02 Test W2 — 401 throws AuthError with key preview (never full key)
-test("AUTH-02 W2: getKeyInfo on 401 throws AuthError with key preview, never full key", async () => {
+// Test W2 — 401 throws AuthError with key preview (never full key)
+test("getKeyInfo on 401 throws AuthError with key preview, never full key", async () => {
   const fetchImpl = async () => jsonResponse(401, { title: "invalid key" });
   let caught = null;
   try {
@@ -62,8 +62,8 @@ test("AUTH-02 W2: getKeyInfo on 401 throws AuthError with key preview, never ful
   );
 });
 
-// AUTH-02 Test W3 — 403 throws AuthError
-test("AUTH-02 W3: getKeyInfo on 403 throws AuthError", async () => {
+// Test W3 — 403 throws AuthError
+test("getKeyInfo on 403 throws AuthError", async () => {
   const fetchImpl = async () => jsonResponse(403, { title: "forbidden" });
   await assert.rejects(
     () => getKeyInfo("arc_x", BASE_URL, { fetchImpl }),
@@ -74,8 +74,8 @@ test("AUTH-02 W3: getKeyInfo on 403 throws AuthError", async () => {
   );
 });
 
-// AUTH-02 Test W4 — network error wraps to HubError(retriable=true) with underlying message
-test("AUTH-02 W4: getKeyInfo on network error throws HubError(retriable=true) including underlying message", async () => {
+// Test W4 — network error wraps to HubError(retriable=true) with underlying message
+test("getKeyInfo on network error throws HubError(retriable=true) including underlying message", async () => {
   const fetchImpl = async () => {
     throw new Error("ECONNRESET");
   };
@@ -93,8 +93,8 @@ test("AUTH-02 W4: getKeyInfo on network error throws HubError(retriable=true) in
   );
 });
 
-// AUTH-02 Test W5 — 500 throws HubError(status=500, retriable=true)
-test("AUTH-02 W5: getKeyInfo on 500 throws HubError(status=500, retriable=true)", async () => {
+// Test W5 — 500 throws HubError(status=500, retriable=true)
+test("getKeyInfo on 500 throws HubError(status=500, retriable=true)", async () => {
   const fetchImpl = async () => jsonResponse(500, { title: "internal error" });
   await assert.rejects(
     () => getKeyInfo("arc_x", BASE_URL, { fetchImpl }),
@@ -107,8 +107,8 @@ test("AUTH-02 W5: getKeyInfo on 500 throws HubError(status=500, retriable=true)"
   );
 });
 
-// AUTH-02 Test W6 — request shape: GET, Bearer auth, NO X-Org-Id (chicken-and-egg avoided)
-test("AUTH-02 W6: getKeyInfo issues GET with Bearer auth and NO X-Org-Id header", async () => {
+// Test W6 — request shape: GET, Bearer auth, NO X-Org-Id (chicken-and-egg avoided)
+test("getKeyInfo issues GET with Bearer auth and NO X-Org-Id header", async () => {
   let captured = null;
   const fetchImpl = async (url, init) => {
     captured = { url, init };
@@ -132,8 +132,8 @@ test("AUTH-02 W6: getKeyInfo issues GET with Bearer auth and NO X-Org-Id header"
   );
 });
 
-// AUTH-02 Test W7 — empty grants array passes through verbatim (Phase 125 decides UX)
-test("AUTH-02 W7: getKeyInfo returns empty grants array verbatim", async () => {
+// Test W7 — empty grants array passes through verbatim ( decides UX)
+test("getKeyInfo returns empty grants array verbatim", async () => {
   const fetchImpl = async () =>
     jsonResponse(200, {
       user_id: "u",

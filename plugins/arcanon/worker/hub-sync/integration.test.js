@@ -87,7 +87,7 @@ test("syncFindings happy-path round-trips through mock hub", async () => {
     assert.equal(seen.method, "POST");
     assert.equal(seen.url, "/api/v1/scans/upload");
     assert.equal(seen.auth, "Bearer arc_it");
-    // AUTH-01 wire assertion: X-Org-Id from ARCANON_ORG_ID lands on the request.
+    // wire assertion: X-Org-Id from ARCANON_ORG_ID lands on the request.
     assert.equal(seen.orgId, "org-it");
     const body = JSON.parse(seen.body);
     assert.equal(body.version, "1.0");
@@ -139,11 +139,11 @@ test("syncFindings enqueues payload when hub returns 5xx", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// AUTH-01..05 e2e: per-repo hub.org_id beats ARCANON_ORG_ID beats default_org_id;
+// ..05 e2e: per-repo hub.org_id beats ARCANON_ORG_ID beats default_org_id;
 // X-Org-Id header lands on the request. Pinning the precedence wire end-to-end.
 // ---------------------------------------------------------------------------
 
-test("AUTH-01..05 e2e: opts.orgId (per-repo override) beats env beats default — X-Org-Id lands", async () => {
+test("e2e: opts.orgId (per-repo override) beats env beats default — X-Org-Id lands", async () => {
   _resetQueueDb();
   const repoPath = makeTempGitRepo();
   process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
@@ -193,7 +193,7 @@ test("AUTH-01..05 e2e: opts.orgId (per-repo override) beats env beats default �
   }
 });
 
-test("AUTH-01..05 e2e: ARCANON_ORG_ID env beats default_org_id when opts.orgId is omitted", async () => {
+test("e2e: ARCANON_ORG_ID env beats default_org_id when opts.orgId is omitted", async () => {
   _resetQueueDb();
   const repoPath = makeTempGitRepo();
   process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
@@ -238,7 +238,7 @@ test("AUTH-01..05 e2e: ARCANON_ORG_ID env beats default_org_id when opts.orgId i
   }
 });
 
-test("AUTH-01..05 e2e: ~/.arcanon/config.json default_org_id is the final fallback", async () => {
+test("e2e: ~/.arcanon/config.json default_org_id is the final fallback", async () => {
   _resetQueueDb();
   const repoPath = makeTempGitRepo();
   process.env.ARCANON_DATA_DIR = fs.mkdtempSync(
@@ -286,7 +286,7 @@ test("AUTH-01..05 e2e: ~/.arcanon/config.json default_org_id is the final fallba
 });
 
 // ---------------------------------------------------------------------------
-// AUTH-10 / Phase 126: Login flow integration — storeCredentials → resolveCredentials
+// Login flow integration — storeCredentials → resolveCredentials
 // round-trip + getKeyInfo auto-select. cmdLogin itself uses process.exit() and
 // can't be unit-called; these tests pin the underlying primitives that cmdLogin
 // composes (whoami → store → resolve), which is the contract under test.
@@ -305,7 +305,7 @@ async function withTempHome(fn) {
   }
 }
 
-test("AUTH-10 L1: /arcanon:login --org-id round-trips through storeCredentials → resolveCredentials", async () => {
+test("/arcanon:login --org-id round-trips through storeCredentials → resolveCredentials", async () => {
   await withTempHome(async (tmpHome) => {
     const originalOrgEnv = process.env.ARCANON_ORG_ID;
     const originalKeyEnv = process.env.ARCANON_API_KEY;
@@ -344,7 +344,7 @@ test("AUTH-10 L1: /arcanon:login --org-id round-trips through storeCredentials �
   });
 });
 
-test("AUTH-10 L2: /arcanon:login WITHOUT --org-id calls whoami and auto-selects on N=1 grant", async () => {
+test("/arcanon:login WITHOUT --org-id calls whoami and auto-selects on N=1 grant", async () => {
   await withTempHome(async () => {
     const originalOrgEnv = process.env.ARCANON_ORG_ID;
     const originalKeyEnv = process.env.ARCANON_API_KEY;
@@ -400,13 +400,13 @@ test("AUTH-10 L2: /arcanon:login WITHOUT --org-id calls whoami and auto-selects 
   });
 });
 
-// NOTE: Plan 126-01 Test 8 (multi-grant AskUserQuestion mock) is intentionally
+// NOTE:  Test 8 (multi-grant AskUserQuestion mock) is intentionally
 // SKIPPED. cmdLogin in plugins/arcanon/worker/cli/hub.js uses process.exit(7)
 // + an `__ARCANON_GRANT_PROMPT__` stdout sentinel; the markdown layer handles
 // the AskUserQuestion prompt and re-invokes cmdLogin with --org-id <chosen>.
 // There is no in-process injectable seam for AskUserQuestion. Pinning the
 // multi-grant prompt requires an end-to-end test against the deployed hub
-// (Phase 127 VER-04 manual e2e walkthrough). The N=1 auto-select path above
+// (  manual e2e walkthrough). The N=1 auto-select path above
 // exercises the same whoami → storeCredentials chain.
 
 test("syncFindings surfaces 422 without enqueueing", async () => {

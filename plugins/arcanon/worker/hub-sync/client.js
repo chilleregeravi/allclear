@@ -28,9 +28,9 @@ export const BASE_BACKOFFS_MS = [1000, 2000, 4000];
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
- * AUTH-08 / D-125-01: Frozen map of server-side RFC 7807 `code` values to
+ * Frozen map of server-side RFC 7807 `code` values to
  * actionable user-facing messages. All 7 codes enumerated from the arcanon-hub
- * THE-1030 error contract. Phase 126 test M-AUTH-08 will pin each entry.
+ * error contract.  test M- will pin each entry.
  *
  * Unknown codes fall back to `body.title` (forward-compat; see messageForCode).
  */
@@ -52,7 +52,7 @@ export const HUB_ERROR_CODE_MESSAGES = Object.freeze({
 });
 
 /**
- * AUTH-08 / D-125-01: Derive user-facing message from an RFC 7807 response body.
+ * Derive user-facing message from an RFC 7807 response body.
  *
  * Resolution order:
  *   1. body.code is a known key in HUB_ERROR_CODE_MESSAGES → return that message.
@@ -81,9 +81,9 @@ export class HubError extends Error {
     this.retriable = Boolean(retriable);
     this.body = body ?? null;
     this.attempts = attempts ?? null;
-    // AUTH-01 / AUTH-08: structured error code (e.g. "missing_org_id"). Additive,
-    // default null. Phase 124 emits this from the client (fail-fast pre-fetch);
-    // Phase 125 AUTH-08 will parse server-side codes from RFC 7807 responses.
+    // structured error code (e.g. "missing_org_id"). Additive,
+    // default null.  emits this from the client (fail-fast pre-fetch);
+    // will parse server-side codes from RFC 7807 responses.
     this.code = code ?? null;
   }
 }
@@ -133,7 +133,7 @@ async function readBodySafe(response) {
  * @param {object} opts
  * @param {string} opts.apiKey — Bearer token starting with arc_
  * @param {string} opts.hubUrl — e.g. "https://api.arcanon.dev"
- * @param {string} opts.orgId — REQUIRED (THE-1029). Sent as `X-Org-Id` request header.
+ * @param {string} opts.orgId — REQUIRED . Sent as `X-Org-Id` request header.
  *   Missing orgId throws HubError(status=400, code='missing_org_id') BEFORE any
  *   network attempt — no retry, no enqueue.
  * @param {number} [opts.attempts=3]
@@ -161,8 +161,8 @@ export async function uploadScan(payload, opts) {
   }
   if (!apiKey) throw new HubError("apiKey is required");
   if (!hubUrl) throw new HubError("hubUrl is required");
-  // AUTH-01: fail fast BEFORE serializePayload + before the network loop. The
-  // hub (THE-1030) rejects uploads without X-Org-Id; emitting the same code
+  // fail fast BEFORE serializePayload + before the network loop. The
+  // hub  rejects uploads without X-Org-Id; emitting the same code
   // client-side prevents wasted retries and surfaces a clear remediation.
   if (!orgId) {
     throw new HubError(
@@ -196,7 +196,7 @@ export async function uploadScan(payload, opts) {
           "Content-Type": "application/json",
           Accept: "application/json",
           "User-Agent": "arcanon-plugin-hub-sync",
-          // AUTH-01 / THE-1029: required by arcanon-hub THE-1030 enforcement.
+          // required by arcanon-hub  enforcement.
           "X-Org-Id": orgId,
         },
         body,

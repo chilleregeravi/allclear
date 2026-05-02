@@ -1,5 +1,5 @@
 /**
- * worker/lib/path-mask.js — Phase 123 PII-01 egress masking primitive.
+ * worker/lib/path-mask.js —   egress masking primitive.
  *
  * Replaces `$HOME` prefixes with `~` so absolute paths never leak from worker
  * egress seams (MCP responses, HTTP responses, log lines, exports). The DB
@@ -14,7 +14,7 @@
  *   S1 (PREDECESSOR-SURFACE.md): "verify `maskHome` is idempotent on
  *   already-relative paths emitted by the agent (`agent-prompt-service.md:104`
  *   shows root_path as `src/`). The agent contract is documented to emit
- *   relative paths; PII-06 hardens this."
+ *   relative paths;  hardens this."
  *   → maskHome on a string with no `$HOME` prefix is a no-op. Already-masked
  *     paths (`~/foo`, `~`) are returned unchanged.
  *
@@ -73,7 +73,7 @@ export const PATHY_KEYS = new Set([
  *   - Non-string input → return unchanged (null, undefined, numbers, bools,
  *     objects, arrays). Lets callers pipe values through without type-guards.
  *   - HOME unset → return unchanged (no-op safety).
- *   - `p === HOME` → `'~'` (exact-match rule from PII-01).
+ *   `p === HOME` → `'~'` (exact-match rule from ).
  *   - `p.startsWith(HOME + "/")` → `'~' + p.slice(HOME.length)`.
  *   - `p === "~"` or `p.startsWith("~/")` → return unchanged (idempotent — S1).
  *   - `${HOME}other` (no slash separator) → return unchanged (no false

@@ -158,7 +158,7 @@ export function validateFindings(obj) {
       );
       continue;
     }
-    // base_path is optional (D-01); when present, must be string or null (D-03 multi-segment OK)
+    // base_path is optional ; when present, must be string or null ( multi-segment OK)
     if ("base_path" in svc && svc.base_path !== null && typeof svc.base_path !== "string") {
       warnings.push(
         `services[${i}].base_path must be a string or null — skipping`,
@@ -195,12 +195,12 @@ export function validateFindings(obj) {
     if (conn.source_file !== null && typeof conn.source_file !== "string") {
       return err(`connection[${i}].source_file must be a string or null`);
     }
-    // PII-06 (X2 mitigation): the agent contract mandates RELATIVE source_file
+    // the agent contract mandates RELATIVE source_file
     // paths (worker/scan/agent-prompt-service.md:89). If the agent regresses
     // and emits an absolute path, drop the offending field with a WARN and
     // KEEP the rest of the connection — do NOT fail the scan. The WARN value
     // itself is masked via maskHome so the rejection message can't leak the
-    // path. Defense in depth: warnings flow through the PII-04 logger seam,
+    // path. Defense in depth: warnings flow through the  logger seam,
     // which masks them again at log-write time.
     if (typeof conn.source_file === "string" && conn.source_file.startsWith("/")) {
       warnings.push(
@@ -272,7 +272,7 @@ export function validateFindings(obj) {
     }
   }
 
-  // Collect source_file warnings — null is valid but undesirable (AGENT-02 / THE-942)
+  // Collect source_file warnings — null is valid but undesirable 
   for (let i = 0; i < obj.connections.length; i++) {
     if (obj.connections[i].source_file === null) {
       warnings.push(

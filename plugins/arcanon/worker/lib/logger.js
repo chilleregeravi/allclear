@@ -59,7 +59,7 @@ export function createLogger({ dataDir, port, logLevel = "INFO", component }) {
     // Merge any extra fields last so they don't override core fields accidentally
     Object.assign(lineObj, extra);
 
-    // PII-04 (M1 mitigation): single-seam $HOME masking. Walks the merged
+    // single-seam $HOME masking. Walks the merged
     // line object once, masks every string value (including unkeyed stack
     // frames inside extra.stack). Do NOT replicate this at the ~30 logger
     // call sites — the seam is intentionally one place.

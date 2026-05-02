@@ -1,5 +1,5 @@
 /**
- * worker/scan/findings.pii06.test.js — Phase 123 (PII-06, X2 mitigation).
+ * worker/scan/findings.pii06.test.js —  (X2 mitigation).
  *
  * Pins the parseAgentOutput / validateFindings contract: when the scanning
  * agent regresses and emits an absolute `source_file` (e.g. "/Users/me/foo.ts"),
@@ -49,7 +49,7 @@ function makeAgentJson(connections) {
   return '```json\n' + JSON.stringify(obj) + '\n```';
 }
 
-test('PII-06-1: absolute source_file is dropped with masked WARN, connection persists', () => {
+test('absolute source_file is dropped with masked WARN, connection persists', () => {
   const result = parseAgentOutput(
     makeAgentJson([
       {
@@ -86,7 +86,7 @@ test('PII-06-1: absolute source_file is dropped with masked WARN, connection per
   const rejectionWarn = result.warnings.find((w) =>
     /source_file is absolute.*dropping/.test(w),
   );
-  assert.ok(rejectionWarn, 'expected a rejection warning matching the PII-06 contract');
+  assert.ok(rejectionWarn, 'expected a rejection warning matching the rejection contract');
   assert.match(rejectionWarn, /~\/proj\/src\/auth\.ts:42/);
   assert.doesNotMatch(
     rejectionWarn,
@@ -95,7 +95,7 @@ test('PII-06-1: absolute source_file is dropped with masked WARN, connection per
   );
 });
 
-test('PII-06-2: relative source_file passes through unchanged, no rejection warning', () => {
+test('relative source_file passes through unchanged, no rejection warning', () => {
   const result = parseAgentOutput(
     makeAgentJson([
       {
@@ -120,7 +120,7 @@ test('PII-06-2: relative source_file passes through unchanged, no rejection warn
   assert.equal(rejectionWarn, undefined, 'relative paths must not trigger rejection');
 });
 
-test('PII-06-3: null source_file passes through unchanged, no rejection warning', () => {
+test('null source_file passes through unchanged, no rejection warning', () => {
   const result = parseAgentOutput(
     makeAgentJson([
       {
@@ -141,11 +141,11 @@ test('PII-06-3: null source_file passes through unchanged, no rejection warning'
   const rejectionWarn = result.warnings.find((w) =>
     /source_file is absolute.*dropping/.test(w),
   );
-  assert.equal(rejectionWarn, undefined, 'null source_file must not trigger PII-06 rejection');
+  assert.equal(rejectionWarn, undefined, 'null source_file must not trigger rejection');
   // The pre-existing null-source_file informational warning may still fire.
 });
 
-test('PII-06-4: scan does NOT fail; mixed connections persist (absolute dropped, relative kept)', () => {
+test('scan does NOT fail; mixed connections persist (absolute dropped, relative kept)', () => {
   const result = parseAgentOutput(
     makeAgentJson([
       {

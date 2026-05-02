@@ -13,7 +13,7 @@ import { maskHomeDeep } from "../lib/path-mask.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Compute the verify verdict for a single connection (TRUST-01).
+ * Compute the verify verdict for a single connection .
  *
  * Pure function — no side effects, no DB access, no network. Reads the
  * cited source_file from disk and inspects the literal `evidence` snippet.
@@ -91,8 +91,8 @@ function computeVerdict(conn, projectRoot) {
   }
 
   // 5/6. Delegate hash + line-range derivation to the shared helper
-  //      (single source of truth for evidence-line semantics — Phase 120-01
-  //      INT-01). The helper does its own file-read; we accept the small
+  //      (single source of truth for evidence-line semantics — 
+  //      ). The helper does its own file-read; we accept the small
   //      redundancy (one extra readFileSync per verify call) in exchange for
   //      keeping the moved-vs-missing distinction the verify command needs:
   //      the helper conflates "file unreadable" and "snippet not in file"
@@ -211,7 +211,7 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   /**
-   * 1c. GET /api/scan-quality — Latest scan's quality breakdown (TRUST-05, D-05)
+   * 1c. GET /api/scan-quality — Latest scan's quality breakdown 
    *
    * Used by `/arcanon:status` (via worker/cli/hub.js cmdStatus) to surface the
    * "Latest scan: NN% high-confidence (S services, C connections)" line. The
@@ -219,7 +219,7 @@ async function createHttpServer(queryEngine, options = {}) {
    * QueryEngine.getScanQualityBreakdown() directly via the inline-Node DB
    * handle in commands/map.md Step 5.
    *
-   * Status codes (locked in CONTEXT D-05):
+   * Status codes (locked in CONTEXT ):
    *   200 — body matches the documented shape (see schema below)
    *   503 — { error: "no_scan_data" } when the resolver returned a QE but no
    *         scan_versions row has a non-null completed_at
@@ -235,7 +235,7 @@ async function createHttpServer(queryEngine, options = {}) {
    *     high_confidence: number,
    *     low_confidence: number,
    *     null_confidence: number,
-   *     prose_evidence_warnings: number,   // 0 today (D-01 placeholder)
+   *     prose_evidence_warnings: number,   // 0 today ( placeholder)
    *     service_count: number,
    *   }
    *
@@ -296,7 +296,7 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   /**
-   * 1d. GET /api/scan-freshness — Latest scan freshness signal (FRESH-03).
+   * 1d. GET /api/scan-freshness — Latest scan freshness signal .
    *
    * Strict superset of /api/scan-quality. Used by /arcanon:status to surface
    *   "Latest scan: <date> (NN% high-confidence)"
@@ -311,7 +311,7 @@ async function createHttpServer(queryEngine, options = {}) {
    *   503 — { error: "no_scan_data" } when no completed scan exists
    *   500 — { error: <message> } on uncaught exception
    *
-   * Response 200 shape (FRESH-03):
+   * Response 200 shape :
    *   {
    *     last_scan_iso: string,            // ISO-8601 UTC of MAX(completed_at)
    *     last_scan_age_seconds: number,    // (Date.now() - parse(last_scan_iso)) / 1000
@@ -372,7 +372,7 @@ async function createHttpServer(queryEngine, options = {}) {
         new_commits: getCommitsSince(row.path, row.sha),
       }));
 
-      // PII-03: mask absolute repo paths before egress (S2 mitigation —
+      // mask absolute repo paths before egress (S2 mitigation —
       // repos[].path is the documented surface that S2 calls out).
       return reply.send(maskHomeDeep({
         last_scan_iso: completedIso,
@@ -390,13 +390,13 @@ async function createHttpServer(queryEngine, options = {}) {
   });
 
   /**
-   * GET /api/verify — Read-only verification of cited evidence (TRUST-01).
+   * GET /api/verify — Read-only verification of cited evidence .
    *
    * Re-reads each cited source file and confirms the recorded evidence snippet
    * is still present. Returns a per-connection verdict so stale scan data is
    * detectable without running a full /arcanon:map.
    *
-   * Verdicts (D-01, exhaustive — every connection gets exactly one):
+   * Verdicts (exhaustive — every connection gets exactly one):
    *   - ok              : file exists, evidence snippet present (and method
    *                       matches if recorded). Pre-Phase-109 connections with
    *                       no evidence are also returned as `ok` with
@@ -409,11 +409,11 @@ async function createHttpServer(queryEngine, options = {}) {
    *                       not appear (whole-word, case-insensitive) in the
    *                       matched snippet.
    *
-   * Read-only contract (D-02): NO INSERT/UPDATE/DELETE in this code path.
+   * Read-only contract : NO INSERT/UPDATE/DELETE in this code path.
    * The connections, scan_versions, and enrichment_log tables are byte-
    * identical before and after a verify call.
    *
-   * Hard cap (D-03): when the un-scoped query would return more than 1000
+   * Hard cap : when the un-scoped query would return more than 1000
    * connections, the response is `{ truncated: true, total: N, results: [],
    * message: "..." }`. Caller should scope with --connection or --source.
    *
@@ -421,7 +421,7 @@ async function createHttpServer(queryEngine, options = {}) {
    * column on connections; the agent emits `evidence` as a TEXT snippet, not
    * a line range. We therefore search for the literal substring anywhere in
    * the file and compute the matched line as a 1-indexed offset for display.
-   * This degrades the original ±3-line semantics (TRUST-01) to "snippet
+   * This degrades the original ±3-line semantics  to "snippet
    * present anywhere in the file" until the schema gains line_start.
    *
    * Query params:
@@ -429,7 +429,7 @@ async function createHttpServer(queryEngine, options = {}) {
    *   connection_id=<integer>     optional — single connection by ID
    *   source_file=<rel-path>      optional — basename match if no `/`,
    *                               exact match otherwise
-   *   (neither set)               implicit --all (D-06)
+   *   (neither set)               implicit --all 
    */
   fastify.get("/api/verify", async (request, reply) => {
     const projectRoot = request.query?.project;
@@ -442,7 +442,7 @@ async function createHttpServer(queryEngine, options = {}) {
       return reply.code(404).send({ error: `project not indexed: ${projectRoot}` });
     }
 
-    // --- Resolve scope (D-06) -------------------------------------------------
+    // Resolve scope  -------------------------------------------------
     let scope; // "connection" | "source" | "all"
     let rows;
     try {
@@ -516,7 +516,7 @@ async function createHttpServer(queryEngine, options = {}) {
 
     const total = rows.length;
 
-    // D-03: 1000-connection cap, only for unscoped --all invocations.
+    // 1000-connection cap, only for unscoped --all invocations.
     if (scope === "all" && total > 1000) {
       return reply.send({
         results: [],
@@ -540,7 +540,7 @@ async function createHttpServer(queryEngine, options = {}) {
   // 2. GET /projects — list all projects with DBs
   fastify.get("/projects", async (_request, reply) => {
     try {
-      // PII-03: mask absolute project paths before egress.
+      // mask absolute project paths before egress.
       return reply.send(maskHomeDeep(listProjects()));
     } catch (err) {
       httpLog('ERROR', err.message, { route: '/projects', stack: err.stack });
@@ -579,7 +579,7 @@ async function createHttpServer(queryEngine, options = {}) {
         }
       } catch { /* no config file or no boundaries key — return empty array */ }
 
-      // PII-03: mask repo_path / root_path / repo_name absolute prefixes
+      // mask repo_path / root_path / repo_name absolute prefixes
       // (services[].root_path, services[].repo_path from query-engine.js:1591).
       return reply.send(maskHomeDeep({ ...graph, boundaries }));
     } catch (err) {

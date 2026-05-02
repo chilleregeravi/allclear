@@ -238,7 +238,7 @@ async function main() {
     flags.out || path.join(".arcanon", "reports", new Date().toISOString().replace(/[:.]/g, "-")),
   );
 
-  // PII-05: mask absolute repo paths in services[].root_path /
+  // mask absolute repo paths in services[].root_path /
   // services[].repo_path before any of the four downstream emitters
   // (toMermaid, toDot, toHtml, JSON) sees the data. Single edit covers all
   // four formats; html escaping leaves '~' untouched.

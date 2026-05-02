@@ -157,8 +157,8 @@ test("uploadScan validates apiKey and hubUrl are present", async () => {
   );
 });
 
-// AUTH-01 Test C1 — X-Org-Id header is sent on every upload
-test("AUTH-01 C1: uploadScan sends X-Org-Id header when orgId is provided", async () => {
+// Test C1 — X-Org-Id header is sent on every upload
+test("uploadScan sends X-Org-Id header when orgId is provided", async () => {
   let captured = null;
   const fetchImpl = async (url, init) => {
     captured = { url, init };
@@ -173,8 +173,8 @@ test("AUTH-01 C1: uploadScan sends X-Org-Id header when orgId is provided", asyn
   assert.equal(captured.init.headers["X-Org-Id"], "org-1");
 });
 
-// AUTH-01 Test C2 — missing orgId throws HubError BEFORE any fetch invocation
-test("AUTH-01 C2: missing orgId throws HubError(status=400, code='missing_org_id') before fetch", async () => {
+// Test C2 — missing orgId throws HubError BEFORE any fetch invocation
+test("missing orgId throws HubError(status=400, code='missing_org_id') before fetch", async () => {
   let calls = 0;
   const fetchImpl = async () => {
     calls++;
@@ -200,8 +200,8 @@ test("AUTH-01 C2: missing orgId throws HubError(status=400, code='missing_org_id
   assert.equal(calls, 0, "fakeFetch must NOT be called when orgId is missing");
 });
 
-// AUTH-01 Test C3 — HubError gains a .code field (additive, default null)
-test("AUTH-01 C3: HubError.code defaults to null when no code is passed", () => {
+// Test C3 — HubError gains a .code field (additive, default null)
+test("HubError.code defaults to null when no code is passed", () => {
   const err = new HubError("some message", { status: 500 });
   assert.equal(err.code, null);
   // Existing fields unchanged.
@@ -211,8 +211,8 @@ test("AUTH-01 C3: HubError.code defaults to null when no code is passed", () => 
   assert.equal(err.attempts, null);
 });
 
-// AUTH-01 Test C4 — body.title fallback preserved (forward-compat with codes the plugin doesn't recognize)
-test("AUTH-01 C4: 4xx response with body.title still surfaces title in error message", async () => {
+// Test C4 — body.title fallback preserved (forward-compat with codes the plugin doesn't recognize)
+test("4xx response with body.title still surfaces title in error message", async () => {
   const fetchImpl = async () =>
     jsonResponse(422, { title: "validation failed", detail: "bad field", code: "future_unknown_code" });
   await assert.rejects(
@@ -236,11 +236,11 @@ test("AUTH-01 C4: 4xx response with body.title still surfaces title in error mes
   );
 });
 
-// AUTH-08 / AUTH-10: Each of the 7 RFC 7807 server error codes must surface as
+// Each of the 7 RFC 7807 server error codes must surface as
 // its own HubError with .code populated and a recognisable user message.
-// Substring matching (NOT exact equality) so Phase 125 copy edits don't fail
-// the regression suite. This is the auth-test-suite gate (REQ AUTH-10).
-test("AUTH-10 M-AUTH-08: 7 server error codes each surface a distinct HubError with .code populated", async () => {
+// Substring matching (NOT exact equality) so  copy edits don't fail
+// the regression suite. This is the auth-test-suite gate (REQ ).
+test("7 server error codes each surface a distinct HubError with .code populated", async () => {
   const CASES = [
     { code: "missing_x_org_id", status: 400, expectedSubstring: "x-org-id" },
     { code: "invalid_x_org_id", status: 400, expectedSubstring: "uuid" },
