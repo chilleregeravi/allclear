@@ -114,7 +114,7 @@ ENRICHMENT="$(
   [[ -n "$DATA_DIR" ]] || exit 0
 
   DB_PATH="${DATA_DIR}/projects/${PROJECT_HASH}/impact-map.db"
-  [[ -f "$DB_PATH" ]] || exit 0  # SSE-05: non-Arcanon dir — silent no-op
+  [[ -f "$DB_PATH" ]] || exit 0  # non-Arcanon dir — silent no-op
 
   # Validate DB integrity before any real query (: corrupt DB => silent fallback)
   sqlite3 "$DB_PATH" "PRAGMA quick_check;" 2>/dev/null | grep -q '^ok$' || exit 0

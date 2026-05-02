@@ -91,7 +91,7 @@ function freshDbPre016() {
   return { db, repoId, svId };
 }
 
-describe('QueryEngine enrichment-log API (Plan 111-03 / TRUST-06, TRUST-14)', () => {
+describe('QueryEngine enrichment-log API', () => {
   it('Test 1 — logEnrichment writes a row matching all fields, with created_at populated', () => {
     const { db, svId } = freshDb();
     const qe = new QueryEngine(db);

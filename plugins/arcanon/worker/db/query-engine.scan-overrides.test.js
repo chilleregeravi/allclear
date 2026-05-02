@@ -93,7 +93,7 @@ function freshDbPre017() {
   return { db, repoId, svId };
 }
 
-describe('QueryEngine scan-overrides API (Plan 117-01 / CORRECT-01, CORRECT-02)', () => {
+describe('QueryEngine scan-overrides API', () => {
   it('Test 1 — upsertOverride round-trip: insert one of each kind/action; getPendingOverrides returns 4 rows in stable order', () => {
     const { db } = freshDb();
     const qe = new QueryEngine(db);

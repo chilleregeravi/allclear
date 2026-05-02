@@ -242,7 +242,7 @@ describe("search() — Tier 1 (ChromaDB fallback when unavailable)", () => {
 // prepared statement cache 
 // ---------------------------------------------------------------------------
 
-describe("search() -- prepared statement cache (REL-04)", () => {
+describe("search() -- prepared statement cache", () => {
   test("reuses prepared statements for identical queries", async () => {
     // Clear the cache so we start from a known state
     _stmtCache.clear();

@@ -204,7 +204,7 @@ const baseFindings = (connOverride) => ({
 // tests
 // ---------------------------------------------------------------------------
 
-describe("TRUST-02 evidence rejection in persistFindings (TRUST-10)", () => {
+describe("evidence rejection in persistFindings", () => {
   it("persists when evidence appears verbatim in source_file (happy path)", async () => {
     const { db, repoId, qe, tmpRoot } = await freshEngineWithTempRepo();
     fs.mkdirSync(path.join(tmpRoot, "src"));
@@ -222,7 +222,7 @@ describe("TRUST-02 evidence rejection in persistFindings (TRUST-10)", () => {
     assert.equal(n, 1);
   });
 
-  it("skips and warns when evidence is prose with no substring match (TRUST-10 primary)", async () => {
+  it("skips and warns when evidence is prose with no substring match", async () => {
     const { db, repoId, qe, tmpRoot } = await freshEngineWithTempRepo();
     fs.mkdirSync(path.join(tmpRoot, "src"));
     fs.writeFileSync(

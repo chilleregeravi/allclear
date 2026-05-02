@@ -44,7 +44,7 @@ if [[ "$MODE" == "--kill" ]]; then
     if [[ -n "$_lock_pid" ]] && kill -0 "$_lock_pid" 2>/dev/null; then
       printf '{"status":"scan_in_progress","lock_pid":"%s","message":"A scan is currently running (PID %s). Wait for it to finish or cancel it before updating."}\n' \
         "$_lock_pid" "$_lock_pid"
-      exit 0  # REQ UPD-07: abort gracefully, not an error. commands/update.md reads status.
+      exit 0  # abort gracefully, not an error. commands/update.md reads status.
     fi
     # Stale lock — ignore it and proceed.
     rm -f "$SCAN_LOCK"

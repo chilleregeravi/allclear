@@ -255,7 +255,7 @@ teardown() {
 # ---------------------------------------------------------------------------
 # 9 —  unit-gate: findings.pii06.test.js exits 0.
 # ---------------------------------------------------------------------------
-@test "PII-bats-09: parseAgentOutput rejects absolute source_file (PII-06 unit gate)" {
+@test "PII-bats-09: parseAgentOutput rejects absolute source_file" {
   cd "$PLUGIN_ROOT"
   run node --test worker/scan/findings.pii06.test.js
   assert_success

@@ -25,7 +25,7 @@ function seedDb(withMig010 = true) {
   return { db, svcId, scanVer, qe: new QueryEngine(db) };
 }
 
-describe('QueryEngine dependencies API (DEP-08)', () => {
+describe('QueryEngine dependencies API', () => {
   it('upsertDependency preserves row id across repeat upserts', () => {
     const { svcId, qe, scanVer } = seedDb();
     const id1 = qe.upsertDependency({

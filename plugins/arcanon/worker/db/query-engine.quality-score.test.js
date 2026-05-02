@@ -113,7 +113,7 @@ function seedScan(qe, repoId, { high = 0, low = 0, nullCount = 0 } = {}) {
   return { serviceA, serviceB, scanVersionId };
 }
 
-describe('QueryEngine quality-score wiring (Plan 111-02 / TRUST-05, TRUST-13)', () => {
+describe('QueryEngine quality-score wiring', () => {
   it('Test 1 — mixed (8 high + 2 low) → quality_score === 0.9', () => {
     const { db, repoId } = freshDb();
     const qe = new QueryEngine(db);

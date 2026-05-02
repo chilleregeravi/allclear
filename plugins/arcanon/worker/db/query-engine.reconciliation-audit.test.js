@@ -121,7 +121,7 @@ function runStep5AuditWrite(db, qe, findings, repoId, scanVersionId) {
   }
 }
 
-describe('reconciliation → enrichment_log integration (Plan 111-03 / TRUST-06, TRUST-14)', () => {
+describe('reconciliation → enrichment_log integration', () => {
   it('one external→cross-service reclassification produces one audit row with the locked schema', () => {
     const db = freshDb();
     const qe = new QueryEngine(db);
