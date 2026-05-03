@@ -22,3 +22,23 @@ AGENTS.md
 *.key
 credentials.json
 secrets.json
+
+# GSD planning working artifacts — not shipped to users via marketplace install,
+# not part of the runtime, not needed by anyone outside this project's own
+# Claude/GSD sessions. The high-level project surface (.planning/PROJECT.md,
+# ROADMAP.md, MILESTONES.md, RETROSPECTIVE.md) and the curated milestone
+# archives (.planning/milestones/v*-ROADMAP.md, -REQUIREMENTS.md,
+# -MILESTONE-AUDIT.md) stay tracked for contributor visibility on GitHub.
+# Per GSD's `planning.commit_docs` config: this is the documented OSS pattern.
+.planning/STATE.md
+.planning/PREDECESSOR-SURFACE.md
+.planning/REQUIREMENTS.md
+.planning/v*-RELEASE-AUDIT.md
+.planning/v*-MILESTONE-AUDIT.md
+.planning/phases/
+.planning/milestones/v*-phases/
+.planning/codebase/
+.planning/intel/
+.planning/research/
+.planning/designs/
+.planning/scripts/
